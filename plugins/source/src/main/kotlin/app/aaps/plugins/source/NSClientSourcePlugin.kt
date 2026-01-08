@@ -28,7 +28,6 @@ class NSClientSourcePlugin @Inject constructor(
 ) : PluginBase(
     PluginDescription()
         .mainType(PluginType.BGSOURCE)
-        .fragmentClass(BGSourceFragment::class.java.name)
         .composeContent {
             BgSourceComposeContent(
                 persistenceLayer = persistenceLayer,

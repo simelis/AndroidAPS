@@ -22,7 +22,6 @@ import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.logging.AAPSLogger
-import app.aaps.core.interfaces.plugin.PluginBase
 import app.aaps.core.interfaces.plugin.PluginDescription
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.interfaces.pump.VirtualPump
@@ -53,14 +52,13 @@ class RandomBgPlugin @Inject constructor(
     aapsLogger: AAPSLogger,
     private val persistenceLayer: PersistenceLayer,
     private val virtualPump: VirtualPump,
-    private val preferences: Preferences,
-    private val config: Config,
+    preferences: Preferences,
+    config: Config,
     dateUtil: DateUtil,
     profileUtil: ProfileUtil
-) : PluginBase(
+) : AbstractBgSourcePlugin(
     PluginDescription()
         .mainType(PluginType.BGSOURCE)
-        .fragmentClass(BGSourceFragment::class.java.name)
         .composeContent {
             BgSourceComposeContent(
                 persistenceLayer = persistenceLayer,
@@ -77,7 +75,10 @@ class RandomBgPlugin @Inject constructor(
         .shortName(R.string.random_bg_short)
         .preferencesVisibleInSimpleMode(false)
         .description(R.string.description_source_random_bg),
-    aapsLogger, rh
+    aapsLogger = aapsLogger,
+    rh = rh,
+    preferences = preferences,
+    config = config
 ), BgSource {
 
     @VisibleForTesting

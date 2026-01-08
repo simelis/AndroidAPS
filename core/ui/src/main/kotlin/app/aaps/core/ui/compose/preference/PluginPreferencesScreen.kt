@@ -1,6 +1,6 @@
-package app.aaps.compose.preferences
+package app.aaps.core.ui.compose.preference
 
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -17,22 +16,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import app.aaps.R
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.plugin.PluginBase
 import app.aaps.core.interfaces.plugin.PluginBaseWithPreferences
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.keys.interfaces.PreferenceVisibilityContext
-import app.aaps.core.ui.compose.preference.addPreferenceContent
-import app.aaps.core.ui.compose.preference.LocalVisibilityContext
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
-import app.aaps.core.ui.compose.preference.ProvidePreferenceTheme
-import app.aaps.core.ui.compose.preference.rememberPreferenceSectionState
-import app.aaps.core.ui.compose.preference.verticalScrollIndicators
-import app.aaps.core.ui.compose.preference.navigable.NavigablePreferenceContent
-import app.aaps.core.ui.compose.preference.navigable.PreferenceNavigationHost
 
 /**
  * Screen for displaying plugin preferences using Compose.
@@ -54,12 +46,12 @@ fun PluginPreferencesScreen(
     onBackClick: () -> Unit
 ) {
     val preferenceScreenContent = plugin.getPreferenceScreenContent()
-    val title = stringResource(R.string.nav_preferences_plugin, plugin.name)
+    val title = plugin.name
 
     ProvidePreferenceTheme {
         when (preferenceScreenContent) {
             is PreferenceSubScreenDef -> {
-                // New pattern: PreferenceSubScreenDef - use same rendering as AllPreferencesScreen
+                // PreferenceSubScreenDef - use same rendering as AllPreferencesScreen
                 SinglePluginPreferencesRenderer(
                     screen = preferenceScreenContent,
                     title = title,
@@ -71,16 +63,7 @@ fun PluginPreferencesScreen(
                 )
             }
 
-            is NavigablePreferenceContent -> {
-                // Legacy pattern: NavigablePreferenceContent with separate compose class
-                PreferenceNavigationHost(
-                    content = preferenceScreenContent,
-                    title = title,
-                    onBackClick = onBackClick
-                )
-            }
-
-            else                          -> {
+            else                      -> {
                 // Fallback for plugins without compose preferences
                 Scaffold(
                     topBar = {
@@ -100,17 +83,18 @@ fun PluginPreferencesScreen(
                                 }
                             }
                         )
-                    }
+                    },
+                    containerColor = MaterialTheme.colorScheme.background
                 ) { paddingValues ->
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(paddingValues)
+                            .padding(paddingValues),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "No compose preferences available for this plugin",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(paddingValues)
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
@@ -134,8 +118,38 @@ private fun SinglePluginPreferencesRenderer(
     visibilityContext: PreferenceVisibilityContext?,
     onBackClick: () -> Unit
 ) {
-    val preferences = (plugin as? PluginBaseWithPreferences)?.preferences
-        ?: return Text("Plugin does not support preferences")
+    val pluginWithPrefs = plugin as? PluginBaseWithPreferences
+    if (pluginWithPrefs == null) {
+        // Plugin doesn't support preferences - show message in proper container
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(title) },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Plugin does not support preferences",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+        return
+    }
+
+    val preferences = pluginWithPrefs.preferences
 
     val sectionState = rememberPreferenceSectionState()
 
@@ -162,7 +176,8 @@ private fun SinglePluginPreferencesRenderer(
                     }
                 }
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         val listState = rememberLazyListState()
 

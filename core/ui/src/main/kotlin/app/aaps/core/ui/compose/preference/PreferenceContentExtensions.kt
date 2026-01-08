@@ -9,18 +9,16 @@ import androidx.compose.ui.unit.dp
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.keys.interfaces.BooleanPreferenceKey
-import app.aaps.core.keys.interfaces.IntentPreferenceKey
 import app.aaps.core.keys.interfaces.IntPreferenceKey
+import app.aaps.core.keys.interfaces.IntentPreferenceKey
 import app.aaps.core.keys.interfaces.LongPreferenceKey
 import app.aaps.core.keys.interfaces.PreferenceKey
-import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.keys.interfaces.PreferenceVisibilityContext
-import app.aaps.core.ui.compose.preference.navigable.NavigablePreferenceContent
-import app.aaps.core.ui.compose.preference.navigable.addNavigablePreferenceContent
+import app.aaps.core.keys.interfaces.Preferences
 
 /**
- * Helper function to add any preference content (legacy or new) inline in a LazyListScope.
- * Handles both NavigablePreferenceContent (legacy) and PreferenceSubScreenDef (new).
+ * Helper function to add preference content inline in a LazyListScope.
+ * Handles PreferenceSubScreenDef only.
  */
 fun LazyListScope.addPreferenceContent(
     content: Any,
@@ -30,7 +28,6 @@ fun LazyListScope.addPreferenceContent(
     profileUtil: ProfileUtil? = null
 ) {
     when (content) {
-        is NavigablePreferenceContent -> addNavigablePreferenceContent(content, sectionState)
         is PreferenceSubScreenDef -> addPreferenceSubScreenDef(content, sectionState, preferences, config, profileUtil)
     }
 }
@@ -64,7 +61,7 @@ fun LazyListScope.addPreferenceSubScreenDef(
             } else {
                 // Render items in order, preserving the original structure
                 RenderPreferenceItems(
-                    items = def.effectiveItems,
+                    items = def.items,
                     parentKey = def.key,
                     sectionState = sectionState,
                     preferences = preferences,
@@ -135,12 +132,12 @@ private fun RenderPreferenceItems(
                             item.customContent.invoke(sectionState)
                         } else if (preferences != null && config != null) {
                             // Auto-render nested subscreen items (including DialogIntentPreference)
-                            if (item.effectiveItems.isNotEmpty()) {
+                            if (item.items.isNotEmpty()) {
                                 Column(
                                     modifier = Modifier.padding(start = 16.dp)
                                 ) {
                                     AdaptivePreferenceList(
-                                        items = item.effectiveItems,
+                                        items = item.items,
                                         preferences = preferences,
                                         config = config,
                                         profileUtil = profileUtil,
@@ -169,7 +166,7 @@ private fun shouldShowSubScreenInline(
     visibilityContext: PreferenceVisibilityContext?
 ): Boolean {
     // Find items with hideParentScreenIfHidden = true
-    for (item in subScreen.effectiveItems) {
+    for (item in subScreen.items) {
         if (item is PreferenceKey && item.hideParentScreenIfHidden) {
             val visibility = if (item is IntentPreferenceKey) {
                 // Check visibility of intent item

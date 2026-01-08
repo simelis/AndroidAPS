@@ -9,14 +9,13 @@ import androidx.compose.runtime.Composable
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.keys.interfaces.BooleanPreferenceKey
-import app.aaps.core.keys.interfaces.IntentPreferenceKey
 import app.aaps.core.keys.interfaces.IntPreferenceKey
+import app.aaps.core.keys.interfaces.IntentPreferenceKey
 import app.aaps.core.keys.interfaces.LongPreferenceKey
 import app.aaps.core.keys.interfaces.PreferenceItem
 import app.aaps.core.keys.interfaces.PreferenceKey
-import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.keys.interfaces.PreferenceVisibilityContext
-import app.aaps.core.ui.compose.preference.navigable.NavigablePreferenceItem
+import app.aaps.core.keys.interfaces.Preferences
 
 /**
  * Renders a list of preference items (keys, subscreens, custom items).
@@ -60,22 +59,8 @@ fun AdaptivePreferenceList(
             }
 
             is PreferenceSubScreenDef -> {
-                // Handle subscreens as navigation items
-                // Check hideParentScreenIfHidden - if first item with this flag is hidden, hide subscreen
-                val shouldShow = shouldShowSubScreen(
-                    subScreen = item,
-                    preferences = preferences,
-                    config = config,
-                    visibilityContext = visibilityContext
-                )
-                if (onNavigateToSubScreen != null && shouldShow) {
-                    NavigablePreferenceItem(
-                        titleResId = item.titleResId,
-                        summaryResId = item.summaryResId,
-                        summaryItems = item.effectiveSummaryItems(),
-                        onClick = { onNavigateToSubScreen(item) }
-                    )
-                }
+                // Subscreens are handled by PreferenceContentExtensions as nested collapsible sections
+                // Not rendered here in the flat list
             }
 
             is DialogIntentPreference -> {
@@ -120,7 +105,7 @@ private fun shouldShowSubScreen(
     visibilityContext: PreferenceVisibilityContext?
 ): Boolean {
     // Find items with hideParentScreenIfHidden = true
-    for (item in subScreen.effectiveItems) {
+    for (item in subScreen.items) {
         if (item is PreferenceKey && item.hideParentScreenIfHidden) {
             val visibility = if (item is IntentPreferenceKey) {
                 // Check visibility of intent item

@@ -12,7 +12,6 @@ import app.aaps.core.keys.interfaces.PreferenceKey
  * @param key Unique key for this subscreen
  * @param titleResId String resource ID for the screen title
  * @param items List of preference items (keys and/or nested subscreens)
- * @param keys Legacy parameter for backward compatibility - use items instead
  * @param summaryResId Optional string resource ID for summary shown in parent list
  * @param customContent Optional custom content - when null, content is auto-generated from items
  */
@@ -20,20 +19,14 @@ data class PreferenceSubScreenDef(
     val key: String,
     val titleResId: Int,
     val items: List<PreferenceItem> = emptyList(),
-    @Deprecated("Use items instead", ReplaceWith("items"))
-    val keys: List<PreferenceKey> = emptyList(),
     val summaryResId: Int? = null,
     @Deprecated("Use PURE declarative preferences with items list. Visibility/enabled conditions should be in PreferenceKey definitions.")
     val customContent: (@Composable (PreferenceSectionState?) -> Unit)? = null
 ) : PreferenceItem {
 
-    /** Effective items - use items if provided, otherwise fall back to keys for backward compatibility */
-    val effectiveItems: List<PreferenceItem>
-        get() = if (items.isNotEmpty()) items else keys
-
     /** Effective summary items - from items' titleResId */
     fun effectiveSummaryItems(): List<Int> =
-        effectiveItems.mapNotNull { item ->
+        items.mapNotNull { item ->
             when (item) {
                 is PreferenceKey -> item.titleResId.takeIf { it != 0 }
                 is PreferenceSubScreenDef -> item.titleResId.takeIf { it != 0 }

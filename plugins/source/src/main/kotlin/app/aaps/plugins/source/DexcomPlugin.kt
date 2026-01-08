@@ -44,9 +44,8 @@ class DexcomPlugin @Inject constructor(
     dateUtil: DateUtil,
     profileUtil: ProfileUtil
 ) : AbstractBgSourceWithSensorInsertLogPlugin(
-    PluginDescription()
+    pluginDescription = PluginDescription()
         .mainType(PluginType.BGSOURCE)
-        .fragmentClass(BGSourceFragment::class.java.name)
         .composeContent {
             BgSourceComposeContent(
                 persistenceLayer = persistenceLayer,
@@ -63,7 +62,9 @@ class DexcomPlugin @Inject constructor(
         .shortName(R.string.dexcom_short)
         .preferencesVisibleInSimpleMode(false)
         .description(R.string.description_source_dexcom),
-    aapsLogger, rh, preferences, config
+    aapsLogger = aapsLogger,
+    rh = rh,
+    preferences = preferences
 ), BgSource, DexcomBoyda {
 
     init {

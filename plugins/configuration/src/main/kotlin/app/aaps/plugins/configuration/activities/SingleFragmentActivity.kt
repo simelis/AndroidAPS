@@ -25,17 +25,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.view.MenuProvider
+import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.overview.Overview
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.plugin.PluginBase
 import app.aaps.core.interfaces.plugin.PluginDescription
+import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.interfaces.protection.ProtectionCheck
 import app.aaps.core.interfaces.ui.UiInteraction
+import app.aaps.core.keys.interfaces.PreferenceVisibilityContext
 import app.aaps.core.ui.compose.AapsTheme
 import app.aaps.core.ui.compose.ComposablePluginContent
 import app.aaps.core.ui.compose.LocalPreferences
 import app.aaps.core.ui.compose.LocalRxBus
 import app.aaps.core.ui.compose.ToolbarConfig
+import app.aaps.core.ui.compose.preference.PluginPreferencesScreen
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.plugins.configuration.R
 import javax.inject.Inject
 
@@ -45,6 +50,9 @@ class SingleFragmentActivity : DaggerAppCompatActivityWithResult() {
     @Inject lateinit var protectionCheck: ProtectionCheck
     @Inject lateinit var uiInteraction: UiInteraction
     @Inject lateinit var overview: Overview
+    @Inject lateinit var config: Config
+    @Inject lateinit var profileUtil: ProfileUtil
+    @Inject lateinit var visibilityContext: PreferenceVisibilityContext
 
     private var plugin: PluginBase? = null
 
@@ -56,6 +64,9 @@ class SingleFragmentActivity : DaggerAppCompatActivityWithResult() {
             actions = { }
         )
     )
+
+    // State to track if showing compose preferences (only in compose context)
+    private var showingComposePreferences by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,29 +114,43 @@ class SingleFragmentActivity : DaggerAppCompatActivityWithResult() {
                 LocalRxBus provides rxBus
             ) {
                 AapsTheme {
-                    Scaffold(
-                        topBar = {
-                            TopAppBar(
-                                title = { Text(toolbarConfig.title) },
-                                navigationIcon = { toolbarConfig.navigationIcon() },
-                                actions = { toolbarConfig.actions(this) }
-                            )
-                        }
-                    ) { paddingValues ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(paddingValues)
-                        ) {
-                            // Invoke the Compose content via ComposablePluginContent interface
-                            if (composeContent is ComposablePluginContent) {
-                                composeContent.Render(
-                                    setToolbarConfig = { config -> toolbarConfig = config },
-                                    onNavigateBack = { onBackPressedDispatcher.onBackPressed() },
-                                    onSettings = if (shouldShowPreferencesMenu(plugin)) {
-                                        { openPluginPreferences(plugin) }
-                                    } else null
+                    if (showingComposePreferences) {
+                        // Show compose preferences
+                        PluginPreferencesScreen(
+                            plugin = plugin,
+                            config = config,
+                            profileUtil = profileUtil,
+                            visibilityContext = visibilityContext,
+                            onBackClick = {
+                                showingComposePreferences = false
+                            }
+                        )
+                    } else {
+                        // Show plugin content
+                        Scaffold(
+                            topBar = {
+                                TopAppBar(
+                                    title = { Text(toolbarConfig.title) },
+                                    navigationIcon = { toolbarConfig.navigationIcon() },
+                                    actions = { toolbarConfig.actions(this) }
                                 )
+                            }
+                        ) { paddingValues ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(paddingValues)
+                            ) {
+                                // Invoke the Compose content via ComposablePluginContent interface
+                                if (composeContent is ComposablePluginContent) {
+                                    composeContent.Render(
+                                        setToolbarConfig = { config -> toolbarConfig = config },
+                                        onNavigateBack = { onBackPressedDispatcher.onBackPressed() },
+                                        onSettings = if (shouldShowPreferencesMenu(plugin)) {
+                                            { openPluginPreferences(plugin) }
+                                        } else null
+                                    )
+                                }
                             }
                         }
                     }
@@ -187,10 +212,16 @@ class SingleFragmentActivity : DaggerAppCompatActivityWithResult() {
 
     private fun openPluginPreferences(plugin: PluginBase) {
         protectionCheck.queryProtection(this, ProtectionCheck.Protection.PREFERENCES, {
-            val i = Intent(this, uiInteraction.preferencesActivity)
-                .setAction("app.aaps.plugins.configuration.activities.SingleFragmentActivity")
-                .putExtra(UiInteraction.PLUGIN_NAME, plugin.javaClass.simpleName)
-            startActivity(i)
+            // If we're in compose content AND plugin has compose preferences, show them in-place
+            if (plugin.hasComposeContent() && plugin.getPreferenceScreenContent() is PreferenceSubScreenDef) {
+                showingComposePreferences = true
+            } else {
+                // Otherwise use legacy PreferencesActivity
+                val i = Intent(this, uiInteraction.preferencesActivity)
+                    .setAction("app.aaps.plugins.configuration.activities.SingleFragmentActivity")
+                    .putExtra(UiInteraction.PLUGIN_NAME, plugin.javaClass.simpleName)
+                startActivity(i)
+            }
         }, null)
     }
 }
