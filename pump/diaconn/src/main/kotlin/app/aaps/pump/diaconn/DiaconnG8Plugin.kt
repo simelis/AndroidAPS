@@ -48,6 +48,8 @@ import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.Round
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.keys.interfaces.withActivity
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.validators.preferences.AdaptiveIntentPreference
@@ -511,11 +513,18 @@ class DiaconnG8Plugin @Inject constructor(
 
     override fun clearAllTables() = diaconnHistoryDatabase.clearAllTables()
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = DiaconnG8PreferencesCompose(
-        preferences = preferences,
-        config = config,
-        btSelectorActivityClass = DiaconnG8BLEScanActivity::class.java
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "diaconn_settings",
+        titleResId = R.string.diaconn_g8_pump,
+        items = listOf(
+            DiaconnIntentKey.BtSelector.withActivity(DiaconnG8BLEScanActivity::class.java),
+            DiaconnIntKey.BolusSpeed,
+            DiaconnBooleanKey.LogInsulinChange,
+            DiaconnBooleanKey.LogCannulaChange,
+            DiaconnBooleanKey.LogTubeChange,
+            DiaconnBooleanKey.LogBatteryChange,
+            DiaconnBooleanKey.SendLogsToCloud
+        )
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

@@ -48,6 +48,8 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.interfaces.utils.Round
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.keys.interfaces.withActivity
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.validators.DefaultEditTextValidator
@@ -590,8 +592,17 @@ class DanaRSPlugin @Inject constructor(
 
     override fun clearAllTables() = danaHistoryDatabase.clearAllTables()
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = DanaRSPreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "danars_settings",
+        titleResId = app.aaps.pump.dana.R.string.danarspump,
+        items = listOf(
+            DanaIntentKey.BtSelector.withActivity(BLEScanActivity::class.java),
+            DanaStringKey.Password,
+            DanaIntKey.BolusSpeed,
+            DanaBooleanKey.LogInsulinChange,
+            DanaBooleanKey.LogCannulaChange
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {

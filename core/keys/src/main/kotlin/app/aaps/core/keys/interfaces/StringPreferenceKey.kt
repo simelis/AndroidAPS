@@ -52,3 +52,29 @@ class StringKeyWithEntries(
  */
 fun StringPreferenceKey.withEntries(entries: Map<String, String>): StringPreferenceKey =
     StringKeyWithEntries(this, entries)
+
+/**
+ * Wrapper that attaches a context-dependent entries provider to a StringPreferenceKey.
+ * The provider is called at compose time with the current Context.
+ * If the provider returns an empty map, shows a disabled preference with the empty message.
+ */
+class StringKeyWithEntriesProvider(
+    private val delegate: StringPreferenceKey,
+    val entriesProvider: (android.content.Context) -> Map<String, String>,
+    val emptyEntriesMessageResId: Int? = null
+) : StringPreferenceKey by delegate
+
+/**
+ * Creates a new StringPreferenceKey with a context-dependent entries provider.
+ * Use this when entries need to be resolved at compose time with Context access
+ * (e.g., Bluetooth devices requiring permission checks).
+ *
+ * @param provider Function that takes Context and returns Map of stored value -> label
+ * @param emptyEntriesMessageResId Optional resource ID for message to show when entries are empty
+ * @return A new StringKeyWithEntriesProvider
+ */
+fun StringPreferenceKey.withEntriesProvider(
+    provider: (android.content.Context) -> Map<String, String>,
+    emptyEntriesMessageResId: Int? = null
+): StringKeyWithEntriesProvider =
+    StringKeyWithEntriesProvider(this, provider, emptyEntriesMessageResId)

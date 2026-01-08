@@ -45,6 +45,7 @@ import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
 import app.aaps.plugins.sync.xdrip.keys.XdripIntentKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.extensions.generateCOBString
 import app.aaps.core.objects.extensions.round
 import app.aaps.core.objects.extensions.toStringShort
@@ -377,8 +378,22 @@ class XdripPlugin @Inject constructor(
         }
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = XdripPreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "xdrip_settings",
+        titleResId = R.string.xdrip,
+        items = listOf(
+            XdripIntentKey.Info,
+            BooleanKey.XdripSendStatus,
+            PreferenceSubScreenDef(
+                key = "xdrip_advanced",
+                titleResId = R.string.xdrip_status_settings,
+                items = listOf(
+                    BooleanKey.XdripSendDetailedIob,
+                    BooleanKey.XdripSendBgi
+                )
+            )
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {

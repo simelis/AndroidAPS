@@ -43,6 +43,8 @@ import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.StringKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.keys.interfaces.withEntries
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.utils.fabric.InstanceId
 import app.aaps.core.validators.preferences.AdaptiveListPreference
 import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
@@ -359,8 +361,19 @@ open class VirtualPumpPlugin @Inject constructor(
 
     override fun timezoneOrDSTChanged(timeChangeType: TimeChangeType) {}
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = VirtualPumpPreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "virtual_pump_settings",
+        titleResId = R.string.virtualpump_settings,
+        items = listOf(
+            StringKey.VirtualPumpType.withEntries(
+                PumpType.entries
+                    .filter { it.description != "USER" }
+                    .sortedBy { it.description }
+                    .associate { it.description to it.description }
+            ),
+            BooleanKey.VirtualPumpStatusUpload
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {

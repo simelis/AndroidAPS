@@ -226,7 +226,19 @@ Migrate all `NavigablePreferenceContent` implementations to `PreferenceSubScreen
 3. Convert `subscreens` to nested `PreferenceSubScreenDef` items
 4. Move the definition directly into the plugin's `getPreferenceScreenContent()`
 5. Remove the separate compose class file
-6. Test navigation and preference rendering
+6. **Verify against legacy `addPreferenceScreen()`:**
+   - a. Compare screen/category `key` matches
+   - b. Compare `title`/`titleResId` matches
+   - c. Compare preference list: same keys, same order
+   - d. Compare subscreens: same keys, same nested preferences
+   - e. Compare special behaviors (e.g., Bluetooth list, dynamic entries)
+   - f. Document any intentional differences
+7. Compile and verify build succeeds
+8. **Verify `preprocessPreferences()` logic (if present):**
+   - Some plugins have `preprocessPreferences()` that modifies preference behavior for legacy code
+   - Check if logic needs to be adapted to PURE preferences (e.g., dynamic entries, visibility)
+   - Plugins with `preprocessPreferences`: MedtrumPlugin, ComboV2Plugin, SmsCommunicatorPlugin, OpenAPSAutoISFPlugin, OpenAPSSMBPlugin
+9. (Optional) Runtime test: navigation and preference rendering
 
 ### Benefits of Migration
 - Simpler, more declarative code
@@ -516,23 +528,7 @@ items = listOf(
         items = listOf(BooleanKey.X, BooleanKey.Y)
     )
 )
-```
 
-### Migration Pattern: Custom Visibility (Hybrid)
-
-For complex visibility, use `customContent`:
-
-```kotlin
-PreferenceSubScreenDef(
-    key = "foo",
-    titleResId = R.string.foo,
-    items = listOf(...),  // For reference/documentation
-    customContent = { _ ->
-        // Custom filtering/rendering logic here
-        val filteredKeys by remember { derivedStateOf { ... } }
-        AdaptivePreferenceListForListKeys(keys = filteredKeys, ...)
-    }
-)
 ```
 
 ---
@@ -584,22 +580,41 @@ PreferenceSubScreenDef(
   - Handles: BooleanPreferenceKey, IntPreferenceKey, LongPreferenceKey, IntentPreferenceKey
 
 ### Phase 1: Migrate Simple Plugins (no dynamic visibility)
-- [ ] VirtualPumpPreferencesCompose.kt
-- [ ] DanaRPreferencesCompose.kt
-- [ ] DanaRSPreferencesCompose.kt
-- [ ] DiaconnG8PreferencesCompose.kt
-- [ ] EopatchPreferencesCompose.kt
-- [ ] EquilPreferencesCompose.kt
-- [ ] InsightPreferencesCompose.kt
-- [ ] MedtrumPreferencesCompose.kt
-- [ ] GarminPreferencesCompose.kt
-- [ ] OpenHumansPreferencesCompose.kt
-- [ ] TidepoolPreferencesCompose.kt
-- [ ] XdripPreferencesCompose.kt
-- [ ] SensitivityAAPSPreferencesCompose.kt
-- [ ] SensitivityOref1PreferencesCompose.kt
-- [ ] RandomBgPreferencesCompose.kt
-- [ ] InsulinOrefFreePeakPreferencesCompose.kt
+
+**NOTES:**
+- Pause after every 5-6 simple plugins or 1 complex plugin for build verification.
+- If migration to PURE declarative preferences is not possible/easy, pause and elaborate before using `customContent`.
+- Re-check recently migrated code for potential improvements.
+
+**Improvements Made:**
+- Added `StringKeyWithEntriesProvider` and `withEntriesProvider()` extension for context-dependent entries with empty message fallback
+- This eliminates need for `customContent` in DanaR (Bluetooth device list pattern)
+- Migrated DanaRv2Plugin and DanaRKoreanPlugin to use same `withEntriesProvider` pattern (were sharing DanaRPreferencesCompose.kt)
+
+- [x] VirtualPumpPreferencesCompose.kt ✅
+- [x] DanaRPreferencesCompose.kt ✅ (uses `withEntriesProvider` for Bluetooth device list)
+- [x] DanaRv2Plugin ✅ (was using DanaRPreferencesCompose, now has own PreferenceSubScreenDef with `withEntriesProvider`)
+- [x] DanaRKoreanPlugin ✅ (was using DanaRPreferencesCompose, now has own PreferenceSubScreenDef with `withEntriesProvider`)
+- [x] DanaRSPreferencesCompose.kt ✅
+- [x] DiaconnG8PreferencesCompose.kt ✅
+- [x] EopatchPreferencesCompose.kt ✅
+- [x] EquilPreferencesCompose.kt ✅
+- [x] InsightPreferencesCompose.kt ✅
+- [x] MedtrumPreferencesCompose.kt ✅ **FIXED:**
+  - Fixed title to `R.string.medtrum_pump_setting`
+  - Added `withEntriesProvider` for dynamic alarm entries based on pump type (NANO/300U: only Beep/Silent)
+  - Added `updateMaxInsulinLimitsForPumpType()` for dynamic max values with value clamping
+  - Added `EventPreferenceChange` subscription to update max limits when serial number changes
+  - Serial number enabled state already in key via `enabledCondition = PreferenceEnabledCondition { !it.isPumpInitialized }`
+  - Serial number validation already in key via `validator = StringValidator { ... }` (hex format + device type check)
+- [x] GarminPreferencesCompose.kt ✅
+- [x] OpenHumansPreferencesCompose.kt ✅
+- [x] TidepoolPreferencesCompose.kt ✅ (only subscreens, no main content)
+- [x] XdripPreferencesCompose.kt ✅ (has nested advanced subscreen)
+- [x] SensitivityAAPSPreferencesCompose.kt ✅ (has nested advanced subscreen)
+- [x] SensitivityOref1PreferencesCompose.kt ✅ (has nested advanced subscreen)
+- [x] RandomBgPreferencesCompose.kt ✅
+- [x] InsulinOrefFreePeakPreferencesCompose.kt ✅
 
 ### Phase 2: Migrate Medium Complexity (subscreens, no dynamic visibility)
 - [ ] ComboV2PreferencesCompose.kt

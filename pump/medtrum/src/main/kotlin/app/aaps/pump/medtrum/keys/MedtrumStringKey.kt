@@ -41,10 +41,7 @@ enum class MedtrumStringKey(
         validator = StringValidator { value ->
             if (value.isEmpty()) return@StringValidator StringValidator.ValidationResult.VALID
             // Check hexadecimal format
-            val serial = value.toLongOrNull(radix = 16)
-            if (serial == null) {
-                return@StringValidator StringValidator.ValidationResult.invalid("Invalid hexadecimal format")
-            }
+            val serial = value.toLongOrNull(radix = 16) ?: return@StringValidator StringValidator.ValidationResult.invalid("Invalid hexadecimal format")
             // Check valid device type
             val deviceType = MedtrumSnUtil().getDeviceTypeFromSerial(serial)
             if (deviceType == ModelType.INVALID) {

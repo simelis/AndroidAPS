@@ -5,7 +5,9 @@
 
 package app.aaps.core.ui.compose.preference
 
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import app.aaps.core.interfaces.configuration.Config
@@ -19,6 +21,7 @@ import app.aaps.core.keys.interfaces.IntentPreferenceKey
 import app.aaps.core.keys.interfaces.PreferenceKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.keys.interfaces.PreferenceVisibilityContext
+import app.aaps.core.keys.interfaces.StringKeyWithEntriesProvider
 import app.aaps.core.keys.interfaces.StringPreferenceKey
 import app.aaps.core.keys.interfaces.UnitDoublePreferenceKey
 
@@ -112,6 +115,30 @@ fun AdaptivePreferenceItem(
                 doubleKey = key,
                 visibilityContext = visibilityContext
             )
+        }
+
+        is StringKeyWithEntriesProvider -> {
+            // Handle context-dependent entries provider
+            val context = LocalContext.current
+            val entries = remember(key) { key.entriesProvider(context) }
+            val emptyMessageResId = key.emptyEntriesMessageResId
+
+            if (entries.isNotEmpty()) {
+                AdaptiveStringListPreferenceItem(
+                    preferences = preferences,
+                    config = config,
+                    stringKey = key,
+                    entries = entries,
+                    visibilityContext = visibilityContext
+                )
+            } else if (emptyMessageResId != null) {
+                // Show disabled preference with empty message
+                Preference(
+                    title = { Text(stringResource(key.titleResId)) },
+                    summary = { Text(stringResource(emptyMessageResId)) },
+                    enabled = false
+                )
+            }
         }
 
         is StringPreferenceKey   -> {

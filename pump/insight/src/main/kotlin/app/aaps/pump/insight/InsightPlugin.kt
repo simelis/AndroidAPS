@@ -47,6 +47,8 @@ import app.aaps.core.interfaces.rx.events.EventOverviewBolusProgress
 import app.aaps.core.interfaces.rx.events.EventRefreshOverview
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.keys.interfaces.withActivity
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.validators.preferences.AdaptiveIntPreference
 import app.aaps.core.validators.preferences.AdaptiveIntentPreference
 import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
@@ -1537,8 +1539,25 @@ class InsightPlugin @Inject constructor(
         insightDatabase.clearAllTables()
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = InsightPreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "insight_settings",
+        titleResId = R.string.insight_local,
+        items = listOf(
+            InsightIntentKey.InsightPairing.withActivity(InsightPairingInformationActivity::class.java),
+            InsightBooleanKey.LogReservoirChanges,
+            InsightBooleanKey.LogTubeChanges,
+            InsightBooleanKey.LogSiteChanges,
+            InsightBooleanKey.LogBatteryChanges,
+            InsightBooleanKey.LogOperatingModeChanges,
+            InsightBooleanKey.LogAlerts,
+            InsightBooleanKey.EnableTbrEmulation,
+            InsightBooleanKey.DisableVibration,
+            InsightBooleanKey.DisableVibrationAuto,
+            InsightIntKey.MinRecoveryDuration,
+            InsightIntKey.MaxRecoveryDuration,
+            InsightIntKey.DisconnectDelay
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {

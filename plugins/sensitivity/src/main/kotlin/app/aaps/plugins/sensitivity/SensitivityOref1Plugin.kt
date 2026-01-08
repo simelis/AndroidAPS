@@ -21,6 +21,7 @@ import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.keys.DoubleKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.extensions.put
 import app.aaps.core.objects.extensions.store
 import app.aaps.core.utils.MidnightUtils
@@ -236,8 +237,22 @@ class SensitivityOref1Plugin @Inject constructor(
         return value
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = SensitivityOref1PreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "sensitivity_oref1_settings",
+        titleResId = R.string.absorption_settings_title,
+        items = listOf(
+            DoubleKey.ApsSmbMin5MinCarbsImpact,
+            DoubleKey.AbsorptionCutOff,
+            PreferenceSubScreenDef(
+                key = "absorption_oref1_advanced",
+                titleResId = app.aaps.core.ui.R.string.advanced_settings_title,
+                items = listOf(
+                    DoubleKey.AutosensMax,
+                    DoubleKey.AutosensMin
+                )
+            )
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {
