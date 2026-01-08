@@ -151,8 +151,7 @@ class SomePreferencesCompose(...) : NavigablePreferenceContent {
 
 ### Key Files
 - `PreferenceSubScreenDef.kt` - Data class definition
-- `PreferenceSubScreenRenderer.kt` (in app module) - Handles rendering
-- `PreferenceContentExtensions.kt` - Helper extensions
+- `PreferenceContentExtensions.kt` - Helper extensions (`addPreferenceContent()` for collapsible section rendering)
 - `AdaptivePreferenceList.kt` - Auto-generates UI from keys
 
 ### Implementation Pattern
@@ -202,16 +201,29 @@ override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
 
 Located at: `app/src/main/kotlin/app/aaps/compose/preferences/PluginPreferencesScreen.kt`
 
+**Current Implementation (Phase 3):**
 ```kotlin
 when (preferenceScreenContent) {
     is PreferenceSubScreenDef -> {
-        PreferenceSubScreenRenderer(...)
+        // Uses same rendering as AllPreferencesScreen
+        SinglePluginPreferencesRenderer(
+            screen = preferenceScreenContent,
+            title = title,
+            plugin = plugin,
+            config = config,
+            profileUtil = profileUtil,
+            visibilityContext = visibilityContext,
+            onBackClick = onBackClick
+        )
     }
     is NavigablePreferenceContent -> {
+        // Legacy pattern (to be removed in Phase 5)
         PreferenceNavigationHost(...)
     }
 }
 ```
+
+Both rendering paths now use the same `addPreferenceContent()` function for consistency.
 
 ---
 
@@ -483,21 +495,23 @@ Key features:
 - `customContent` allows escape hatch for complex UI
 - Implements `PreferenceItem` so it can be nested
 
-### PreferenceSubScreenRenderer
-Location: `app/src/main/kotlin/app/aaps/compose/preferences/PreferenceSubScreenRenderer.kt`
+### Rendering via addPreferenceContent()
+Location: `core/ui/src/main/kotlin/app/aaps/core/ui/compose/preference/PreferenceContentExtensions.kt`
 
-Features:
-- Stack-based navigation (push/pop screens)
-- Supports `visibilityContext` for preference visibility
+The `addPreferenceContent()` extension function renders preference screens as collapsible sections:
+- Renders `PreferenceSubScreenDef` as expandable/collapsible cards
 - Auto-renders via `AdaptivePreferenceList` when no `customContent`
-- Falls back to `customContent` composable if provided
+- Falls back to `customContent` composable if provided (deprecated)
+- Used by both `AllPreferencesScreen` and `SinglePluginPreferencesRenderer`
+- Supports `PreferenceSectionState` for accordion behavior
 
-### Migration Challenge: Dynamic Visibility
+### Migration Challenge: Dynamic Visibility ✅ SOLVED
 
-Some preferences have **dynamic visibility** based on OTHER preference values. Example from OpenAPSSMBPreferencesCompose:
+**Previous Challenge:** Some preferences had manual visibility filtering in compose files.
 
+Example from OpenAPSSMBPreferencesCompose (old code):
 ```kotlin
-// SMB options hidden/shown based on smbEnabled state
+// Manual filtering in compose
 mainKeys.filter { key ->
     when (key) {
         BooleanKey.ApsUseSmbAlways -> smbEnabled && advancedFiltering
@@ -508,10 +522,19 @@ mainKeys.filter { key ->
 }
 ```
 
-**Solution Options:**
-1. Keep `customContent` for screens with complex visibility
-2. Enhance `PreferenceKey` with visibility predicates
-3. Add visibility rules to `PreferenceSubScreenDef`
+**Solution (implemented in Phase 3):**
+Move ALL visibility logic to declarative `visibility` properties in PreferenceKey definitions:
+```kotlin
+// In BooleanKey definition
+ApsUseSmbAlways(
+    visibility = PreferenceVisibility.ADVANCED_FILTERING
+)
+ApsUseSmbAfterCarbs(
+    visibility = PreferenceVisibility { !it.preferences.get(ApsUseSmbAlways) && it.advancedFilteringSupported }
+)
+```
+
+**Result:** No `customContent` needed - all APS plugins use PURE `PreferenceSubScreenDef`
 
 ### Migration Pattern: Simple Case
 
@@ -690,7 +713,7 @@ items = listOf(
 - [ ] Remove all NavigablePreferenceContent imports across codebase
 - [ ] Remove unused dependencies
 
-**RESULT:** Only `PreferenceSubScreenDef` + `PreferenceSubScreenRenderer` remain
+**RESULT:** Only `PreferenceSubScreenDef` + `addPreferenceContent()` rendering remain (unified approach)
 
 **DELETE unused code created during migration:**
 
@@ -803,8 +826,26 @@ items = listOf(
 - **After:** BOTH use same `addPreferenceContent()` → collapsible sections ▼
 - **Result:** Consistent behavior - subscreens render as expandable/collapsible cards in both views
 - **Implementation:** Created `SinglePluginPreferencesRenderer()` in `PluginPreferencesScreen.kt` that reuses the same code path
+- **Deleted:** `PreferenceSubScreenRenderer.kt` (no longer needed after unification)
 
-**3. Code Quality:**
+**3. Improved UX:**
+- Single plugin preference screens now start expanded (main section auto-opens for better UX)
+- Accordion behavior works consistently across all preference screens
+
+**4. Code Simplification - Accordion Mode:**
+- **Before:** `accordionMode` parameter passed to all `rememberPreferenceSectionState()` calls (always `true`)
+- **After:** Accordion mode is now the default and only behavior
+- **Changes:**
+  - Removed `accordionMode` parameter from `PreferenceSectionState` class
+  - Simplified the Saver to only save/restore expanded sections
+  - Removed parameter from all 4 call sites:
+    - `AllPreferencesScreen.kt`
+    - `PluginPreferencesScreen.kt`
+    - `PreferenceNavigationHost.kt`
+    - `rememberPreferenceSectionState()` function
+- **Result:** Cleaner API with no optional parameter needed
+
+**5. Code Quality:**
 - Standardized lambda parameters: all `PreferenceVisibility` lambdas use `it` (Kotlin convention)
 - No duplication: kept legacy AMA-specific strings in both modules (referenced from core/keys)
 - Preserved legacy `addPreferenceScreen()` methods for backward compatibility (removed in Phase 6)

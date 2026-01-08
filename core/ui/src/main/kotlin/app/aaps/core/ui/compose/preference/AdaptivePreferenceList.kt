@@ -121,43 +121,34 @@ private fun shouldShowSubScreen(
 ): Boolean {
     // Find items with hideParentScreenIfHidden = true
     for (item in subScreen.effectiveItems) {
-        when (item) {
-            is PreferenceKey -> {
-                if (item.hideParentScreenIfHidden) {
-                    // Get engineeringModeOnly based on specific type (not all PreferenceKey types have it)
-                    val engineeringModeOnly = when (item) {
-                        is BooleanPreferenceKey -> item.engineeringModeOnly
-                        is IntPreferenceKey -> item.engineeringModeOnly
-                        is LongPreferenceKey -> item.engineeringModeOnly
-                        else -> false
-                    }
-                    // Check visibility of this item
-                    val visibility = calculatePreferenceVisibility(
-                        preferenceKey = item,
-                        preferences = preferences,
-                        config = config,
-                        engineeringModeOnly = engineeringModeOnly,
-                        visibilityContext = visibilityContext
-                    )
-                    // If this controlling item is hidden, hide the parent subscreen
-                    if (!visibility.visible) {
-                        return false
-                    }
+        if (item is PreferenceKey && item.hideParentScreenIfHidden) {
+            val visibility = if (item is IntentPreferenceKey) {
+                // Check visibility of intent item
+                calculateIntentPreferenceVisibility(
+                    intentKey = item,
+                    preferences = preferences,
+                    visibilityContext = visibilityContext
+                )
+            } else {
+                // Get engineeringModeOnly based on specific type (not all PreferenceKey types have it)
+                val engineeringModeOnly = when (item) {
+                    is BooleanPreferenceKey -> item.engineeringModeOnly
+                    is IntPreferenceKey -> item.engineeringModeOnly
+                    is LongPreferenceKey -> item.engineeringModeOnly
+                    else -> false
                 }
+                // Check visibility of regular preference item
+                calculatePreferenceVisibility(
+                    preferenceKey = item,
+                    preferences = preferences,
+                    config = config,
+                    engineeringModeOnly = engineeringModeOnly,
+                    visibilityContext = visibilityContext
+                )
             }
-            is IntentPreferenceKey -> {
-                if (item.hideParentScreenIfHidden) {
-                    // Check visibility of this intent item
-                    val visibility = calculateIntentPreferenceVisibility(
-                        intentKey = item,
-                        preferences = preferences,
-                        visibilityContext = visibilityContext
-                    )
-                    // If this controlling item is hidden, hide the parent subscreen
-                    if (!visibility.visible) {
-                        return false
-                    }
-                }
+            // If this controlling item is hidden, hide the parent subscreen
+            if (!visibility.visible) {
+                return false
             }
         }
     }
