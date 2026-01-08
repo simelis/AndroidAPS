@@ -99,17 +99,17 @@ class SomePreferencesCompose(...) : NavigablePreferenceContent {
 ### Files Using This Approach (31 files)
 
 #### Pumps (13 files)
-- [ ] `pump/combov2/.../ComboV2PreferencesCompose.kt`
+- [x] `pump/combov2/.../ComboV2PreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [ ] `pump/danar/.../DanaRPreferencesCompose.kt`
 - [ ] `pump/danars/.../DanaRSPreferencesCompose.kt`
 - [ ] `pump/diaconn/.../DiaconnG8PreferencesCompose.kt`
 - [ ] `pump/eopatch/.../EopatchPreferencesCompose.kt`
 - [ ] `pump/equil/.../EquilPreferencesCompose.kt`
 - [ ] `pump/insight/.../InsightPreferencesCompose.kt`
-- [ ] `pump/medtronic/.../MedtronicPreferencesCompose.kt`
+- [x] `pump/medtronic/.../MedtronicPreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [ ] `pump/medtrum/.../MedtrumPreferencesCompose.kt`
-- [ ] `pump/omnipod/dash/.../OmnipodDashPreferencesCompose.kt`
-- [ ] `pump/omnipod/eros/.../OmnipodErosPreferencesCompose.kt`
+- [x] `pump/omnipod/dash/.../OmnipodDashPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `pump/omnipod/eros/.../OmnipodErosPreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [ ] `pump/virtual/.../VirtualPumpPreferencesCompose.kt`
 
 #### APS Plugins (5 files)
@@ -192,7 +192,7 @@ override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
 | Rendering | Manual composables | Auto-generated from keys |
 | Navigation | AnimatedContent (animations) | Stack-based (push/pop) |
 | Nesting | Separate subscreen objects | Hierarchical in items list |
-| Customization | Full composable control | Optional `customContent` override |
+| Customization | Full composable control | `customContent` DEPRECATED - use PURE |
 | Separate File | Yes (dedicated class) | No (inline in plugin) |
 | Status | Legacy | Recommended |
 
@@ -252,10 +252,10 @@ Migrate all `NavigablePreferenceContent` implementations to `PreferenceSubScreen
 ## Migration Priority
 
 ### High Priority (Complex pumps with subscreens)
-1. ComboV2PreferencesCompose.kt
-2. MedtronicPreferencesCompose.kt
-3. OmnipodDashPreferencesCompose.kt
-4. OmnipodErosPreferencesCompose.kt
+1. ~~ComboV2PreferencesCompose.kt~~ ✅ DONE - Uses PURE PreferenceSubScreenDef with `withDialog` for unpair
+2. ~~MedtronicPreferencesCompose.kt~~ ✅ DONE - Uses PURE PreferenceSubScreenDef
+3. ~~OmnipodDashPreferencesCompose.kt~~ ✅ DONE - Uses PURE PreferenceSubScreenDef with nested subscreens
+4. ~~OmnipodErosPreferencesCompose.kt~~ ✅ DONE - Uses PURE PreferenceSubScreenDef with nested subscreens
 
 ### Medium Priority (APS algorithms)
 5. OpenAPSAMAPreferencesCompose.kt
@@ -282,6 +282,39 @@ Some files (OpenAPSSMBPreferencesCompose, NSClientV3PreferencesCompose) use a **
 
 ### Finding 3: Base Classes Need Attention
 `AbstractBgSourcePlugin.kt` and `AbstractBgSourceWithSensorInsertLogPlugin.kt` are base classes - changing them affects multiple BG source implementations.
+
+### Finding 4: customContent is Deprecated (Jan 2026)
+`customContent` in `PreferenceSubScreenDef` should NOT be used. Marked as `@Deprecated`. All preferences should be PURE - using only the `items` list with keys that define their own visibility/enabled conditions.
+
+### Finding 5: Plugin-specific State via Preference Keys
+For plugin-specific state like "isPumpPaired" (ComboV2):
+- **DO NOT** add methods to the Pump interface for plugin-specific state
+- **DO** use lambdas in `enabledCondition` that check existing preferences
+- Example: ComboV2 checks `ComboStringNonKey.BtAddress.isEmpty()` to determine pairing state
+```kotlin
+enabledCondition = PreferenceEnabledCondition { ctx ->
+    ctx.preferences.get(ComboStringNonKey.BtAddress).isEmpty()
+}
+```
+
+### Finding 6: withDialog for Compose Confirmation Dialogs
+For intent preferences that need confirmation dialogs:
+- **DO NOT** use `uiInteraction.showOkCancelDialog()` in click handlers
+- **DO** use `IntentPreferenceKey.withDialog()` extension which manages dialog state in Compose
+```kotlin
+ComboIntentKey.UnpairPump.withDialog(
+    titleResId = R.string.confirm_unpair_title,
+    messageResId = R.string.confirm_unpair_message,
+    onConfirm = { unpair() }
+)
+```
+
+### Finding 7: Global PreferenceVisibilityContext
+The `PreferenceVisibilityContextImpl` (in `implementation` module) provides runtime context:
+- `isPatchPump`, `isBatteryReplaceable`, etc. come from `activePlugin.activePump`
+- `advancedFilteringSupported` comes from `activePlugin.activeBgSource`
+- `isPumpInitialized` comes from `activePlugin.activePump.isInitialized()`
+- Used by `enabledCondition` and `visibility` lambdas in preference keys
 
 ---
 

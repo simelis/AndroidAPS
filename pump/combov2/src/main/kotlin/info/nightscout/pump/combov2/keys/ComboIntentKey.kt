@@ -19,16 +19,20 @@ enum class ComboIntentKey(
     override val enabledCondition: PreferenceEnabledCondition = PreferenceEnabledCondition.ALWAYS
 ) : IntentPreferenceKey {
 
-    // Pair button enabled when pump is NOT paired
+    // Pair button enabled when pump is NOT paired (BtAddress is empty)
     PairWithPump(
         key = "combov2_pair_with_pump",
         titleResId = R.string.combov2_pair_with_pump_title,
-        enabledCondition = PreferenceEnabledCondition { !it.isPumpPaired }
+        enabledCondition = PreferenceEnabledCondition { ctx ->
+            ctx.preferences.get(ComboStringNonKey.BtAddress).isEmpty()
+        }
     ),
-    // Unpair button enabled when pump IS paired
+    // Unpair button enabled when pump IS paired (BtAddress is not empty)
     UnpairPump(
         key = "combov2_unpair_pump",
         titleResId = R.string.combov2_unpair_pump_title,
-        enabledCondition = PreferenceEnabledCondition { it.isPumpPaired }
+        enabledCondition = PreferenceEnabledCondition { ctx ->
+            ctx.preferences.get(ComboStringNonKey.BtAddress).isNotEmpty()
+        }
     ),
 }

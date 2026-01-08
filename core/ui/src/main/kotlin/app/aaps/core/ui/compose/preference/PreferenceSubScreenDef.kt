@@ -23,6 +23,7 @@ data class PreferenceSubScreenDef(
     @Deprecated("Use items instead", ReplaceWith("items"))
     val keys: List<PreferenceKey> = emptyList(),
     val summaryResId: Int? = null,
+    @Deprecated("Use PURE declarative preferences with items list. Visibility/enabled conditions should be in PreferenceKey definitions.")
     val customContent: (@Composable (PreferenceSectionState?) -> Unit)? = null
 ) : PreferenceItem {
 

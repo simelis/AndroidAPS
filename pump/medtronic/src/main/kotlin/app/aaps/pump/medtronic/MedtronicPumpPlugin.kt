@@ -39,6 +39,7 @@ import app.aaps.core.interfaces.rx.events.EventSWRLStatus
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.utils.DateTimeUtil
 import app.aaps.core.validators.DefaultEditTextValidator
 import app.aaps.core.validators.EditTextValidator
@@ -1250,7 +1251,24 @@ class MedtronicPumpPlugin @Inject constructor(
     private val pumpFreqEntries = arrayOf<CharSequence>(rh.gs(RileyLinkTargetFrequency.MedtronicUS.friendlyName!!), rh.gs(RileyLinkTargetFrequency.MedtronicWorldWide.friendlyName!!))
 
     // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = MedtronicPreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "medtronic_settings",
+        titleResId = R.string.medtronic_name,
+        items = listOf(
+            MedtronicStringPreferenceKey.Serial,
+            MedtronicStringPreferenceKey.PumpType,
+            MedtronicStringPreferenceKey.PumpFrequency,
+            MedtronicIntPreferenceKey.MaxBasal,
+            MedtronicIntPreferenceKey.MaxBolus,
+            MedtronicIntPreferenceKey.BolusDelay,
+            RileyLinkStringPreferenceKey.Encoding,
+            MedtronicStringPreferenceKey.BatteryType,
+            RileyLinkIntentPreferenceKey.MacAddressSelector,
+            RileylinkBooleanPreferenceKey.OrangeUseScanning,
+            RileylinkBooleanPreferenceKey.ShowReportedBatteryLevel,
+            MedtronicBooleanPreferenceKey.SetNeutralTemp
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {

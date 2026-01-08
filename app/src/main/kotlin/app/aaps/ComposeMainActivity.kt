@@ -289,6 +289,7 @@ class ComposeMainActivity : DaggerAppCompatActivityWithResult() {
                                 plugin = plugin,
                                 config = config,
                                 profileUtil = profileUtil,
+                                visibilityContext = visibilityContext,
                                 onBackClick = { navController.popBackStack() }
                             )
                         }

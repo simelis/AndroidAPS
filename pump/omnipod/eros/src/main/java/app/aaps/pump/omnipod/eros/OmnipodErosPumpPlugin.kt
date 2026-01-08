@@ -57,6 +57,7 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.interfaces.utils.Round.isSame
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.utils.DateTimeUtil.getTimeInFutureFromMinutes
 import app.aaps.core.validators.preferences.AdaptiveIntPreference
 import app.aaps.core.validators.preferences.AdaptiveIntentPreference
@@ -899,11 +900,66 @@ class OmnipodErosPumpPlugin @Inject constructor(
         erosHistoryDatabase.clearAllTables()
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = OmnipodErosPreferencesCompose(
-        preferences = preferences,
-        config = config,
-        rileyLinkConfigActivityClass = RileyLinkBLEConfigActivity::class.java
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "omnipod_eros_settings",
+        titleResId = R.string.omnipod_eros_name,
+        items = listOf(
+            // RileyLink subscreen
+            PreferenceSubScreenDef(
+                key = "omnipod_eros_riley_link",
+                titleResId = R.string.omnipod_eros_preferences_category_riley_link,
+                items = listOf(
+                    RileyLinkIntentPreferenceKey.MacAddressSelector,
+                    RileylinkBooleanPreferenceKey.OrangeUseScanning,
+                    RileylinkBooleanPreferenceKey.ShowReportedBatteryLevel,
+                    ErosBooleanPreferenceKey.BatteryChangeLogging
+                )
+            ),
+            // Beeps subscreen
+            PreferenceSubScreenDef(
+                key = "omnipod_eros_beeps",
+                titleResId = app.aaps.pump.omnipod.common.R.string.omnipod_common_preferences_category_confirmation_beeps,
+                items = listOf(
+                    OmnipodBooleanPreferenceKey.BolusBeepsEnabled,
+                    OmnipodBooleanPreferenceKey.BasalBeepsEnabled,
+                    OmnipodBooleanPreferenceKey.SmbBeepsEnabled,
+                    OmnipodBooleanPreferenceKey.TbrBeepsEnabled
+                )
+            ),
+            // Alerts subscreen
+            PreferenceSubScreenDef(
+                key = "omnipod_eros_alerts",
+                titleResId = app.aaps.pump.omnipod.common.R.string.omnipod_common_preferences_category_alerts,
+                items = listOf(
+                    OmnipodBooleanPreferenceKey.ExpirationReminder,
+                    OmnipodIntPreferenceKey.ExpirationAlarmHours,
+                    OmnipodBooleanPreferenceKey.LowReservoirAlert,
+                    OmnipodIntPreferenceKey.LowReservoirAlertUnits,
+                    OmnipodBooleanPreferenceKey.AutomaticallyAcknowledgeAlerts
+                )
+            ),
+            // Notifications subscreen
+            PreferenceSubScreenDef(
+                key = "omnipod_eros_notifications",
+                titleResId = app.aaps.pump.omnipod.common.R.string.omnipod_common_preferences_category_notifications,
+                items = listOf(
+                    OmnipodBooleanPreferenceKey.SoundUncertainTbrNotification,
+                    OmnipodBooleanPreferenceKey.SoundUncertainSmbNotification,
+                    OmnipodBooleanPreferenceKey.SoundUncertainBolusNotification
+                )
+            ),
+            // Other subscreen
+            PreferenceSubScreenDef(
+                key = "omnipod_eros_other",
+                titleResId = app.aaps.pump.omnipod.common.R.string.omnipod_common_preferences_category_other,
+                items = listOf(
+                    ErosBooleanPreferenceKey.ShowSuspendDeliveryButton,
+                    ErosBooleanPreferenceKey.ShowPulseLogButton,
+                    ErosBooleanPreferenceKey.ShowRileyLinkStatsButton,
+                    ErosBooleanPreferenceKey.TimeChangeEnabled
+                )
+            )
+        )
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

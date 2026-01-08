@@ -30,4 +30,7 @@ class PreferenceVisibilityContextImpl @Inject constructor(
 
     override val advancedFilteringSupported: Boolean
         get() = activePlugin.activeBgSource.advancedFilteringSupported()
+
+    override val isPumpInitialized: Boolean
+        get() = activePlugin.activePump.isInitialized()
 }

@@ -45,7 +45,10 @@ import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.keys.interfaces.withActivity
 import app.aaps.core.objects.constraints.ConstraintObject
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
+import app.aaps.core.ui.compose.preference.withDialog
 import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.validators.preferences.AdaptiveIntPreference
 import app.aaps.core.validators.preferences.AdaptiveIntentPreference
@@ -2279,12 +2282,21 @@ class ComboV2Plugin @Inject constructor(
             else                     -> false
         }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = ComboV2PreferencesCompose(
-        preferences = preferences,
-        config = config,
-        pairedStateFlow = pairedStateUIFlow,
-        onUnpairClick = { /* Unpair handled via dialog in preference screen */ }
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "combov2_settings",
+        titleResId = R.string.combov2_title,
+        items = listOf(
+            ComboIntentKey.PairWithPump.withActivity(ComboV2PairingActivity::class.java),
+            ComboIntentKey.UnpairPump.withDialog(
+                titleResId = app.aaps.core.ui.R.string.confirmation,
+                messageResId = R.string.combov2_unpair_pump_summary,
+                onConfirm = { unpair() }
+            ),
+            ComboIntKey.DiscoveryDuration,
+            ComboBooleanKey.AutomaticReservoirEntry,
+            ComboBooleanKey.AutomaticBatteryEntry,
+            ComboBooleanKey.VerboseLogging
+        )
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
