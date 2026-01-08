@@ -40,6 +40,7 @@ import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.DoubleKey
 import app.aaps.plugins.aps.keys.ApsIntentKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.extensions.convertedToAbsolute
 import app.aaps.core.objects.extensions.getPassedDurationToTimeInMinutes
@@ -314,10 +315,27 @@ class OpenAPSAMAPlugin @Inject constructor(
     override fun configuration(): JsonObject = JsonObject(emptyMap())
     override fun applyConfiguration(configuration: JsonObject) {}
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = OpenAPSAMAPreferencesCompose(
-        preferences = preferences,
-        config = config
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "openapsma_settings",
+        titleResId = R.string.openapsama,
+        items = listOf(
+            DoubleKey.ApsMaxBasal,
+            DoubleKey.ApsAmaMaxIob,
+            BooleanKey.ApsUseAutosens,
+            BooleanKey.ApsAmaAutosensAdjustTargets,
+            DoubleKey.ApsAmaMin5MinCarbsImpact,
+            PreferenceSubScreenDef(
+                key = "absorption_ama_advanced",
+                titleResId = app.aaps.core.ui.R.string.advanced_settings_title,
+                items = listOf(
+                    ApsIntentKey.LinkToDocs,
+                    BooleanKey.ApsAlwaysUseShortDeltas,
+                    DoubleKey.ApsMaxDailyMultiplier,
+                    DoubleKey.ApsMaxCurrentBasalMultiplier,
+                    DoubleKey.ApsAmaBolusSnoozeDivisor
+                )
+            )
+        )
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

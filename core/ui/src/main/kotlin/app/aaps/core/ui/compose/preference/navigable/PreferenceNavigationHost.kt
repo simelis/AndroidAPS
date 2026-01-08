@@ -46,7 +46,7 @@ fun PreferenceNavigationHost(
     onBackClick: () -> Unit
 ) {
     var currentSubScreen by rememberSaveable { mutableStateOf<String?>(null) }
-    val sectionState = rememberPreferenceSectionState(accordionMode = true)
+    val sectionState = rememberPreferenceSectionState()
 
     val selectedSubScreen = content.subscreens.find { it.key == currentSubScreen }
 

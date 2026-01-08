@@ -113,7 +113,11 @@ enum class IntKey(
     LoopOpenModeMinChange(key = "loop_openmode_min_change", defaultValue = 30, min = 0, max = 50, titleResId = R.string.pref_title_open_mode_min_change, summaryResId = R.string.loop_open_mode_min_change_summary, defaultedBySM = true, unitsResId = R.string.units_format_percent_range),
     ApsMaxSmbFrequency(key = "smbinterval", defaultValue = 3, min = 1, max = 10, titleResId = R.string.pref_title_smb_frequency, defaultedBySM = true, dependency = BooleanKey.ApsUseSmb, unitsResId = R.string.units_format_min_range),
     ApsMaxMinutesOfBasalToLimitSmb(key = "smbmaxminutes", defaultValue = 30, min = 15, max = 120, titleResId = R.string.pref_title_smb_max_minutes, defaultedBySM = true, dependency = BooleanKey.ApsUseSmb, unitsResId = R.string.units_format_min_range),
-    ApsUamMaxMinutesOfBasalToLimitSmb(key = "uamsmbmaxminutes", defaultValue = 30, min = 15, max = 120, titleResId = R.string.pref_title_uam_smb_max_minutes, summaryResId = R.string.uam_smb_max_minutes, defaultedBySM = true, dependency = BooleanKey.ApsUseSmb, unitsResId = R.string.units_format_min_range),
+    ApsUamMaxMinutesOfBasalToLimitSmb(
+        key = "uamsmbmaxminutes", defaultValue = 30, min = 15, max = 120, titleResId = R.string.pref_title_uam_smb_max_minutes, summaryResId = R.string.uam_smb_max_minutes, defaultedBySM = true, dependency = BooleanKey.ApsUseSmb,
+        visibility = PreferenceVisibility { it.preferences.get(BooleanKey.ApsUseUam) },
+        unitsResId = R.string.units_format_min_range
+    ),
     ApsCarbsRequestThreshold(key = "carbsReqThreshold", defaultValue = 1, min = 1, max = 100, titleResId = R.string.pref_title_carbs_request_threshold, summaryResId = R.string.carbs_req_threshold_summary, defaultedBySM = true, unitsResId = R.string.units_format_grams_range),
     ApsAutoIsfHalfBasalExerciseTarget(key = "half_basal_exercise_target", defaultValue = 160, min = 120, max = 200, titleResId = R.string.pref_title_half_basal_exercise_target, summaryResId = R.string.half_basal_exercise_target_summary, defaultedBySM = true, unitsResId = R.string.units_format_mgdl_range),
     ApsAutoIsfIobThPercent(key = "iob_threshold_percent", defaultValue = 100, min = 10, max = 100, titleResId = R.string.pref_title_iob_threshold_percent, summaryResId = R.string.openapsama_iob_threshold_percent_summary, defaultedBySM = true, unitsResId = R.string.units_format_percent_range),

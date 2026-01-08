@@ -60,6 +60,7 @@ import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.LongNonKey
 import app.aaps.core.keys.StringKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.nssdk.NSAndroidClientImpl
 import app.aaps.core.nssdk.interfaces.NSAndroidClient
 import app.aaps.core.nssdk.remotemodel.LastModified
@@ -900,6 +901,62 @@ class NSClientV3Plugin @Inject constructor(
         }
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = NSClientV3PreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "ns_client_v3_settings",
+        titleResId = R.string.ns_client_v3_title,
+        items = listOf(
+            StringKey.NsClientUrl,
+            StringKey.NsClientAccessToken,
+            BooleanKey.NsClient3UseWs,
+            PreferenceSubScreenDef(
+                key = "ns_client_synchronization",
+                titleResId = R.string.ns_sync_options,
+                items = listOf(
+                    BooleanKey.NsClientUploadData,
+                    BooleanKey.BgSourceUploadToNs,
+                    BooleanKey.NsClientAcceptCgmData,
+                    BooleanKey.NsClientAcceptProfileStore,
+                    BooleanKey.NsClientAcceptTempTarget,
+                    BooleanKey.NsClientAcceptProfileSwitch,
+                    BooleanKey.NsClientAcceptInsulin,
+                    BooleanKey.NsClientAcceptCarbs,
+                    BooleanKey.NsClientAcceptTherapyEvent,
+                    BooleanKey.NsClientAcceptRunningMode,
+                    BooleanKey.NsClientAcceptTbrEb
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "ns_client_alarm_options",
+                titleResId = R.string.ns_alarm_options,
+                items = listOf(
+                    BooleanKey.NsClientNotificationsFromAlarms,
+                    BooleanKey.NsClientNotificationsFromAnnouncements,
+                    IntKey.NsClientAlarmStaleData,
+                    IntKey.NsClientUrgentAlarmStaleData
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "ns_client_connection_options",
+                titleResId = R.string.connection_settings_title,
+                items = listOf(
+                    BooleanKey.NsClientUseCellular,
+                    BooleanKey.NsClientUseRoaming,
+                    BooleanKey.NsClientUseWifi,
+                    StringKey.NsClientWifiSsids,
+                    BooleanKey.NsClientUseOnBattery,
+                    BooleanKey.NsClientUseOnCharging
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "ns_client_advanced",
+                titleResId = app.aaps.core.ui.R.string.advanced_settings_title,
+                items = listOf(
+                    BooleanKey.NsClientLogAppStart,
+                    BooleanKey.NsClientCreateAnnouncementsFromErrors,
+                    BooleanKey.NsClientCreateAnnouncementsFromCarbsReq,
+                    BooleanKey.NsClientSlowSync
+                )
+            )
+        )
+    )
 }

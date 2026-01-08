@@ -11,12 +11,10 @@ import androidx.core.os.bundleOf
 /**
  * State holder for collapsible preference sections.
  * Tracks which sections are expanded and persists across configuration changes.
- *
- * @param accordionMode If true, only one section can be expanded at a time (accordion behavior)
+ * Uses accordion behavior: only one section can be expanded at a time within the same hierarchy level.
  */
 class PreferenceSectionState(
-    private val expandedSections: SnapshotStateMap<String, Boolean> = mutableStateMapOf(),
-    val accordionMode: Boolean = false
+    private val expandedSections: SnapshotStateMap<String, Boolean> = mutableStateMapOf()
 ) {
 
     /**
@@ -25,13 +23,13 @@ class PreferenceSectionState(
     fun isExpanded(sectionKey: String): Boolean = expandedSections[sectionKey] ?: false
 
     /**
-     * Toggle the expanded state of a section
-     * In accordion mode, expanding a section collapses only sibling sections (same hierarchy level)
+     * Toggle the expanded state of a section.
+     * Expanding a section collapses only sibling sections (same hierarchy level).
      */
     fun toggle(sectionKey: String) {
         val newState = !isExpanded(sectionKey)
 
-        if (accordionMode && newState) {
+        if (newState) {
             val isTopLevel = sectionKey.endsWith("_main")
             // Get plugin prefix (part before first underscore)
             val pluginPrefix = sectionKey.substringBefore("_", "")
@@ -64,26 +62,19 @@ class PreferenceSectionState(
 
     companion object {
 
-        private const val KEY_ACCORDION_MODE = "_accordionMode"
-
         val Saver: Saver<PreferenceSectionState, Bundle> = Saver(
             save = { state ->
                 bundleOf(
-                    KEY_ACCORDION_MODE to state.accordionMode,
                     *state.expandedSections.map { (k, v) -> k to v }.toTypedArray()
                 )
             },
             restore = { bundle ->
-                val accordionMode = bundle.getBoolean(KEY_ACCORDION_MODE, false)
                 PreferenceSectionState(
                     expandedSections = mutableStateMapOf<String, Boolean>().apply {
                         bundle.keySet().forEach { key ->
-                            if (key != KEY_ACCORDION_MODE) {
-                                put(key, bundle.getBoolean(key))
-                            }
+                            put(key, bundle.getBoolean(key))
                         }
-                    },
-                    accordionMode = accordionMode
+                    }
                 )
             }
         )
@@ -91,13 +82,12 @@ class PreferenceSectionState(
 }
 
 /**
- * Remember and save preference section state across configuration changes
- *
- * @param accordionMode If true, only one section can be expanded at a time (accordion behavior)
+ * Remember and save preference section state across configuration changes.
+ * Uses accordion behavior by default.
  */
 @Composable
-fun rememberPreferenceSectionState(accordionMode: Boolean = false): PreferenceSectionState {
+fun rememberPreferenceSectionState(): PreferenceSectionState {
     return rememberSaveable(saver = PreferenceSectionState.Saver) {
-        PreferenceSectionState(accordionMode = accordionMode)
+        PreferenceSectionState()
     }
 }

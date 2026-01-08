@@ -54,6 +54,7 @@ import app.aaps.core.keys.IntKey
 import app.aaps.plugins.aps.keys.ApsIntentKey
 import app.aaps.core.keys.UnitDoubleKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.extensions.convertedToAbsolute
 import app.aaps.core.objects.extensions.getPassedDurationToTimeInMinutes
@@ -941,11 +942,68 @@ open class OpenAPSAutoISFPlugin @Inject constructor(
         return new_SMB
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = OpenAPSAutoISFPreferencesCompose(
-        preferences = preferences,
-        config = config,
-        activePlugin = activePlugin
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "openapsautoisf_settings",
+        titleResId = R.string.openaps_auto_isf,
+        items = listOf(
+            DoubleKey.ApsMaxBasal,
+            DoubleKey.ApsSmbMaxIob,
+            BooleanKey.ApsUseAutosens,
+            BooleanKey.ApsSensitivityRaisesTarget,
+            BooleanKey.ApsResistanceLowersTarget,
+            BooleanKey.ApsAutoIsfHighTtRaisesSens,
+            BooleanKey.ApsAutoIsfLowTtLowersSens,
+            IntKey.ApsAutoIsfHalfBasalExerciseTarget,
+            BooleanKey.ApsUseSmb,
+            BooleanKey.ApsUseSmbWithHighTt,
+            BooleanKey.ApsUseSmbAlways,
+            BooleanKey.ApsUseSmbWithCob,
+            BooleanKey.ApsUseSmbWithLowTt,
+            BooleanKey.ApsUseSmbAfterCarbs,
+            BooleanKey.ApsUseUam,
+            IntKey.ApsMaxSmbFrequency,
+            IntKey.ApsMaxMinutesOfBasalToLimitSmb,
+            IntKey.ApsUamMaxMinutesOfBasalToLimitSmb,
+            IntKey.ApsCarbsRequestThreshold,
+            PreferenceSubScreenDef(
+                key = "absorption_smb_advanced",
+                titleResId = app.aaps.core.ui.R.string.advanced_settings_title,
+                items = listOf(
+                    ApsIntentKey.LinkToDocs,
+                    BooleanKey.ApsAlwaysUseShortDeltas,
+                    DoubleKey.ApsMaxDailyMultiplier,
+                    DoubleKey.ApsMaxCurrentBasalMultiplier
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "auto_isf_settings",
+                titleResId = R.string.autoISF_settings_title,
+                items = listOf(
+                    BooleanKey.ApsUseAutoIsfWeights,
+                    DoubleKey.ApsAutoIsfMin,
+                    DoubleKey.ApsAutoIsfMax,
+                    DoubleKey.ApsAutoIsfBgAccelWeight,
+                    DoubleKey.ApsAutoIsfBgBrakeWeight,
+                    DoubleKey.ApsAutoIsfLowBgWeight,
+                    DoubleKey.ApsAutoIsfHighBgWeight,
+                    DoubleKey.ApsAutoIsfPpWeight,
+                    DoubleKey.ApsAutoIsfDuraWeight,
+                    IntKey.ApsAutoIsfIobThPercent
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "smb_delivery_settings",
+                titleResId = R.string.smb_delivery_settings_title,
+                items = listOf(
+                    DoubleKey.ApsAutoIsfSmbDeliveryRatio,
+                    DoubleKey.ApsAutoIsfSmbDeliveryRatioMin,
+                    DoubleKey.ApsAutoIsfSmbDeliveryRatioMax,
+                    DoubleKey.ApsAutoIsfSmbDeliveryRatioBgRange,
+                    DoubleKey.ApsAutoIsfSmbMaxRangeExtension,
+                    BooleanKey.ApsAutoIsfSmbOnEvenTarget
+                )
+            )
+        )
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

@@ -223,7 +223,7 @@ fun AllPreferencesScreen(
             }
         ) { paddingValues ->
             val listState = rememberLazyListState()
-            val sectionState = rememberPreferenceSectionState(accordionMode = true)
+            val sectionState = rememberPreferenceSectionState()
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()

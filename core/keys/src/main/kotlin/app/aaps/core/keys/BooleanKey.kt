@@ -51,7 +51,10 @@ enum class BooleanKey(
     ApsUseAutosens("openapsama_useautosens", true, R.string.pref_title_aps_use_autosens, defaultedBySM = true, negativeDependency = ApsUseDynamicSensitivity),
     ApsUseSmb("use_smb", true, R.string.pref_title_aps_use_smb, R.string.pref_summary_aps_use_smb, defaultedBySM = true),
     ApsUseSmbWithHighTt("enableSMB_with_high_temptarget", false, R.string.pref_title_aps_use_smb_with_high_tt, R.string.pref_summary_aps_use_smb_with_high_tt, defaultedBySM = true, dependency = ApsUseSmb),
-    ApsUseSmbAlways("enableSMB_always", true, R.string.pref_title_aps_use_smb_always, R.string.pref_summary_aps_use_smb_always, defaultedBySM = true, dependency = ApsUseSmb),
+    ApsUseSmbAlways(
+        "enableSMB_always", true, R.string.pref_title_aps_use_smb_always, R.string.pref_summary_aps_use_smb_always, defaultedBySM = true, dependency = ApsUseSmb,
+        visibility = PreferenceVisibility.ADVANCED_FILTERING
+    ),
     ApsUseSmbWithCob(
         "enableSMB_with_COB", true, R.string.pref_title_aps_use_smb_with_cob, R.string.pref_summary_aps_use_smb_with_cob, defaultedBySM = true, dependency = ApsUseSmb,
         visibility = PreferenceVisibility { !it.preferences.get(ApsUseSmbAlways) || !it.advancedFilteringSupported }
@@ -60,10 +63,31 @@ enum class BooleanKey(
         "enableSMB_with_temptarget", true, R.string.pref_title_aps_use_smb_with_low_tt, R.string.pref_summary_aps_use_smb_with_low_tt, defaultedBySM = true, dependency = ApsUseSmb,
         visibility = PreferenceVisibility { !it.preferences.get(ApsUseSmbAlways) || !it.advancedFilteringSupported }
     ),
-    ApsUseSmbAfterCarbs("enableSMB_after_carbs", true, R.string.pref_title_aps_use_smb_after_carbs, R.string.pref_summary_aps_use_smb_after_carbs, defaultedBySM = true, dependency = ApsUseSmb),
+    ApsUseSmbAfterCarbs(
+        "enableSMB_after_carbs", true, R.string.pref_title_aps_use_smb_after_carbs, R.string.pref_summary_aps_use_smb_after_carbs, defaultedBySM = true, dependency = ApsUseSmb,
+        visibility = PreferenceVisibility { !it.preferences.get(ApsUseSmbAlways) && it.advancedFilteringSupported }
+    ),
     ApsUseUam("use_uam", true, R.string.pref_title_aps_use_uam, R.string.pref_summary_aps_use_uam, defaultedBySM = true),
-    ApsSensitivityRaisesTarget("sensitivity_raises_target", true, R.string.pref_title_aps_sensitivity_raises_target, R.string.pref_summary_aps_sensitivity_raises_target, defaultedBySM = true),
-    ApsResistanceLowersTarget("resistance_lowers_target", true, R.string.pref_title_aps_resistance_lowers_target, R.string.pref_summary_aps_resistance_lowers_target, defaultedBySM = true),
+    ApsSensitivityRaisesTarget(
+        "sensitivity_raises_target", true, R.string.pref_title_aps_sensitivity_raises_target, R.string.pref_summary_aps_sensitivity_raises_target, defaultedBySM = true,
+        visibility = PreferenceVisibility {
+            if (it.preferences.get(ApsUseDynamicSensitivity)) {
+                it.preferences.get(ApsDynIsfAdjustSensitivity)
+            } else {
+                it.preferences.get(ApsUseAutosens)
+            }
+        }
+    ),
+    ApsResistanceLowersTarget(
+        "resistance_lowers_target", true, R.string.pref_title_aps_resistance_lowers_target, R.string.pref_summary_aps_resistance_lowers_target, defaultedBySM = true,
+        visibility = PreferenceVisibility {
+            if (it.preferences.get(ApsUseDynamicSensitivity)) {
+                it.preferences.get(ApsDynIsfAdjustSensitivity)
+            } else {
+                it.preferences.get(ApsUseAutosens)
+            }
+        }
+    ),
     ApsAlwaysUseShortDeltas("always_use_shortavg", false, R.string.pref_title_aps_always_use_short_deltas, R.string.pref_summary_aps_always_use_short_deltas, defaultedBySM = true, hideParentScreenIfHidden = true),
     ApsDynIsfAdjustSensitivity("dynisf_adjust_sensitivity", false, R.string.pref_title_aps_dynisf_adjust_sensitivity, R.string.pref_summary_aps_dynisf_adjust_sensitivity, defaultedBySM = true, dependency = ApsUseDynamicSensitivity),
     ApsAmaAutosensAdjustTargets("autosens_adjust_targets", true, R.string.pref_title_aps_autosens_adjust_targets, R.string.pref_summary_aps_autosens_adjust_targets, defaultedBySM = true),

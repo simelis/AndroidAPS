@@ -112,17 +112,17 @@ class SomePreferencesCompose(...) : NavigablePreferenceContent {
 - [x] `pump/omnipod/eros/.../OmnipodErosPreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [x] `pump/virtual/.../VirtualPumpPreferencesCompose.kt` ✅ MIGRATED TO PURE
 
-#### APS Plugins (3 files remaining - Phase 3)
+#### APS Plugins (0 files remaining - ALL MIGRATED ✅)
 - [x] `plugins/aps/.../AutotunePreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [x] `plugins/aps/.../LoopPreferencesCompose.kt` ✅ MIGRATED TO PURE
-- [ ] `plugins/aps/.../OpenAPSAMAPreferencesCompose.kt` (Phase 3)
-- [ ] `plugins/aps/.../OpenAPSAutoISFPreferencesCompose.kt` (Phase 3)
-- [ ] `plugins/aps/.../OpenAPSSMBPreferencesCompose.kt` (HYBRID - Phase 3)
+- [x] `plugins/aps/.../OpenAPSAMAPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/aps/.../OpenAPSAutoISFPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/aps/.../OpenAPSSMBPreferencesCompose.kt` ✅ MIGRATED TO PURE
 
-#### Sync Plugins (1 file remaining)
+#### Sync Plugins (0 files remaining - ALL MIGRATED ✅)
 - [x] `plugins/sync/.../GarminPreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [x] `plugins/sync/.../NSClientPreferencesCompose.kt` ✅ MIGRATED TO PURE
-- [ ] `plugins/sync/.../NSClientV3PreferencesCompose.kt` (HYBRID - Phase 3)
+- [x] `plugins/sync/.../NSClientV3PreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [x] `plugins/sync/.../OpenHumansPreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [x] `plugins/sync/.../TidepoolPreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [x] `plugins/sync/.../WearPreferencesCompose.kt` ✅ MIGRATED TO PURE
@@ -663,11 +663,11 @@ items = listOf(
 - [x] AutotunePreferencesCompose.kt ✅ (flat structure, 4 keys)
 - [x] LoopPreferencesCompose.kt ✅ (single key: open mode min change)
 
-### Phase 3: Migrate Complex (dynamic visibility - may need customContent)
-- [ ] OpenAPSAMAPreferencesCompose.kt
-- [ ] OpenAPSAutoISFPreferencesCompose.kt
-- [ ] OpenAPSSMBPreferencesCompose.kt (already hybrid)
-- [ ] NSClientV3PreferencesCompose.kt (already hybrid)
+### Phase 3: Migrate Complex (dynamic visibility) - ✅ ALL DONE
+- [x] OpenAPSAMAPreferencesCompose.kt ✅ (straightforward - no complexity found)
+- [x] OpenAPSAutoISFPreferencesCompose.kt ✅ (fixed `ApsUseSmbAfterCarbs` visibility)
+- [x] OpenAPSSMBPreferencesCompose.kt ✅ (fixed 5 visibility conditions: `ApsUseSmbAlways`, `ApsUseSmbAfterCarbs`, `ApsSensitivityRaisesTarget`, `ApsResistanceLowersTarget`, `ApsUamMaxMinutesOfBasalToLimitSmb`)
+- [x] NSClientV3PreferencesCompose.kt ✅ (straightforward - 4 nested subscreens)
 
 ### Phase 4: Base Classes
 - [ ] AbstractBgSourcePlugin.kt
@@ -773,20 +773,39 @@ items = listOf(
 
 ## CURRENT STATUS
 
-**Completed:** 31 plugins migrated to PURE PreferenceSubScreenDef
-**Remaining:** 6 files
+**Completed:** 35 plugins migrated to PURE PreferenceSubScreenDef ✅
+**Remaining:** 2 files (base classes)
 
-### Remaining files to migrate:
+### Completed Phases:
+- ✅ **Phase 0:** Prerequisites (`hideParentScreenIfHidden` implemented)
+- ✅ **Phase 1:** Simple plugins (20 files)
+- ✅ **Phase 2:** Medium complexity with subscreens (11 files)
+- ✅ **Phase 3:** Complex plugins with dynamic visibility (4 files)
 
-**Phase 2:** ✅ ALL DONE
-
-**Phase 3 (4 files - complex with dynamic visibility):**
-- OpenAPSAMAPreferencesCompose.kt
-- OpenAPSAutoISFPreferencesCompose.kt
-- OpenAPSSMBPreferencesCompose.kt
-- NSClientV3PreferencesCompose.kt
-
+### Remaining:
 **Phase 4 (2 files - base classes):**
 - AbstractBgSourcePlugin.kt
 - AbstractBgSourceWithSensorInsertLogPlugin.kt
+
+### Major Improvements in Phase 3:
+
+**1. Fixed Missing Visibility Conditions:**
+- `BooleanKey.ApsUseSmbAfterCarbs` - added visibility: `!smbAlways && advancedFiltering`
+- `BooleanKey.ApsUseSmbAlways` - added visibility: `ADVANCED_FILTERING`
+- `BooleanKey.ApsSensitivityRaisesTarget` - added complex visibility: depends on dynISF OR autosens
+- `BooleanKey.ApsResistanceLowersTarget` - added complex visibility: depends on dynISF OR autosens
+- `IntKey.ApsUamMaxMinutesOfBasalToLimitSmb` - added visibility: depends on UAM enabled
+
+**2. Unified Rendering Code:**
+- **Before:** `AllPreferencesScreen` and `PluginPreferencesScreen` used different rendering paths
+  - Full preferences: `addPreferenceContent()` → collapsible sections ▼
+  - Plugin-only: `PreferenceSubScreenRenderer` → navigation screens →
+- **After:** BOTH use same `addPreferenceContent()` → collapsible sections ▼
+- **Result:** Consistent behavior - subscreens render as expandable/collapsible cards in both views
+- **Implementation:** Created `SinglePluginPreferencesRenderer()` in `PluginPreferencesScreen.kt` that reuses the same code path
+
+**3. Code Quality:**
+- Standardized lambda parameters: all `PreferenceVisibility` lambdas use `it` (Kotlin convention)
+- No duplication: kept legacy AMA-specific strings in both modules (referenced from core/keys)
+- Preserved legacy `addPreferenceScreen()` methods for backward compatibility (removed in Phase 6)
 
