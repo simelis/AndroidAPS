@@ -32,6 +32,7 @@ import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.StringNonKey
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
 import app.aaps.plugins.sync.R
@@ -238,6 +239,38 @@ class WearPlugin @Inject constructor(
         }
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = WearPreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "wear_settings",
+        titleResId = app.aaps.core.ui.R.string.wear,
+        items = listOf(
+            BooleanKey.WearControl,
+            BooleanKey.WearBroadcastData,
+            PreferenceSubScreenDef(
+                key = "wear_wizard_settings",
+                titleResId = app.aaps.core.ui.R.string.wear_wizard_settings,
+                summaryResId = R.string.wear_wizard_settings_summary,
+                items = listOf(
+                    BooleanKey.WearWizardBg,
+                    BooleanKey.WearWizardTt,
+                    BooleanKey.WearWizardTrend,
+                    BooleanKey.WearWizardCob,
+                    BooleanKey.WearWizardIob
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "wear_custom_watchface_settings",
+                titleResId = R.string.wear_custom_watchface_settings,
+                items = listOf(
+                    BooleanKey.WearCustomWatchfaceAuthorization
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "wear_general_settings",
+                titleResId = R.string.wear_general_settings,
+                items = listOf(
+                    BooleanKey.WearNotifyOnSmb
+                )
+            )
+        )
+    )
 }

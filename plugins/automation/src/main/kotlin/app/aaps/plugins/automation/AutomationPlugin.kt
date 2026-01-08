@@ -33,6 +33,7 @@ import app.aaps.core.interfaces.rx.events.EventPreferenceChange
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.StringKey
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.validators.preferences.AdaptiveListPreference
 import app.aaps.plugins.automation.actions.Action
@@ -559,8 +560,13 @@ class AutomationPlugin @Inject constructor(
         removeIfExists(event)
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = AutomationPreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "automation_settings",
+        titleResId = app.aaps.core.ui.R.string.automation,
+        items = listOf(
+            StringKey.AutomationLocation
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {

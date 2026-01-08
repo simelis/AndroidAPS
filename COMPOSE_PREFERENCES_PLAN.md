@@ -96,49 +96,49 @@ class SomePreferencesCompose(...) : NavigablePreferenceContent {
 }
 ```
 
-### Files Using This Approach (31 files)
+### Files Using This Approach (6 files remaining)
 
-#### Pumps (13 files)
+#### Pumps (0 remaining - ALL MIGRATED ✅)
 - [x] `pump/combov2/.../ComboV2PreferencesCompose.kt` ✅ MIGRATED TO PURE
-- [ ] `pump/danar/.../DanaRPreferencesCompose.kt`
-- [ ] `pump/danars/.../DanaRSPreferencesCompose.kt`
-- [ ] `pump/diaconn/.../DiaconnG8PreferencesCompose.kt`
-- [ ] `pump/eopatch/.../EopatchPreferencesCompose.kt`
-- [ ] `pump/equil/.../EquilPreferencesCompose.kt`
-- [ ] `pump/insight/.../InsightPreferencesCompose.kt`
+- [x] `pump/danar/.../DanaRPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `pump/danars/.../DanaRSPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `pump/diaconn/.../DiaconnG8PreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `pump/eopatch/.../EopatchPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `pump/equil/.../EquilPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `pump/insight/.../InsightPreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [x] `pump/medtronic/.../MedtronicPreferencesCompose.kt` ✅ MIGRATED TO PURE
-- [ ] `pump/medtrum/.../MedtrumPreferencesCompose.kt`
+- [x] `pump/medtrum/.../MedtrumPreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [x] `pump/omnipod/dash/.../OmnipodDashPreferencesCompose.kt` ✅ MIGRATED TO PURE
 - [x] `pump/omnipod/eros/.../OmnipodErosPreferencesCompose.kt` ✅ MIGRATED TO PURE
-- [ ] `pump/virtual/.../VirtualPumpPreferencesCompose.kt`
+- [x] `pump/virtual/.../VirtualPumpPreferencesCompose.kt` ✅ MIGRATED TO PURE
 
-#### APS Plugins (5 files)
-- [ ] `plugins/aps/.../AutotunePreferencesCompose.kt`
-- [ ] `plugins/aps/.../LoopPreferencesCompose.kt`
-- [ ] `plugins/aps/.../OpenAPSAMAPreferencesCompose.kt`
-- [ ] `plugins/aps/.../OpenAPSAutoISFPreferencesCompose.kt`
-- [ ] `plugins/aps/.../OpenAPSSMBPreferencesCompose.kt` (HYBRID - also uses PreferenceSubScreenDef)
+#### APS Plugins (3 files remaining - Phase 3)
+- [x] `plugins/aps/.../AutotunePreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/aps/.../LoopPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [ ] `plugins/aps/.../OpenAPSAMAPreferencesCompose.kt` (Phase 3)
+- [ ] `plugins/aps/.../OpenAPSAutoISFPreferencesCompose.kt` (Phase 3)
+- [ ] `plugins/aps/.../OpenAPSSMBPreferencesCompose.kt` (HYBRID - Phase 3)
 
-#### Sync Plugins (7 files)
-- [ ] `plugins/sync/.../GarminPreferencesCompose.kt`
-- [ ] `plugins/sync/.../NSClientPreferencesCompose.kt`
-- [ ] `plugins/sync/.../NSClientV3PreferencesCompose.kt` (HYBRID - also uses PreferenceSubScreenDef)
-- [ ] `plugins/sync/.../OpenHumansPreferencesCompose.kt`
-- [ ] `plugins/sync/.../TidepoolPreferencesCompose.kt`
-- [ ] `plugins/sync/.../WearPreferencesCompose.kt`
-- [ ] `plugins/sync/.../XdripPreferencesCompose.kt`
+#### Sync Plugins (1 file remaining)
+- [x] `plugins/sync/.../GarminPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/sync/.../NSClientPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [ ] `plugins/sync/.../NSClientV3PreferencesCompose.kt` (HYBRID - Phase 3)
+- [x] `plugins/sync/.../OpenHumansPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/sync/.../TidepoolPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/sync/.../WearPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/sync/.../XdripPreferencesCompose.kt` ✅ MIGRATED TO PURE
 
-#### Other Plugins (6 files)
-- [ ] `plugins/sensitivity/.../SensitivityAAPSPreferencesCompose.kt`
-- [ ] `plugins/sensitivity/.../SensitivityOref1PreferencesCompose.kt`
-- [ ] `plugins/source/.../RandomBgPreferencesCompose.kt`
-- [ ] `plugins/main/.../SmsCommunicatorPreferencesCompose.kt`
-- [ ] `plugins/automation/.../AutomationPreferencesCompose.kt`
-- [ ] `plugins/configuration/.../MaintenancePreferencesCompose.kt`
-- [ ] `plugins/constraints/.../SafetyPreferencesCompose.kt`
-- [ ] `plugins/insulin/.../InsulinOrefFreePeakPreferencesCompose.kt`
+#### Other Plugins (0 remaining - ALL MIGRATED ✅)
+- [x] `plugins/sensitivity/.../SensitivityAAPSPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/sensitivity/.../SensitivityOref1PreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/source/.../RandomBgPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/main/.../SmsCommunicatorPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/automation/.../AutomationPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/configuration/.../MaintenancePreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/constraints/.../SafetyPreferencesCompose.kt` ✅ MIGRATED TO PURE
+- [x] `plugins/insulin/.../InsulinOrefFreePeakPreferencesCompose.kt` ✅ MIGRATED TO PURE
 
-#### Base Classes (2 files)
+#### Base Classes (2 files remaining)
 - [ ] `plugins/source/.../AbstractBgSourcePlugin.kt`
 - [ ] `plugins/source/.../AbstractBgSourceWithSensorInsertLogPlugin.kt`
 
@@ -251,24 +251,24 @@ Migrate all `NavigablePreferenceContent` implementations to `PreferenceSubScreen
 
 ## Migration Priority
 
-### High Priority (Complex pumps with subscreens)
+### High Priority (Complex pumps with subscreens) - ✅ ALL DONE
 1. ~~ComboV2PreferencesCompose.kt~~ ✅ DONE - Uses PURE PreferenceSubScreenDef with `withDialog` for unpair
 2. ~~MedtronicPreferencesCompose.kt~~ ✅ DONE - Uses PURE PreferenceSubScreenDef
 3. ~~OmnipodDashPreferencesCompose.kt~~ ✅ DONE - Uses PURE PreferenceSubScreenDef with nested subscreens
 4. ~~OmnipodErosPreferencesCompose.kt~~ ✅ DONE - Uses PURE PreferenceSubScreenDef with nested subscreens
 
-### Medium Priority (APS algorithms)
+### Medium Priority (APS algorithms) - 2 remaining (Phase 3)
 5. OpenAPSAMAPreferencesCompose.kt
 6. OpenAPSAutoISFPreferencesCompose.kt
-7. LoopPreferencesCompose.kt
-8. AutotunePreferencesCompose.kt
+7. ~~LoopPreferencesCompose.kt~~ ✅ DONE
+8. ~~AutotunePreferencesCompose.kt~~ ✅ DONE
 
-### Lower Priority (Simpler preferences)
-9. All Dana pumps (DanaR, DanaRS)
-10. Other pumps (Diaconn, Eopatch, Equil, Insight, Medtrum, Virtual)
-11. Sync plugins
-12. Sensitivity plugins
-13. Other plugins
+### Lower Priority (Simpler preferences) - ✅ ALL DONE
+9. ~~All Dana pumps (DanaR, DanaRS)~~ ✅ DONE
+10. ~~Other pumps (Diaconn, Eopatch, Equil, Insight, Medtrum, Virtual)~~ ✅ DONE
+11. ~~Sync plugins~~ ✅ DONE (except NSClientV3 - Phase 3)
+12. ~~Sensitivity plugins~~ ✅ DONE
+13. ~~Other plugins (SmsCommunicator, Automation, Maintenance, Safety)~~ ✅ DONE
 
 ---
 
@@ -278,7 +278,7 @@ Migrate all `NavigablePreferenceContent` implementations to `PreferenceSubScreen
 Some files (OpenAPSSMBPreferencesCompose, NSClientV3PreferencesCompose) use a **hybrid approach** - they implement `NavigablePreferenceContent` but use `PreferenceSubScreenDef` internally for nested content. This shows a transition path.
 
 ### Finding 2: OverviewPlugin is the Reference
-`OverviewPlugin.kt` is the only **pure** implementation using `PreferenceSubScreenDef` directly from the plugin's `getPreferenceScreenContent()` method. Use this as a reference.
+`OverviewPlugin.kt` was the first **pure** implementation using `PreferenceSubScreenDef` directly from the plugin's `getPreferenceScreenContent()` method. Use this as a reference. Now all pumps and many other plugins also use this pattern.
 
 ### Finding 3: Base Classes Need Attention
 `AbstractBgSourcePlugin.kt` and `AbstractBgSourceWithSensorInsertLogPlugin.kt` are base classes - changing them affects multiple BG source implementations.
@@ -649,19 +649,19 @@ items = listOf(
 - [x] RandomBgPreferencesCompose.kt ✅
 - [x] InsulinOrefFreePeakPreferencesCompose.kt ✅
 
-### Phase 2: Migrate Medium Complexity (subscreens, no dynamic visibility)
-- [ ] ComboV2PreferencesCompose.kt
-- [ ] MedtronicPreferencesCompose.kt
-- [ ] OmnipodDashPreferencesCompose.kt
-- [ ] OmnipodErosPreferencesCompose.kt
-- [ ] NSClientPreferencesCompose.kt
-- [ ] WearPreferencesCompose.kt
-- [ ] SmsCommunicatorPreferencesCompose.kt
-- [ ] AutomationPreferencesCompose.kt
-- [ ] MaintenancePreferencesCompose.kt
-- [ ] SafetyPreferencesCompose.kt
-- [ ] AutotunePreferencesCompose.kt
-- [ ] LoopPreferencesCompose.kt
+### Phase 2: Migrate Medium Complexity (subscreens, no dynamic visibility) - ✅ ALL DONE
+- [x] ComboV2PreferencesCompose.kt ✅ (uses `withDialog` for unpair confirmation)
+- [x] MedtronicPreferencesCompose.kt ✅ (uses `withEntriesProvider` for RileyLink list)
+- [x] OmnipodDashPreferencesCompose.kt ✅ (nested subscreens for notifications/alerts)
+- [x] OmnipodErosPreferencesCompose.kt ✅ (nested subscreens for notifications/alerts)
+- [x] NSClientPreferencesCompose.kt ✅ (4 nested subscreens: sync, alarm, connection, advanced)
+- [x] WearPreferencesCompose.kt ✅ (3 nested subscreens: wizard, watchface, general)
+- [x] SmsCommunicatorPreferencesCompose.kt ✅ (flat structure, no subscreens)
+- [x] AutomationPreferencesCompose.kt ✅ (single key: location)
+- [x] MaintenancePreferencesCompose.kt ✅ (2 nested subscreens: data choice, export)
+- [x] SafetyPreferencesCompose.kt ✅ (uses `withEntries` for age)
+- [x] AutotunePreferencesCompose.kt ✅ (flat structure, 4 keys)
+- [x] LoopPreferencesCompose.kt ✅ (single key: open mode min change)
 
 ### Phase 3: Migrate Complex (dynamic visibility - may need customContent)
 - [ ] OpenAPSAMAPreferencesCompose.kt
@@ -771,7 +771,22 @@ items = listOf(
 
 ---
 
-## ACTIVE MIGRATION: (none yet)
+## CURRENT STATUS
 
-(Start first plugin migration when ready)
+**Completed:** 31 plugins migrated to PURE PreferenceSubScreenDef
+**Remaining:** 6 files
+
+### Remaining files to migrate:
+
+**Phase 2:** ✅ ALL DONE
+
+**Phase 3 (4 files - complex with dynamic visibility):**
+- OpenAPSAMAPreferencesCompose.kt
+- OpenAPSAutoISFPreferencesCompose.kt
+- OpenAPSSMBPreferencesCompose.kt
+- NSClientV3PreferencesCompose.kt
+
+**Phase 4 (2 files - base classes):**
+- AbstractBgSourcePlugin.kt
+- AbstractBgSourceWithSensorInsertLogPlugin.kt
 

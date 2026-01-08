@@ -60,6 +60,7 @@ import app.aaps.core.interfaces.utils.SafeParse
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.IntKey
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.plugins.main.general.smsCommunicator.keys.SmsIntentKey
 import app.aaps.core.keys.StringKey
 import app.aaps.core.keys.UnitDoubleKey
@@ -1337,10 +1338,16 @@ class SmsCommunicatorPlugin @Inject constructor(
         }
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = SmsCommunicatorPreferencesCompose(
-        preferences = preferences,
-        config = config,
-        activePlugin = activePlugin
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "smscommunicator_settings",
+        titleResId = R.string.smscommunicator,
+        items = listOf(
+            StringKey.SmsAllowedNumbers,
+            BooleanKey.SmsAllowRemoteCommands,
+            IntKey.SmsRemoteBolusDistance,
+            StringKey.SmsOtpPassword,
+            SmsIntentKey.OtpSetup,
+            BooleanKey.SmsReportPumpUnreachable
+        )
     )
 }

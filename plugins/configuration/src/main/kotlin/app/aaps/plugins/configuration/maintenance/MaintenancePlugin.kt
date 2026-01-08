@@ -22,6 +22,7 @@ import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.StringKey
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.validators.DefaultEditTextValidator
@@ -244,8 +245,29 @@ class MaintenancePlugin @Inject constructor(
         }
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = MaintenancePreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "maintenance_settings",
+        titleResId = R.string.maintenance,
+        items = listOf(
+            StringKey.MaintenanceEmail,
+            IntKey.MaintenanceLogsAmount,
+            PreferenceSubScreenDef(
+                key = "data_choice_setting",
+                titleResId = R.string.data_choices,
+                items = listOf(
+                    BooleanKey.MaintenanceEnableFabric,
+                    StringKey.MaintenanceIdentification
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "unattended_export_setting",
+                titleResId = R.string.unattended_settings_export,
+                items = listOf(
+                    BooleanKey.MaintenanceEnableExportSettingsAutomation
+                )
+            )
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {

@@ -31,6 +31,8 @@ import app.aaps.core.keys.DoubleKey
 import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.StringKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.keys.interfaces.withEntries
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.extensions.put
 import app.aaps.core.objects.extensions.store
@@ -208,6 +210,15 @@ class SafetyPlugin @Inject constructor(
         }
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = SafetyPreferencesCompose(preferences, config, hardLimits)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "safety_settings",
+        titleResId = R.string.safety,
+        items = listOf(
+            StringKey.SafetyAge.withEntries(
+                hardLimits.ageEntryValues().zip(hardLimits.ageEntries()).associate { it.first.toString() to it.second.toString() }
+            ),
+            DoubleKey.SafetyMaxBolus,
+            IntKey.SafetyMaxCarbs
+        )
+    )
 }

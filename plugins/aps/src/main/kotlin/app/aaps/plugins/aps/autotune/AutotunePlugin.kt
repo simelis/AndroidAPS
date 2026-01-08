@@ -32,6 +32,7 @@ import app.aaps.core.interfaces.utils.MidnightTime
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.StringKey
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.extensions.pureProfileFromJson
 import app.aaps.core.objects.profile.ProfileSealed
@@ -472,8 +473,16 @@ class AutotunePlugin @Inject constructor(
         autotuneFS.atLog(message)
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = AutotunePreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "autotune_settings",
+        titleResId = app.aaps.core.ui.R.string.autotune,
+        items = listOf(
+            BooleanKey.AutotuneAutoSwitchProfile,
+            BooleanKey.AutotuneCategorizeUamAsBasal,
+            IntKey.AutotuneDefaultTuneDays,
+            BooleanKey.AutotuneCircadianIcIsf
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {

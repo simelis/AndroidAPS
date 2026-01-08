@@ -75,6 +75,7 @@ import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.IntNonKey
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.nssdk.interfaces.RunningConfiguration
 import app.aaps.core.objects.constraints.ConstraintObject
@@ -1060,8 +1061,13 @@ class LoopPlugin @Inject constructor(
         )
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = LoopPreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "loop_settings",
+        titleResId = app.aaps.core.ui.R.string.loop,
+        items = listOf(
+            IntKey.LoopOpenModeMinChange
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {

@@ -44,6 +44,7 @@ import app.aaps.core.validators.EditTextValidator
 import app.aaps.core.validators.preferences.AdaptiveIntPreference
 import app.aaps.core.validators.preferences.AdaptiveStringPreference
 import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.plugins.sync.R
 import app.aaps.plugins.sync.nsShared.NSClientComposeContent
 import app.aaps.plugins.sync.nsShared.NSClientFragment
@@ -246,8 +247,63 @@ class NSClientPlugin @Inject constructor(
         return true
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any = NSClientPreferencesCompose(preferences, config)
+    override fun getPreferenceScreenContent() = PreferenceSubScreenDef(
+        key = "ns_client_settings",
+        titleResId = R.string.ns_client_title,
+        items = listOf(
+            StringKey.NsClientUrl,
+            StringKey.NsClientApiSecret,
+            PreferenceSubScreenDef(
+                key = "ns_client_synchronization",
+                titleResId = R.string.ns_sync_options,
+                items = listOf(
+                    BooleanKey.NsClientUploadData,
+                    BooleanKey.BgSourceUploadToNs,
+                    BooleanKey.NsClientAcceptCgmData,
+                    BooleanKey.NsClientAcceptProfileStore,
+                    BooleanKey.NsClientAcceptTempTarget,
+                    BooleanKey.NsClientAcceptProfileSwitch,
+                    BooleanKey.NsClientAcceptInsulin,
+                    BooleanKey.NsClientAcceptCarbs,
+                    BooleanKey.NsClientAcceptTherapyEvent,
+                    BooleanKey.NsClientAcceptRunningMode,
+                    BooleanKey.NsClientAcceptTbrEb
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "ns_client_alarm_options",
+                titleResId = R.string.ns_alarm_options,
+                items = listOf(
+                    BooleanKey.NsClientNotificationsFromAlarms,
+                    BooleanKey.NsClientNotificationsFromAnnouncements,
+                    IntKey.NsClientAlarmStaleData,
+                    IntKey.NsClientUrgentAlarmStaleData
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "ns_client_connection_options",
+                titleResId = R.string.connection_settings_title,
+                items = listOf(
+                    BooleanKey.NsClientUseCellular,
+                    BooleanKey.NsClientUseRoaming,
+                    BooleanKey.NsClientUseWifi,
+                    StringKey.NsClientWifiSsids,
+                    BooleanKey.NsClientUseOnBattery,
+                    BooleanKey.NsClientUseOnCharging
+                )
+            ),
+            PreferenceSubScreenDef(
+                key = "ns_client_advanced",
+                titleResId = app.aaps.core.ui.R.string.advanced_settings_title,
+                items = listOf(
+                    BooleanKey.NsClientLogAppStart,
+                    BooleanKey.NsClientCreateAnnouncementsFromErrors,
+                    BooleanKey.NsClientCreateAnnouncementsFromCarbsReq,
+                    BooleanKey.NsClientSlowSync
+                )
+            )
+        )
+    )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {
