@@ -1556,7 +1556,8 @@ class InsightPlugin @Inject constructor(
             InsightIntKey.MinRecoveryDuration,
             InsightIntKey.MaxRecoveryDuration,
             InsightIntKey.DisconnectDelay
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

@@ -1267,7 +1267,8 @@ class MedtronicPumpPlugin @Inject constructor(
             RileylinkBooleanPreferenceKey.OrangeUseScanning,
             RileylinkBooleanPreferenceKey.ShowReportedBatteryLevel,
             MedtronicBooleanPreferenceKey.SetNeutralTemp
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

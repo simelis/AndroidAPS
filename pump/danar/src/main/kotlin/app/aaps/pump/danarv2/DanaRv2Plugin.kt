@@ -43,8 +43,8 @@ import app.aaps.core.interfaces.utils.Round.roundTo
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.keys.interfaces.withEntriesProvider
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.constraints.ConstraintObject
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.validators.DefaultEditTextValidator
 import app.aaps.core.validators.EditTextValidator
@@ -385,7 +385,8 @@ class DanaRv2Plugin @Inject constructor(
             ),
             DanaIntKey.Password,
             DanaIntKey.BolusSpeed
-        )
+        ),
+        iconResId = menuIcon
     )
 
     private fun getBondedBluetoothDevices(context: Context): List<String> {

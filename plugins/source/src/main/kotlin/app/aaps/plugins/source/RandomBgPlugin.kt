@@ -182,7 +182,9 @@ class RandomBgPlugin @Inject constructor(
         items = listOf(
             BooleanKey.BgSourceUploadToNs,
             IntKey.BgSourceRandomInterval
-        )
+
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

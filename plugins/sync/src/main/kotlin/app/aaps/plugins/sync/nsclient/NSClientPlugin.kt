@@ -39,12 +39,12 @@ import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.StringKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.extensions.toJson
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.validators.DefaultEditTextValidator
 import app.aaps.core.validators.EditTextValidator
 import app.aaps.core.validators.preferences.AdaptiveIntPreference
 import app.aaps.core.validators.preferences.AdaptiveStringPreference
 import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.plugins.sync.R
 import app.aaps.plugins.sync.nsShared.NSClientComposeContent
 import app.aaps.plugins.sync.nsShared.NSClientFragment
@@ -302,7 +302,8 @@ class NSClientPlugin @Inject constructor(
                     BooleanKey.NsClientSlowSync
                 )
             )
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

@@ -21,11 +21,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,6 +50,7 @@ import androidx.compose.ui.unit.dp
  * Internal composable for clickable category header with expand/collapse icon
  *
  * @param insideCard If true, uses symmetric padding suitable for card headers
+ * @param iconResId Optional drawable resource ID for the icon shown next to the title
  */
 @Composable
 internal fun ClickablePreferenceCategoryHeader(
@@ -56,7 +59,8 @@ internal fun ClickablePreferenceCategoryHeader(
     expanded: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
-    insideCard: Boolean = false
+    insideCard: Boolean = false,
+    iconResId: Int? = null
 ) {
     val theme = LocalPreferenceTheme.current
     val rotationAngle by animateFloatAsState(
@@ -93,6 +97,16 @@ internal fun ClickablePreferenceCategoryHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         CompositionLocalProvider(LocalContentColor provides theme.categoryColor) {
+            // Icon (if provided and valid)
+            if (iconResId != null && iconResId != -1) {
+                Icon(
+                    painter = painterResource(id = iconResId),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 ProvideTextStyle(value = theme.categoryTextStyle) {
                     Text(text = stringResource(titleResId))

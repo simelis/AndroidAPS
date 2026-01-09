@@ -467,7 +467,8 @@ class EquilPumpPlugin @Inject constructor(
             EquilBooleanPreferenceKey.EquilAlarmBattery,
             EquilBooleanPreferenceKey.EquilAlarmInsulin,
             EquilIntPreferenceKey.EquilTone
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

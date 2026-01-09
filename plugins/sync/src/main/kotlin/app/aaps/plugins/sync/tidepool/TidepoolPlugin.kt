@@ -68,6 +68,7 @@ class TidepoolPlugin @Inject constructor(
         .mainType(PluginType.SYNC)
         .pluginName(R.string.tidepool)
         .shortName(R.string.tidepool_shortname)
+        .pluginIcon(app.aaps.core.ui.R.drawable.ic_tidepool)
         .fragmentClass(TidepoolFragment::class.qualifiedName)
         .preferencesId(PluginDescription.PREFERENCE_SCREEN)
         .description(R.string.description_tidepool),
@@ -176,7 +177,8 @@ class TidepoolPlugin @Inject constructor(
                     TidepoolBooleanKey.UseTestServers
                 )
             )
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

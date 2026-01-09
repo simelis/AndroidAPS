@@ -66,7 +66,7 @@ class GarminPlugin @Inject constructor(
 ) : PluginBaseWithPreferences(
     pluginDescription = PluginDescription()
         .mainType(PluginType.SYNC)
-        .pluginIcon(app.aaps.core.objects.R.drawable.ic_watch)
+        .pluginIcon(app.aaps.core.ui.R.drawable.ic_garmin_triangle)
         .pluginName(R.string.garmin)
         .shortName(R.string.garmin)
         .description(R.string.garmin_description)
@@ -486,7 +486,9 @@ class GarminPlugin @Inject constructor(
             GarminBooleanKey.LocalHttpServer,
             GarminIntKey.LocalHttpPort,
             GarminStringKey.RequestKey
-        )
+
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

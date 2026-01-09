@@ -1518,7 +1518,8 @@ class OmnipodDashPumpPlugin @Inject constructor(
                     DashBooleanPreferenceKey.SoundDeliverySuspendedNotification
                 )
             )
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

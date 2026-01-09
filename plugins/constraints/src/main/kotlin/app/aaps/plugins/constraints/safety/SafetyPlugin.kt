@@ -32,10 +32,10 @@ import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.StringKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.keys.interfaces.withEntries
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.extensions.put
 import app.aaps.core.objects.extensions.store
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.validators.preferences.AdaptiveDoublePreference
 import app.aaps.core.validators.preferences.AdaptiveIntPreference
 import app.aaps.core.validators.preferences.AdaptiveListPreference
@@ -66,6 +66,7 @@ class SafetyPlugin @Inject constructor(
         .alwaysEnabled(true)
         .showInList { false }
         .pluginName(R.string.safety)
+        .pluginIcon(app.aaps.core.ui.R.drawable.ic_header_warning)
         .preferencesId(PluginDescription.PREFERENCE_SCREEN),
     aapsLogger, rh
 ), PluginConstraints, Safety {
@@ -219,6 +220,7 @@ class SafetyPlugin @Inject constructor(
             ),
             DoubleKey.SafetyMaxBolus,
             IntKey.SafetyMaxCarbs
-        )
+        ),
+        iconResId = menuIcon
     )
 }

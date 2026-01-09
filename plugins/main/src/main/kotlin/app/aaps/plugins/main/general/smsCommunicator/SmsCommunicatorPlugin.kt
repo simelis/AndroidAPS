@@ -60,8 +60,6 @@ import app.aaps.core.interfaces.utils.SafeParse
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.IntKey
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
-import app.aaps.plugins.main.general.smsCommunicator.keys.SmsIntentKey
 import app.aaps.core.keys.StringKey
 import app.aaps.core.keys.UnitDoubleKey
 import app.aaps.core.keys.interfaces.Preferences
@@ -69,6 +67,7 @@ import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.extensions.generateCOBString
 import app.aaps.core.objects.extensions.round
 import app.aaps.core.objects.workflow.LoggingWorker
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.utils.receivers.DataWorkerStorage
 import app.aaps.core.validators.DefaultEditTextValidator
 import app.aaps.core.validators.EditTextValidator
@@ -79,6 +78,7 @@ import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
 import app.aaps.plugins.main.R
 import app.aaps.plugins.main.general.smsCommunicator.activities.SmsCommunicatorOtpActivity
 import app.aaps.plugins.main.general.smsCommunicator.events.EventSmsCommunicatorUpdateGui
+import app.aaps.plugins.main.general.smsCommunicator.keys.SmsIntentKey
 import app.aaps.plugins.main.general.smsCommunicator.otp.OneTimePassword
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
@@ -1348,6 +1348,8 @@ class SmsCommunicatorPlugin @Inject constructor(
             StringKey.SmsOtpPassword,
             SmsIntentKey.OtpSetup,
             BooleanKey.SmsReportPumpUnreachable
-        )
+
+        ),
+        iconResId = menuIcon
     )
 }

@@ -2296,7 +2296,8 @@ class ComboV2Plugin @Inject constructor(
             ComboBooleanKey.AutomaticReservoirEntry,
             ComboBooleanKey.AutomaticBatteryEntry,
             ComboBooleanKey.VerboseLogging
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

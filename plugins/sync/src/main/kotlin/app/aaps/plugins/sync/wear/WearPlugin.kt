@@ -32,8 +32,8 @@ import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.StringNonKey
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
 import app.aaps.plugins.sync.R
 import app.aaps.plugins.sync.wear.receivers.WearDataReceiver
@@ -271,6 +271,7 @@ class WearPlugin @Inject constructor(
                     BooleanKey.WearNotifyOnSmb
                 )
             )
-        )
+        ),
+        iconResId = menuIcon
     )
 }

@@ -43,6 +43,8 @@ abstract class AbstractBgSourcePlugin(
         titleResId = pluginDescription.pluginName,
         items = listOf(
             BooleanKey.BgSourceUploadToNs
-        )
+
+        ),
+        iconResId = menuIcon
     )
 }

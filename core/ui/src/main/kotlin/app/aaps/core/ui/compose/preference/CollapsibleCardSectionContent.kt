@@ -28,12 +28,13 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 
 /**
  * Composable for a collapsible card section.
  * This is separated from the LazyListScope extension to avoid cross-module compilation issues
  * with @Composable lambda parameters.
+ *
+ * @param iconResId Optional drawable resource ID for the icon shown next to the title
  */
 @Composable
 fun CollapsibleCardSectionContent(
@@ -41,6 +42,7 @@ fun CollapsibleCardSectionContent(
     summaryItems: List<Int> = emptyList(),
     expanded: Boolean,
     onToggle: () -> Unit,
+    iconResId: Int? = null,
     content: @Composable () -> Unit
 ) {
     val theme = LocalPreferenceTheme.current
@@ -59,7 +61,8 @@ fun CollapsibleCardSectionContent(
                 summaryItems = summaryItems,
                 expanded = expanded,
                 onToggle = onToggle,
-                insideCard = true
+                insideCard = true,
+                iconResId = iconResId
             )
 
             AnimatedVisibility(

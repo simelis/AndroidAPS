@@ -337,7 +337,8 @@ class OverviewPlugin @Inject constructor(
                 titleResId = app.aaps.core.ui.R.string.advanced_settings_title,
                 items = listOf(BooleanKey.OverviewUseSuperBolus)
             )
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

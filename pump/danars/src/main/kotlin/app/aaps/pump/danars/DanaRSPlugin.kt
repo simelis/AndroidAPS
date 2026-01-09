@@ -49,8 +49,8 @@ import app.aaps.core.interfaces.utils.Round
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.keys.interfaces.withActivity
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.constraints.ConstraintObject
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.validators.DefaultEditTextValidator
 import app.aaps.core.validators.EditTextValidator
@@ -601,7 +601,8 @@ class DanaRSPlugin @Inject constructor(
             DanaIntKey.BolusSpeed,
             DanaBooleanKey.LogInsulinChange,
             DanaBooleanKey.LogCannulaChange
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

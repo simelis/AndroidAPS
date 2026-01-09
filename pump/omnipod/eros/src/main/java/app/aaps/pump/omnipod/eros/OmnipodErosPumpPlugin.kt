@@ -959,7 +959,8 @@ class OmnipodErosPumpPlugin @Inject constructor(
                     ErosBooleanPreferenceKey.TimeChangeEnabled
                 )
             )
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

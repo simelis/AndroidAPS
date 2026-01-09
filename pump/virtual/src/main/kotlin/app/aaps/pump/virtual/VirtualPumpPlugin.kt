@@ -372,7 +372,8 @@ open class VirtualPumpPlugin @Inject constructor(
                     .associate { it.description to it.description }
             ),
             BooleanKey.VirtualPumpStatusUpload
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

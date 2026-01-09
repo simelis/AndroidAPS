@@ -15,9 +15,9 @@ import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.interfaces.utils.HardLimits
 import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.interfaces.Preferences
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.extensions.put
 import app.aaps.core.objects.extensions.store
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.validators.preferences.AdaptiveIntPreference
 import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
@@ -71,7 +71,9 @@ class InsulinOrefFreePeakPlugin @Inject constructor(
         titleResId = R.string.insulin_oref_peak,
         items = listOf(
             IntKey.InsulinOrefPeak
-        )
+
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

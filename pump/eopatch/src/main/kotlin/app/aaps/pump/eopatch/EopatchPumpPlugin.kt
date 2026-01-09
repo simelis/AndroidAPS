@@ -520,7 +520,8 @@ class EopatchPumpPlugin @Inject constructor(
             EopatchIntKey.LowReservoirReminder.withEntries((10..50 step 5).associateWith { "$it U" }),
             EopatchIntKey.ExpirationReminder.withEntries((1..24).associateWith { "$it hr" }),
             EopatchBooleanKey.BuzzerReminder
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

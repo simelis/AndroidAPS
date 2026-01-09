@@ -88,7 +88,8 @@ fun AllPreferencesScreen(
             StringKey.GeneralPatientName,
             StringKey.GeneralSkin.withEntries(skins.associate { skin -> skin.javaClass.name to rh.gs(skin.description) }),
             StringKey.GeneralDarkMode
-        )
+        ),
+        iconResId = app.aaps.core.ui.R.drawable.ic_settings
     )
     val protectionPreferences = PreferenceSubScreenDef(
         key = "protection",
@@ -110,14 +111,16 @@ fun AllPreferencesScreen(
             StringKey.ProtectionBolusPin,
             // Protection Timeout
             IntKey.ProtectionTimeout
-        )
+        ),
+        iconResId = app.aaps.core.objects.R.drawable.ic_header_key
     )
     val pumpPreferences = PreferenceSubScreenDef(
         key = "pump",
         titleResId = app.aaps.core.ui.R.string.pump,
         items = listOf(
             BooleanKey.PumpBtWatchdog
-        )
+        ),
+        iconResId = app.aaps.core.ui.R.drawable.ic_settings
     )
     val alertsPreferences = PreferenceSubScreenDef(
         key = "alerts",
@@ -130,7 +133,8 @@ fun AllPreferencesScreen(
             BooleanKey.AlertCarbsRequired,
             BooleanKey.AlertUrgentAsAndroidNotification,
             BooleanKey.AlertIncreaseVolume
-        )
+        ),
+        iconResId = app.aaps.core.objects.R.drawable.ic_cp_announcement
     )
 
     // Helper function to get preference content if plugin is enabled

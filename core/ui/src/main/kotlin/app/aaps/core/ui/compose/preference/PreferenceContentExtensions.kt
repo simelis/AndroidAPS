@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.keys.interfaces.BooleanPreferenceKey
@@ -53,7 +52,8 @@ fun LazyListScope.addPreferenceSubScreenDef(
             titleResId = def.titleResId,
             summaryItems = def.effectiveSummaryItems(),
             expanded = isExpanded,
-            onToggle = { sectionState?.toggle(sectionKey) }
+            onToggle = { sectionState?.toggle(sectionKey) },
+            iconResId = def.iconResId
         ) {
             // Render items in order, preserving the original structure
             RenderPreferenceItems(
@@ -112,13 +112,14 @@ private fun RenderPreferenceItems(
                     val subSectionKey = "${parentKey}_${item.key}"
                     val isSubExpanded = sectionState?.isExpanded(subSectionKey) ?: false
 
-                    // Header without card
+                    // Header without card (no icon for nested subscreens)
                     ClickablePreferenceCategoryHeader(
                         titleResId = item.titleResId,
                         summaryItems = item.effectiveSummaryItems(),
                         expanded = isSubExpanded,
                         onToggle = { sectionState?.toggle(subSectionKey) },
-                        insideCard = true
+                        insideCard = true,
+                        iconResId = null  // No icon for nested subscreens
                     )
 
                     // Content without card wrapper

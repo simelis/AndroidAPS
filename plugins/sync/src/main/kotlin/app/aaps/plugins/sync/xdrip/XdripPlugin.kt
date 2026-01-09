@@ -43,18 +43,18 @@ import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
-import app.aaps.plugins.sync.xdrip.keys.XdripIntentKey
 import app.aaps.core.keys.interfaces.Preferences
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.objects.extensions.generateCOBString
 import app.aaps.core.objects.extensions.round
 import app.aaps.core.objects.extensions.toStringShort
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.validators.preferences.AdaptiveIntentPreference
 import app.aaps.core.validators.preferences.AdaptiveSwitchPreference
 import app.aaps.plugins.sync.R
 import app.aaps.plugins.sync.nsclient.extensions.toJson
 import app.aaps.plugins.sync.xdrip.extensions.toXdripJson
+import app.aaps.plugins.sync.xdrip.keys.XdripIntentKey
 import app.aaps.plugins.sync.xdrip.keys.XdripLongKey
 import app.aaps.plugins.sync.xdrip.mvvm.XdripMvvmRepository
 import app.aaps.plugins.sync.xdrip.workers.XdripDataSyncWorker
@@ -392,7 +392,8 @@ class XdripPlugin @Inject constructor(
                     BooleanKey.XdripSendBgi
                 )
             )
-        )
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)

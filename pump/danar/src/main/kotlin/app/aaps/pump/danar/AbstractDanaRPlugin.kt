@@ -72,7 +72,7 @@ abstract class AbstractDanaRPlugin protected constructor(
     pluginDescription = PluginDescription()
         .mainType(PluginType.PUMP)
         .fragmentClass(DanaFragment::class.java.name)
-        .pluginIcon(app.aaps.core.ui.R.drawable.ic_danars_128)
+        .pluginIcon(app.aaps.core.ui.R.drawable.ic_danai_128)
         .pluginName(app.aaps.pump.dana.R.string.danarspump)
         .shortName(app.aaps.pump.dana.R.string.danarpump_shortname)
         .preferencesId(PluginDescription.PREFERENCE_SCREEN)

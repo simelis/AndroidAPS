@@ -32,10 +32,10 @@ import app.aaps.core.interfaces.utils.MidnightTime
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.StringKey
-import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.extensions.pureProfileFromJson
 import app.aaps.core.objects.profile.ProfileSealed
+import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.ui.elements.WeekDay
 import app.aaps.core.utils.JsonHelper
 import app.aaps.core.validators.preferences.AdaptiveIntPreference
@@ -481,7 +481,9 @@ class AutotunePlugin @Inject constructor(
             BooleanKey.AutotuneCategorizeUamAsBasal,
             IntKey.AutotuneDefaultTuneDays,
             BooleanKey.AutotuneCircadianIcIsf
-        )
+
+        ),
+        iconResId = menuIcon
     )
 
     // TODO: Remove after full migration to Compose preferences (getPreferenceScreenContent)
