@@ -28,14 +28,12 @@
   - Mark todos in_progress before starting, completed immediately after finishing
   - Keep exactly ONE todo in_progress at a time
   - Break down large tasks into smaller items for tracking
+- **IMPORTANT: Read `.claude/CLAUDE_COMMANDS.md` at conversation start and after compaction** - Contains working commands for this local system
+- **Update `.claude/CLAUDE_COMMANDS.md` continuously** - When discovering new working commands, useful patterns, or fixes for broken commands, add them to the file immediately
 - On KSP error during compilation just compile again. Do not clean build.
 - On file locked error stop gradle daemons
 - Never install app automatically
 - Use %TEMP% directory for screenshots
-- Check what OS is running and use commands for this OS
-- Check for WSL availability, use WSL for Linux/shell commands if running on Windows
-- Use Python from WSL: `wsl python3` when WSL is available on Windows
-- Detect project path in WSL at start
 - Can edit files and run commands freely without asking for permission
 - Can use internet/web search as needed
 - For compilation do not use gradle daemon

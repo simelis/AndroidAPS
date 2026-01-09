@@ -1,6 +1,7 @@
 package app.aaps.core.keys.interfaces
 
 import app.aaps.core.keys.PreferenceType
+import app.aaps.core.keys.UnitType
 
 /**
  * Marker interface for items that can appear in a preference list.
@@ -108,4 +109,13 @@ interface PreferenceKey : NonPreferenceKey, PreferenceItem {
      */
     val enabledCondition: PreferenceEnabledCondition
         get() = PreferenceEnabledCondition.ALWAYS
+
+    /**
+     * Unit type for this preference value.
+     * Determines how values are formatted with units in UI.
+     * Use [UnitType.valueResId] and [UnitType.rangeResId] extension functions
+     * to get format string resource IDs.
+     */
+    val unitType: UnitType
+        get() = UnitType.NONE
 }

@@ -4,13 +4,22 @@
 
 package app.aaps.core.ui.compose.preference
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.keys.interfaces.IntPreferenceKey
 import app.aaps.core.keys.interfaces.PreferenceVisibilityContext
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.keys.rangeResId
+import app.aaps.core.keys.unitLabelResId
+import app.aaps.core.keys.valueResId
+import app.aaps.core.ui.compose.SliderWithButtons
+import java.text.DecimalFormat
 
 /**
  * Composable int preference for use inside card sections.
@@ -25,7 +34,6 @@ fun AdaptiveIntPreferenceItem(
     intKey: IntPreferenceKey,
     titleResId: Int = 0,
     unit: String = "",
-    showRange: Boolean = true,
     visibilityContext: PreferenceVisibilityContext? = null
 ) {
     val effectiveTitleResId = if (titleResId != 0) titleResId else intKey.titleResId
@@ -45,32 +53,76 @@ fun AdaptiveIntPreferenceItem(
 
     val state = rememberPreferenceIntState(preferences, intKey)
     val value = state.value
-    // Only show range if both min and max are meaningful values
-    val hasValidRange = intKey.min != Int.MIN_VALUE && intKey.max != Int.MAX_VALUE
+    val theme = LocalPreferenceTheme.current
 
-    TextFieldPreference(
-        state = state,
-        title = { Text(stringResource(effectiveTitleResId)) },
-        textToValue = { text ->
-            text.toIntOrNull()?.coerceIn(intKey.min, intKey.max)
-        },
-        enabled = visibility.enabled,
-        summary = {
-            val unitsResId = intKey.unitsResId
-            val summaryText = when {
-                unitsResId != null -> {
-                    // Use formatted string resource with units
-                    stringResource(unitsResId, value, intKey.min, intKey.max)
-                }
-                showRange && hasValidRange -> {
-                    // Fallback to old behavior with unit parameter
-                    "$value$unit (${intKey.min} - ${intKey.max})"
-                }
-                else -> {
-                    "$value$unit"
-                }
+    // Get formatting info from UnitType
+    val unitType = intKey.unitType
+    val valueFormatResId = unitType.valueResId()
+
+    // Get unit label from UnitType (for dialog input suffix)
+    val unitLabelResId = unitType.unitLabelResId()
+    val unitLabel = unitLabelResId?.let { stringResource(it) } ?: unit
+
+    // Get summary if available
+    val summaryResId = intKey.summaryResId
+    val summary = if (summaryResId != null && summaryResId != 0) stringResource(summaryResId) else null
+
+    // Use slider if min/max range is specified (not default extreme values)
+    val hasValidRange = intKey.min > Int.MIN_VALUE && intKey.max < Int.MAX_VALUE
+    val useSlider = hasValidRange
+
+    if (useSlider) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(theme.listItemPadding)
+        ) {
+            Text(
+                text = stringResource(effectiveTitleResId),
+                style = theme.titleTextStyle,
+                color = theme.titleColor
+            )
+            if (summary != null) {
+                Text(
+                    text = summary,
+                    style = theme.summaryTextStyle,
+                    color = theme.summaryColor
+                )
             }
-            Text(summaryText)
+            SliderWithButtons(
+                value = value.toDouble(),
+                onValueChange = { newValue ->
+                    if (visibility.enabled) {
+                        state.value = newValue.toInt()
+                    }
+                },
+                valueRange = intKey.min.toDouble()..intKey.max.toDouble(),
+                step = 1.0,
+                showValue = true,
+                valueFormatResId = valueFormatResId,
+                formatAsInt = true,
+                valueFormat = DecimalFormat("0"),
+                unitLabel = unitLabel,
+                dialogLabel = stringResource(effectiveTitleResId),
+                dialogSummary = summary
+            )
         }
-    )
+    } else {
+        // For unspecified ranges, use text field with range summary
+        val rangeFormatResId = unitType.rangeResId()
+        val summaryText = if (rangeFormatResId != null) {
+            stringResource(rangeFormatResId, value, intKey.min, intKey.max)
+        } else {
+            "$value$unitLabel (${intKey.min} - ${intKey.max})"
+        }
+        TextFieldPreference(
+            state = state,
+            title = { Text(stringResource(effectiveTitleResId)) },
+            textToValue = { text ->
+                text.toIntOrNull()?.coerceIn(intKey.min, intKey.max)
+            },
+            enabled = visibility.enabled,
+            summary = { Text(summaryText) }
+        )
+    }
 }

@@ -42,16 +42,6 @@ interface IntPreferenceKey : PreferenceKey, IntNonPreferenceKey {
      */
     val resolvedEntries: Map<Int, String>?
         get() = null
-
-    /**
-     * String resource ID for formatted unit display.
-     * Use formatted strings like "units_format_min_range" for value with range,
-     * or "units_format_min" for value only.
-     * The format string receives parameters: (value, min, max).
-     * If not specified, no unit display.
-     */
-    val unitsResId: Int?
-        get() = null
 }
 
 /**

@@ -35,6 +35,7 @@ import java.text.DecimalFormat
  * @param valueRange The allowed range for the value
  * @param step The step size for rounding
  * @param label Optional label for the input field
+ * @param summary Optional summary/description text to show below the label
  * @param unitLabel Optional unit label to show after value
  * @param valueFormat Format for displaying/parsing the value
  * @param onValueConfirm Called when user confirms with a valid value
@@ -46,6 +47,7 @@ fun ValueInputDialog(
     valueRange: ClosedFloatingPointRange<Double>,
     step: Double = 0.1,
     label: String? = null,
+    summary: String? = null,
     unitLabel: String = "",
     valueFormat: DecimalFormat = DecimalFormat("0.0"),
     onValueConfirm: (Double) -> Unit,
@@ -102,6 +104,14 @@ fun ValueInputDialog(
         title = label?.let { { Text(it) } },
         text = {
             Column {
+                if (summary != null) {
+                    Text(
+                        text = summary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
                 OutlinedTextField(
                     value = textFieldValue,
                     onValueChange = { newValue ->

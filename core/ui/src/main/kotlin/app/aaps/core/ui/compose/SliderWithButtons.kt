@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -35,9 +36,12 @@ import kotlin.math.roundToInt
  * @param valueRange The range of values the slider can represent
  * @param step The step size for +/- buttons (default 0.1)
  * @param showValue Whether to show a clickable value label (default false)
- * @param valueFormat Format for the value label
- * @param unitLabel Unit label to show after value
+ * @param valueFormatResId Resource ID for formatting value with unit (e.g., "%1$.1f U" or "%1$d min")
+ * @param formatAsInt If true, value is formatted as Int for stringResource (use with %d format strings)
+ * @param valueFormat Format for the value (used for dialog and fallback)
+ * @param unitLabel Unit label for dialog input suffix
  * @param dialogLabel Label for the input dialog
+ * @param dialogSummary Summary/description for the input dialog
  * @param modifier Modifier for the Row container
  */
 @Composable
@@ -47,9 +51,12 @@ fun SliderWithButtons(
     valueRange: ClosedFloatingPointRange<Double>,
     step: Double = 0.1,
     showValue: Boolean = false,
+    valueFormatResId: Int? = null,
+    formatAsInt: Boolean = false,
     valueFormat: DecimalFormat = DecimalFormat("0.0"),
     unitLabel: String = "",
     dialogLabel: String? = null,
+    dialogSummary: String? = null,
     modifier: Modifier = Modifier
 ) {
     val minValue = valueRange.start
@@ -105,14 +112,23 @@ fun SliderWithButtons(
 
         // Optional clickable value label
         if (showValue) {
+            val displayText = if (valueFormatResId != null) {
+                if (formatAsInt) {
+                    stringResource(valueFormatResId, value.roundToInt())
+                } else {
+                    stringResource(valueFormatResId, value)
+                }
+            } else {
+                "${valueFormat.format(value)}${if (unitLabel.isNotEmpty()) " $unitLabel" else ""}"
+            }
             Text(
-                text = "${valueFormat.format(value)}${if (unitLabel.isNotEmpty()) " $unitLabel" else ""}",
+                text = displayText,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.End,
                 modifier = Modifier
-                    .widthIn(min = if (unitLabel.isEmpty()) 40.dp else 56.dp)
+                    .widthIn(min = if (valueFormatResId != null || unitLabel.isNotEmpty()) 56.dp else 40.dp)
                     .clickable { showDialog = true }
                     .padding(start = 4.dp)
             )
@@ -126,6 +142,7 @@ fun SliderWithButtons(
             valueRange = valueRange,
             step = step,
             label = dialogLabel,
+            summary = dialogSummary,
             unitLabel = unitLabel,
             valueFormat = valueFormat,
             onValueConfirm = onValueChange,

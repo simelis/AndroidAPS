@@ -11,9 +11,6 @@ enum class PreferenceType {
     /** Default for IntPreferenceKey, DoublePreferenceKey - renders as text input field */
     TEXT_FIELD,
 
-    /** Renders as a slider (for Int/Double keys) */
-    SLIDER,
-
     /** Renders as a dropdown/dialog list (requires entries) */
     LIST,
 
@@ -24,8 +21,5 @@ enum class PreferenceType {
     URL,
 
     /** Launches an Activity (for IntentPreferenceKey) */
-    ACTIVITY,
-
-    /** Master password with two-step dialog (query old password, then set new) */
-    MASTER_PASSWORD
+    ACTIVITY
 }

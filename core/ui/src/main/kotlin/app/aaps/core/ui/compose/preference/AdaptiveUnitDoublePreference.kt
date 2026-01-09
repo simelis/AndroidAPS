@@ -4,20 +4,24 @@
 
 package app.aaps.core.ui.compose.preference
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.profile.ProfileUtil
-import app.aaps.core.keys.R
 import app.aaps.core.keys.interfaces.PreferenceVisibilityContext
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.keys.interfaces.UnitDoublePreferenceKey
+import app.aaps.core.ui.compose.SliderWithButtons
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.DecimalFormat
 import kotlin.math.abs
+import app.aaps.core.ui.R as UiR
 
 /**
  * Composable unit double preference for use inside card sections.
@@ -50,6 +54,7 @@ fun AdaptiveUnitDoublePreferenceItem(
     if (!visibility.visible || (preferences.simpleMode && unitKey.defaultedBySM)) return
 
     val state = rememberUnitDoublePreferenceState(preferences, profileUtil, unitKey)
+    val theme = LocalPreferenceTheme.current
 
     // Convert min/max values from mg/dL to current units using ProfileUtil
     val minDisplay = profileUtil.fromMgdlToUnits(unitKey.minMgdl.toDouble())
@@ -58,28 +63,54 @@ fun AdaptiveUnitDoublePreferenceItem(
     // Detect if using mg/dL by checking if conversion preserved the value
     val isMgdl = abs(minDisplay - unitKey.minMgdl.toDouble()) < 0.01
 
-    val precision = if (isMgdl) 0 else 1
-    val minFormatted = BigDecimal(minDisplay).setScale(precision, RoundingMode.HALF_UP).toPlainString()
-    val maxFormatted = BigDecimal(maxDisplay).setScale(precision, RoundingMode.HALF_UP).toPlainString()
+    // Adaptive step: 1.0 for mg/dL, 0.1 for mmol/L
+    val step = if (isMgdl) 1.0 else 0.1
+    val decimalPlaces = if (isMgdl) 0 else 1
+    val valueFormat = if (isMgdl) DecimalFormat("0") else DecimalFormat("0.0")
 
-    val textState = remember { mutableStateOf(state.displayValue) }
+    // Get unit label from resources - short form for slider
+    val unitLabel = stringResource(if (isMgdl) UiR.string.mgdl else UiR.string.mmol)
 
-    // Choose the appropriate formatted unit string based on user's glucose unit preference
-    val unitFormatResId = if (isMgdl) R.string.units_format_mgdl_range else R.string.units_format_mmol_range
+    // Get summary if available
+    val summaryResId = unitKey.summaryResId
+    val summary = if (summaryResId != null && summaryResId != 0) stringResource(summaryResId) else null
 
-    TextFieldPreference(
-        state = textState,
-        title = { Text(stringResource(effectiveTitleResId)) },
-        textToValue = { text ->
-            val value = text.toDoubleOrNull()
-            if (value != null && value >= minDisplay && value <= maxDisplay) {
-                state.updateDisplayValue(text)
-                text
-            } else {
-                null
-            }
-        },
-        enabled = visibility.enabled,
-        summary = { Text(stringResource(unitFormatResId, state.displayValue, minFormatted, maxFormatted)) }
-    )
+    // Parse current display value to Double
+    val currentValue = state.displayValue.toDoubleOrNull() ?: minDisplay
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(theme.listItemPadding)
+    ) {
+        Text(
+            text = stringResource(effectiveTitleResId),
+            style = theme.titleTextStyle,
+            color = theme.titleColor
+        )
+        if (summary != null) {
+            Text(
+                text = summary,
+                style = theme.summaryTextStyle,
+                color = theme.summaryColor
+            )
+        }
+        SliderWithButtons(
+            value = currentValue,
+            onValueChange = { newValue ->
+                if (visibility.enabled) {
+                    // Format with appropriate precision and update state
+                    val formatted = BigDecimal(newValue).setScale(decimalPlaces, RoundingMode.HALF_UP).toPlainString()
+                    state.updateDisplayValue(formatted)
+                }
+            },
+            valueRange = minDisplay..maxDisplay,
+            step = step,
+            showValue = true,
+            valueFormat = valueFormat,
+            unitLabel = unitLabel,
+            dialogLabel = stringResource(effectiveTitleResId),
+            dialogSummary = summary
+        )
+    }
 }
