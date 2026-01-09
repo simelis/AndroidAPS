@@ -58,6 +58,7 @@ internal fun PreferenceAlertDialog(
             color = AlertDialogDefaults.containerColor,
             tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
+            val theme = LocalPreferenceTheme.current
             Column(modifier = Modifier.fillMaxWidth()) {
                 ProvideContentColorTextStyle(
                     contentColor = AlertDialogDefaults.titleContentColor,
@@ -66,7 +67,7 @@ internal fun PreferenceAlertDialog(
                     Box(
                         modifier =
                             Modifier.fillMaxWidth()
-                                .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 16.dp)
+                                .padding(theme.dialogTitlePadding)
                     ) {
                         title()
                     }
@@ -79,10 +80,10 @@ internal fun PreferenceAlertDialog(
                     Box(
                         modifier =
                             Modifier.fillMaxWidth()
-                                .padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 24.dp),
+                                .padding(theme.dialogButtonsPadding),
                         contentAlignment = Alignment.CenterEnd,
                     ) {
-                        AlertDialogFlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 12.dp) {
+                        AlertDialogFlowRow(mainAxisSpacing = theme.dialogButtonSpacing, crossAxisSpacing = theme.dialogButtonCrossSpacing) {
                             CompositionLocalProvider(
                                 LocalMinimumInteractiveComponentSize provides Dp.Unspecified,
                                 content = buttons,
@@ -163,10 +164,8 @@ private fun AlertDialogFlowRow(
 
         val mainAxisLayoutSize = max(mainAxisSpace, constraints.minWidth)
         val crossAxisLayoutSize = max(crossAxisSpace, constraints.minHeight)
-        val layoutWidth = mainAxisLayoutSize
-        val layoutHeight = crossAxisLayoutSize
 
-        layout(layoutWidth, layoutHeight) {
+        layout(mainAxisLayoutSize, crossAxisLayoutSize) {
             sequences.forEachIndexed { i, placeables ->
                 val childrenMainAxisSizes =
                     IntArray(placeables.size) { j ->

@@ -72,7 +72,7 @@ internal fun ClickablePreferenceCategoryHeader(
 
     // Use symmetric padding for card headers
     val headerPadding = if (insideCard) {
-        PaddingValues(horizontal = 16.dp, vertical = 16.dp)
+        theme.headerPaddingInsideCard
     } else {
         theme.categoryPadding
     }
@@ -113,7 +113,7 @@ internal fun ClickablePreferenceCategoryHeader(
                 imageVector = Icons.Default.ExpandMore,
                 contentDescription = if (expanded) "Collapse" else "Expand",
                 modifier = Modifier
-                    .size(24.dp)
+                    .size(theme.expandIconSize)
                     .rotate(rotationAngle)
             )
         }

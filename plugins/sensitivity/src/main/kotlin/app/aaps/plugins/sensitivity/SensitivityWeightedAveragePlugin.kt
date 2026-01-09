@@ -19,6 +19,7 @@ import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.keys.DoubleKey
 import app.aaps.core.keys.IntKey
+import app.aaps.core.keys.interfaces.PreferenceItem
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.extensions.put
 import app.aaps.core.objects.extensions.store
@@ -182,8 +183,7 @@ class SensitivityWeightedAveragePlugin @Inject constructor(
 
     }
 
-    // TODO: Remove after full migration to new Compose preferences - replace with PreferenceSubScreenDef
-    override fun getPreferenceScreenContent(): Any? {
+    override fun getPreferenceScreenContent(): PreferenceItem? {
         // Share with SensitivityAAPSPlugin
         val aapsPlugin = activePlugin.getPluginsList().firstOrNull { it::class == SensitivityAAPSPlugin::class } ?: return null
         return aapsPlugin.getPreferenceScreenContent()

@@ -9,6 +9,7 @@ import app.aaps.core.data.plugin.PluginType
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.resources.ResourceHelper
+import app.aaps.core.keys.interfaces.PreferenceItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -77,6 +78,12 @@ abstract class PluginBase(
         return pluginDescription.composeContentProvider != null
     }
 
+    /**
+     * Returns the compose content provider for this plugin's main UI.
+     *
+     * @return ComposablePluginContent instance or null. Typed as Any? to avoid Compose dependency in core:interfaces.
+     *         Caller should cast to ComposablePluginContent from core:ui module.
+     */
     fun getComposeContent(): Any? {
         return pluginDescription.composeContentProvider?.invoke()
     }
@@ -172,10 +179,10 @@ abstract class PluginBase(
     /**
      * Add compose preference screen content
      *
-     * Plugin can override this to provide compose-based preference UI
-     * Returns a composable lambda that will be called within a LazyColumn
+     * Plugin can override this to provide compose-based preference UI using PreferenceSubScreenDef.
+     * This provides a declarative, type-safe way to define preference screens.
      *
-     * @return composable content provider or null if not implemented
+     * @return PreferenceItem (typically PreferenceSubScreenDef) or null if not implemented
      */
-    open fun getPreferenceScreenContent(): Any? = null
+    open fun getPreferenceScreenContent(): PreferenceItem? = null
 }

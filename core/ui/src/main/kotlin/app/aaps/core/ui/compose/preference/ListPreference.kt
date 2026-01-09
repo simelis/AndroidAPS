@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
@@ -53,39 +52,6 @@ import androidx.compose.ui.unit.dp
 enum class ListPreferenceType {
     ALERT_DIALOG,
     DROPDOWN_MENU,
-}
-
-fun <T> LazyListScope.listPreference(
-    key: String,
-    defaultValue: T,
-    values: List<T>,
-    title: @Composable (T) -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    rememberState: @Composable () -> MutableState<T>,
-    enabled: (T) -> Boolean = { true },
-    icon: @Composable ((T) -> Unit)? = null,
-    summary: @Composable ((T) -> Unit)? = null,
-    type: ListPreferenceType = ListPreferenceType.ALERT_DIALOG,
-    valueToText: (T) -> AnnotatedString = { AnnotatedString(it.toString()) },
-    item: @Composable (value: T, currentValue: T, onClick: () -> Unit) -> Unit =
-        ListPreferenceDefaults.item(type, valueToText),
-) {
-    item(key = key, contentType = "ListPreference") {
-        val state = rememberState()
-        val value by state
-        ListPreference(
-            state = state,
-            values = values,
-            title = { title(value) },
-            modifier = modifier,
-            enabled = enabled(value),
-            icon = icon?.let { { it(value) } },
-            summary = summary?.let { { it(value) } },
-            type = type,
-            valueToText = valueToText,
-            item = item,
-        )
-    }
 }
 
 @Composable
@@ -223,18 +189,19 @@ object ListPreferenceDefaults {
         valueToText: (T) -> AnnotatedString,
         onClick: () -> Unit,
     ) {
+        val theme = LocalPreferenceTheme.current
         val selected = value == currentValue
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = theme.listItemMinHeight)
                     .selectable(selected, true, Role.RadioButton, onClick = onClick)
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                    .padding(theme.listItemPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(selected = selected, onClick = null)
-            Spacer(modifier = Modifier.width(24.dp))
+            Spacer(modifier = Modifier.width(theme.listItemSpacing))
             Text(
                 text = valueToText(value),
                 color = MaterialTheme.colorScheme.onSurface,

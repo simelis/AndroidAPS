@@ -19,10 +19,8 @@ package app.aaps.core.ui.compose.preference
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.runtime.Composable
@@ -31,29 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-
-fun LazyListScope.preference(
-    key: String,
-    title: @Composable () -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    enabled: Boolean = true,
-    icon: @Composable (() -> Unit)? = null,
-    summary: @Composable (() -> Unit)? = null,
-    widgetContainer: @Composable (() -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
-) {
-    item(key = key, contentType = "Preference") {
-        Preference(
-            title = title,
-            modifier = modifier,
-            enabled = enabled,
-            icon = icon,
-            summary = summary,
-            widgetContainer = widgetContainer,
-            onClick = onClick,
-        )
-    }
-}
 
 @Composable
 fun Preference(

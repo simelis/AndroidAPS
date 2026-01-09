@@ -26,7 +26,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -49,6 +48,26 @@ class PreferenceTheme(
     val summaryColor: Color,
     val summaryTextStyle: TextStyle,
     val dividerHeight: Dp,
+    // Card styling
+    val cardPadding: PaddingValues,
+    val cardElevation: Dp,
+    val cardContentBottomPadding: Dp,
+    // Nested content
+    val nestedContentIndent: Dp,
+    // Header
+    val headerPaddingInsideCard: PaddingValues,
+    val expandIconSize: Dp,
+    // List items
+    val listItemMinHeight: Dp,
+    val listItemPadding: PaddingValues,
+    val listItemSpacing: Dp,
+    // Dialog
+    val dialogTitlePadding: PaddingValues,
+    val dialogButtonsPadding: PaddingValues,
+    val dialogButtonSpacing: Dp,
+    val dialogButtonCrossSpacing: Dp,
+    // Text fields
+    val textFieldHorizontalPadding: Dp,
 )
 
 @Composable
@@ -70,6 +89,26 @@ fun preferenceTheme(
     summaryColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     summaryTextStyle: TextStyle = MaterialTheme.typography.bodyMedium,
     dividerHeight: Dp = 32.dp,
+    // Card styling
+    cardPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+    cardElevation: Dp = 4.dp,
+    cardContentBottomPadding: Dp = 8.dp,
+    // Nested content
+    nestedContentIndent: Dp = 16.dp,
+    // Header
+    headerPaddingInsideCard: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+    expandIconSize: Dp = 24.dp,
+    // List items
+    listItemMinHeight: Dp = 48.dp,
+    listItemPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+    listItemSpacing: Dp = 24.dp,
+    // Dialog
+    dialogTitlePadding: PaddingValues = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 16.dp),
+    dialogButtonsPadding: PaddingValues = PaddingValues(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 24.dp),
+    dialogButtonSpacing: Dp = 8.dp,
+    dialogButtonCrossSpacing: Dp = 12.dp,
+    // Text fields
+    textFieldHorizontalPadding: Dp = 24.dp,
 ): PreferenceTheme =
     PreferenceTheme(
         categoryPadding = categoryPadding,
@@ -88,6 +127,20 @@ fun preferenceTheme(
         summaryColor = summaryColor,
         summaryTextStyle = summaryTextStyle,
         dividerHeight = dividerHeight,
+        cardPadding = cardPadding,
+        cardElevation = cardElevation,
+        cardContentBottomPadding = cardContentBottomPadding,
+        nestedContentIndent = nestedContentIndent,
+        headerPaddingInsideCard = headerPaddingInsideCard,
+        expandIconSize = expandIconSize,
+        listItemMinHeight = listItemMinHeight,
+        listItemPadding = listItemPadding,
+        listItemSpacing = listItemSpacing,
+        dialogTitlePadding = dialogTitlePadding,
+        dialogButtonsPadding = dialogButtonsPadding,
+        dialogButtonSpacing = dialogButtonSpacing,
+        dialogButtonCrossSpacing = dialogButtonCrossSpacing,
+        textFieldHorizontalPadding = textFieldHorizontalPadding,
     )
 
 val LocalPreferenceTheme: ProvidableCompositionLocal<PreferenceTheme> = compositionLocalOf {

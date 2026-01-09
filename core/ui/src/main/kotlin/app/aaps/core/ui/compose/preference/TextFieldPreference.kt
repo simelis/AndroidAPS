@@ -120,11 +120,12 @@ fun <T> TextFieldPreference(
             },
         ) {
             val focusRequester = remember { FocusRequester() }
+            val theme = LocalPreferenceTheme.current
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                        .padding(horizontal = theme.textFieldHorizontalPadding)
                         .focusRequester(focusRequester)
             ) {
                 textField(dialogText, { dialogText = it }, onOk)

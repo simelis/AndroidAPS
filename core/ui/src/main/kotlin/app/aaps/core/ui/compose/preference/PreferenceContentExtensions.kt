@@ -55,21 +55,16 @@ fun LazyListScope.addPreferenceSubScreenDef(
             expanded = isExpanded,
             onToggle = { sectionState?.toggle(sectionKey) }
         ) {
-            // Show custom content first (if any)
-            if (def.customContent != null) {
-                def.customContent.invoke(sectionState)
-            } else {
-                // Render items in order, preserving the original structure
-                RenderPreferenceItems(
-                    items = def.items,
-                    parentKey = def.key,
-                    sectionState = sectionState,
-                    preferences = preferences,
-                    config = config,
-                    profileUtil = profileUtil,
-                    visibilityContext = visibilityContext
-                )
-            }
+            // Render items in order, preserving the original structure
+            RenderPreferenceItems(
+                items = def.items,
+                parentKey = def.key,
+                sectionState = sectionState,
+                preferences = preferences,
+                config = config,
+                profileUtil = profileUtil,
+                visibilityContext = visibilityContext
+            )
         }
     }
 }
@@ -128,13 +123,12 @@ private fun RenderPreferenceItems(
 
                     // Content without card wrapper
                     if (isSubExpanded) {
-                        if (item.customContent != null) {
-                            item.customContent.invoke(sectionState)
-                        } else if (preferences != null && config != null) {
+                        if (preferences != null && config != null) {
                             // Auto-render nested subscreen items (including DialogIntentPreference)
                             if (item.items.isNotEmpty()) {
+                                val theme = LocalPreferenceTheme.current
                                 Column(
-                                    modifier = Modifier.padding(start = 16.dp)
+                                    modifier = Modifier.padding(start = theme.nestedContentIndent)
                                 ) {
                                     AdaptivePreferenceList(
                                         items = item.items,

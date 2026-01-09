@@ -206,7 +206,7 @@ class SingleFragmentActivity : DaggerAppCompatActivityWithResult() {
 
     private fun shouldShowPreferencesMenu(plugin: PluginBase): Boolean {
         if ((plugin.preferencesId) == PluginDescription.PREFERENCE_NONE) return false
-        if (preferences.simpleMode && plugin.pluginDescription.preferencesVisibleInSimpleMode != true) return false
+        if (preferences.simpleMode && !plugin.pluginDescription.preferencesVisibleInSimpleMode) return false
         return true
     }
 

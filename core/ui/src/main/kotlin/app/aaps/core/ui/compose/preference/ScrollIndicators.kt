@@ -46,20 +46,6 @@ fun Modifier.verticalScrollIndicators(
         drawBottomIndicator,
     )
 
-internal fun Modifier.horizontalScrollIndicators(
-    scrollableState: ScrollableState,
-    reverseScrolling: Boolean = false,
-    drawStartIndicator: Boolean = true,
-    drawEndIndicator: Boolean = true,
-): Modifier =
-    scrollIndicators(
-        scrollableState,
-        Orientation.Horizontal,
-        reverseScrolling,
-        drawStartIndicator,
-        drawEndIndicator,
-    )
-
 private fun Modifier.scrollIndicators(
     scrollableState: ScrollableState,
     orientation: Orientation,

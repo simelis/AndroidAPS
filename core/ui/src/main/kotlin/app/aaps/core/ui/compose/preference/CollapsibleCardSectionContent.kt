@@ -43,11 +43,12 @@ fun CollapsibleCardSectionContent(
     onToggle: () -> Unit,
     content: @Composable () -> Unit
 ) {
+    val theme = LocalPreferenceTheme.current
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+            .padding(theme.cardPadding),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = theme.cardElevation),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
@@ -66,7 +67,7 @@ fun CollapsibleCardSectionContent(
                 enter = expandVertically(),
                 exit = shrinkVertically()
             ) {
-                Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                Column(modifier = Modifier.padding(bottom = theme.cardContentBottomPadding)) {
                     content()
                 }
             }
