@@ -210,7 +210,13 @@ fun WizardDialogScreen(
         onCalculationExpandToggle = viewModel::toggleCalculationExpanded,
         onNavigateBack = onNavigateBack,
         onConfirmClick = { showConfirmation = true },
-        onSettingsClick = { showSettings = true }
+        onSettingsClick = { showSettings = true },
+        foodActions = FoodECarbsCallbacks(
+            portionGrams = viewModel::updateFoodPortionGrams,
+            enabled = viewModel::toggleFoodECarbs,
+            settings = viewModel::updateFoodECarbsSettings,
+            grams = viewModel::updateFoodECarbsGrams
+        )
     )
 }
 
@@ -238,7 +244,8 @@ internal fun WizardDialogContent(
     onCalculationExpandToggle: () -> Unit,
     onNavigateBack: () -> Unit,
     onConfirmClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    foodActions: FoodECarbsCallbacks = FoodECarbsCallbacks()
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -276,7 +283,7 @@ internal fun WizardDialogContent(
                     focusManager.clearFocus()
                     onConfirmClick()
                 },
-                enabled = uiState.okVisible,
+                enabled = uiState.okVisible && uiState.foodInputsValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .bottomBarSafeArea()
@@ -349,7 +356,7 @@ internal fun WizardDialogContent(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             // Result summary (always visible)
-                            if (uiState.hasResult && (uiState.totalInsulin > 0.0 || uiState.carbs > 0)) {
+                            if (uiState.hasResult && (uiState.totalInsulin > 0.0 || uiState.carbs > 0 || uiState.eCarbs > 0)) {
                                 if (uiState.totalInsulin > 0.0) {
                                     Text(
                                         text = stringResource(InterfacesStrings.format_insulin_units, uiState.totalInsulin),
@@ -600,6 +607,9 @@ internal fun WizardDialogContent(
                 }
             }
 
+            FoodECarbsCard(uiState, foodActions)
+            if (uiState.foodUnavailable) WarningBanner(message = stringResource(UiStrings.food_ecarbs_unavailable))
+
             // --- All inputs in one card (gap-as-divider pattern) ---
             val itemModifier = Modifier
                 .fillMaxWidth()
@@ -637,67 +647,69 @@ internal fun WizardDialogContent(
                         )
 
                         // Carbs type selector
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            SingleChoiceSegmentedButtonRow(
-                                modifier = Modifier.weight(1f)
+                        if (uiState.foodECarbs?.enabled != true) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                CarbsType.entries.forEachIndexed { index, type ->
-                                    SegmentedButton(
-                                        selected = uiState.carbsType == type,
-                                        onClick = { onCarbsTypeChange(type) },
-                                        shape = SegmentedButtonDefaults.itemShape(index, CarbsType.entries.size),
-                                        icon = {}
-                                    ) {
-                                        Icon(
-                                            imageVector = when (type) {
-                                                CarbsType.BREAD -> IcBread
-                                                CarbsType.CAKE  -> IcCake
-                                                CarbsType.PIZZA -> IcPizza
-                                            },
-                                            // Was the enum name ("BREAD"), untranslated and saying
-                                            // nothing about what the choice does to the carbs.
-                                            contentDescription = carbsTypeEffect(type),
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            val tooltipState = rememberTooltipState()
-                            val scope = rememberCoroutineScope()
-                            TooltipBox(
-                                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                                tooltip = {
-                                    PlainTooltip {
-                                        Column {
-                                            Text(
-                                                text = when (uiState.carbsType) {
-                                                    CarbsType.BREAD -> stringResource(CoreUiStrings.carbs_type_bread)
-                                                    CarbsType.CAKE  -> stringResource(CoreUiStrings.carbs_type_cake)
-                                                    CarbsType.PIZZA -> stringResource(CoreUiStrings.carbs_type_pizza)
-                                                }
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = carbsTypeEffect(uiState.carbsType),
-                                                fontWeight = FontWeight.Bold
+                                SingleChoiceSegmentedButtonRow(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    CarbsType.entries.forEachIndexed { index, type ->
+                                        SegmentedButton(
+                                            selected = uiState.carbsType == type,
+                                            onClick = { onCarbsTypeChange(type) },
+                                            shape = SegmentedButtonDefaults.itemShape(index, CarbsType.entries.size),
+                                            icon = {}
+                                        ) {
+                                            Icon(
+                                                imageVector = when (type) {
+                                                    CarbsType.BREAD -> IcBread
+                                                    CarbsType.CAKE  -> IcCake
+                                                    CarbsType.PIZZA -> IcPizza
+                                                },
+                                                // Was the enum name ("BREAD"), untranslated and saying
+                                                // nothing about what the choice does to the carbs.
+                                                contentDescription = carbsTypeEffect(type),
+                                                modifier = Modifier.size(24.dp)
                                             )
                                         }
                                     }
-                                },
-                                state = tooltipState
-                            ) {
-                                IconButton(onClick = { scope.launch { tooltipState.show() } }) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Info,
-                                        contentDescription = stringResource(CoreUiStrings.carousel_show_card),
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                }
+
+                                val tooltipState = rememberTooltipState()
+                                val scope = rememberCoroutineScope()
+                                TooltipBox(
+                                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                                    tooltip = {
+                                        PlainTooltip {
+                                            Column {
+                                                Text(
+                                                    text = when (uiState.carbsType) {
+                                                        CarbsType.BREAD -> stringResource(CoreUiStrings.carbs_type_bread)
+                                                        CarbsType.CAKE  -> stringResource(CoreUiStrings.carbs_type_cake)
+                                                        CarbsType.PIZZA -> stringResource(CoreUiStrings.carbs_type_pizza)
+                                                    }
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = carbsTypeEffect(uiState.carbsType),
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    },
+                                    state = tooltipState
+                                ) {
+                                    IconButton(onClick = { scope.launch { tooltipState.show() } }) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Info,
+                                            contentDescription = stringResource(CoreUiStrings.carousel_show_card),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,8 +52,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.format.NumberFormat
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.AapsSearchField
 import app.aaps.core.ui.compose.AapsSpacing
@@ -60,13 +64,16 @@ import app.aaps.core.ui.compose.LocalSnackbarHostState
 import app.aaps.core.ui.compose.consumeOverscroll
 import app.aaps.core.ui.compose.icons.IcCalculator
 import app.aaps.core.ui.compose.stringResource
+import app.aaps.ui.UiStrings
+import app.aaps.ui.compose.wizardDialog.FoodECarbsSettings
+import app.aaps.ui.compose.wizardDialog.FoodECarbsRuleEditor
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FoodManagementScreen(
     viewModel: FoodManagementViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToWizard: (carbs: Int, name: String) -> Unit = { _, _ -> },
+    onNavigateToWizard: (foodId: Long) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val filteredFoods by viewModel.filteredFoods.collectAsStateWithLifecycle()
@@ -107,6 +114,7 @@ fun FoodManagementScreen(
                 }
             )
         },
+        floatingActionButtonPosition = FabPosition.Start,
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.openEditor() }) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(CoreUiStrings.add))
@@ -172,13 +180,15 @@ fun FoodManagementScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(AapsSpacing.small)
                 ) {
                     items(filteredFoods, key = { it.id }) { food ->
                         FoodItem(
                             food = food,
+                            rule = state.foodRules[food.id],
                             onEdit = { viewModel.openEditor(food) },
-                            onCalculate = { onNavigateToWizard(food.carbs, food.name) }
+                            onCalculate = { onNavigateToWizard(food.id) }
                         )
                     }
                 }
@@ -198,8 +208,6 @@ fun FoodManagementScreen(
                     onNameChange = viewModel::updateEditorName,
                     onCategoryChange = viewModel::updateEditorCategory,
                     onSubCategoryChange = viewModel::updateEditorSubCategory,
-                    onPortionChange = viewModel::updateEditorPortion,
-                    onUnitChange = viewModel::updateEditorUnit,
                     onCarbsChange = viewModel::updateEditorCarbs,
                     onFatChange = viewModel::updateEditorFat,
                     onProteinChange = viewModel::updateEditorProtein,
@@ -209,7 +217,10 @@ fun FoodManagementScreen(
                     onDelete = if (state.editorFood != null) {
                         { focusManager.clearFocus(); viewModel.deleteAndCloseEditor() }
                     } else null,
-                    isEditing = state.editorFood != null
+                    isEditing = state.editorFood != null,
+                    onOriginalWeightChange = viewModel::updateEditorOriginalWeight,
+                    onECarbsEnabledChange = viewModel::updateEditorECarbsEnabled,
+                    onECarbsSettingsChange = viewModel::updateEditorECarbsSettings
                 )
             }
         }
@@ -219,9 +230,12 @@ fun FoodManagementScreen(
 @Composable
 private fun FoodItem(
     food: FD,
+    rule: FoodECarbsSettings?,
     onEdit: () -> Unit,
     onCalculate: () -> Unit,
 ) {
+    val nutrition = food.nutrientsPer100g()
+    val basis = if (nutrition != null) stringResource(UiStrings.food_nutrients_basis) else stringResource(UiStrings.food_weight_required)
     ElevatedCard(
         onClick = onEdit,
         modifier = Modifier
@@ -244,7 +258,7 @@ private fun FoodItem(
                     style = MaterialTheme.typography.titleSmall
                 )
                 val details = buildString {
-                    if (food.portion > 0) append("${food.portion} ${food.unit}")
+                    append(basis)
                     if (food.category != null) {
                         if (isNotEmpty()) append(" · ")
                         append(food.category)
@@ -261,14 +275,19 @@ private fun FoodItem(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${food.carbs}g",
+                    text = nutrition?.let { "${NumberFormat.DECIMAL_1.format(it.carbs)}g" } ?: "—",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 val extras = buildList {
-                    food.fat?.let { if (it > 0) add("F:${it}g") }
-                    food.protein?.let { if (it > 0) add("P:${it}g") }
-                    food.energy?.let { if (it > 0) add("${it}kJ") }
+                    add("F:${nutrition?.fat?.let { NumberFormat.DECIMAL_1.format(it) } ?: "—"}g")
+                    add("P:${nutrition?.protein?.let { NumberFormat.DECIMAL_1.format(it) } ?: "—"}g")
+                    nutrition?.energy?.let { if (it > 0) add("${NumberFormat.DECIMAL_1.format(it)}kJ") }
+                }
+                if (rule != null && nutrition?.protein != null && nutrition.fat != null) {
+                    val eCarbs = rule.manualGramsPer100g ?: rule.equivalentGrams(nutrition.protein, nutrition.fat)
+                    Text(stringResource(UiStrings.food_ecarbs_list, NumberFormat.DECIMAL_1.format(eCarbs)),
+                        style = MaterialTheme.typography.labelSmall)
                 }
                 if (extras.isNotEmpty()) {
                     Text(
@@ -306,8 +325,6 @@ internal fun FoodEditorContent(
     onNameChange: (String) -> Unit,
     onCategoryChange: (String) -> Unit,
     onSubCategoryChange: (String) -> Unit,
-    onPortionChange: (String) -> Unit,
-    onUnitChange: (String) -> Unit,
     onCarbsChange: (String) -> Unit,
     onFatChange: (String) -> Unit,
     onProteinChange: (String) -> Unit,
@@ -316,6 +333,9 @@ internal fun FoodEditorContent(
     onCancel: () -> Unit,
     onDelete: (() -> Unit)?,
     isEditing: Boolean,
+    onOriginalWeightChange: (String) -> Unit = {},
+    onECarbsEnabledChange: (Boolean) -> Unit = {},
+    onECarbsSettingsChange: (FoodECarbsSettings) -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -359,21 +379,19 @@ internal fun FoodEditorContent(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(AapsSpacing.large)) {
+        Text(stringResource(UiStrings.food_nutrients_basis), style = MaterialTheme.typography.titleMedium)
+        if (state.editorFood != null && (state.editorFood.portion != 100.0 || state.editorFood.unit != "g")) {
+            Text(stringResource(UiStrings.food_nutrients_conversion), style = MaterialTheme.typography.bodySmall)
+        }
+        if (state.editorNeedsWeight) {
+            Text(stringResource(UiStrings.food_original_portion, state.editorFood?.portion.toString(), state.editorFood?.unit ?: ""))
             OutlinedTextField(
-                value = state.editorPortion,
-                onValueChange = onPortionChange,
-                label = { Text(stringResource(CoreUiStrings.portion)) },
-                modifier = Modifier.weight(1f),
+                value = state.editorOriginalWeight,
+                onValueChange = onOriginalWeightChange,
+                label = { Text(stringResource(UiStrings.food_original_weight)) },
+                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-            )
-            OutlinedTextField(
-                value = state.editorUnit,
-                onValueChange = onUnitChange,
-                label = { Text(stringResource(CoreUiStrings.unit_label)) },
-                modifier = Modifier.weight(1f),
-                singleLine = true
             )
         }
 
@@ -413,6 +431,12 @@ internal fun FoodEditorContent(
             )
         }
 
+        FoodECarbsRuleEditor(state.editorPreview, state.editorUseECarbs, state.editorECarbsSettings,
+            onECarbsEnabledChange, onECarbsSettingsChange)
+        if (state.editorSaveAttempted && !state.editorCanSave) {
+            Text(stringResource(UiStrings.food_editor_invalid), color = MaterialTheme.colorScheme.error)
+        }
+        if (state.editorSaveFailed) Text(stringResource(UiStrings.food_save_failed), color = MaterialTheme.colorScheme.error)
         Spacer(Modifier.height(AapsSpacing.medium))
 
         Row(
@@ -437,7 +461,7 @@ internal fun FoodEditorContent(
                 Spacer(Modifier.width(AapsSpacing.medium))
                 TextButton(
                     onClick = onSave,
-                    enabled = !state.editorSaveAttempted || state.editorName.isNotBlank()
+                    enabled = !state.editorSaving && (!state.editorSaveAttempted || state.editorCanSave)
                 ) {
                     Text(stringResource(CoreUiStrings.save))
                 }

@@ -120,6 +120,13 @@ class AppRouteTest {
     }
 
     @Test
+    fun wizardDialog_foodUsesOnlyTheDatabaseId() {
+        // Food names containing &, ?, # or non-ASCII text never become query parameters.
+        assertThat(AppRoute.WizardDialog.createRoute(foodId = 7)).isEqualTo("wizard_dialog?foodId=7")
+        assertThat(AppRoute.WizardDialog.route).contains("foodId={foodId}")
+    }
+
+    @Test
     fun wizardDialog_notesOnly() {
         assertThat(AppRoute.WizardDialog.createRoute(notes = "lunch")).isEqualTo("wizard_dialog?notes=lunch")
     }
