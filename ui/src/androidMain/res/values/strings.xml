@@ -349,4 +349,43 @@
     <string name="cal_precheck_mark_sensor_change">Mark sensor change</string>
     <string name="graph_therapy_event_bg_with_note" comment="Shown when the user taps a BG check in the overview graph. %1$s = glucose with its unit, %2$s = the note the user wrote. Example: 6.1 mmol/L, before lunch">%1$s, %2$s</string>
 
+    <string name="food_nutrients_basis">Per 100 g</string>
+    <string name="food_portion_grams">Your portion weight</string>
+    <string name="food_ecarbs_servings_hint">Portion weight scales all nutrients and the saved eCarbs rule. Editing carbs below changes only the meal carbs.</string>
+    <string name="food_weight_required">Edit this Food entry and enter the weight of its original portion in grams first.</string>
+    <string name="food_original_portion">Original portion: %1$s %2$s</string>
+    <string name="food_original_weight">Weight of the original portion (g)</string>
+    <string name="food_nutrients_conversion">Converted nutrients are shown rounded to whole grams. Review before saving on a 100 g basis.</string>
+    <string name="food_editor_invalid">Enter a name, carbs/fat/protein within 0–100 g per 100 g, and a valid original portion weight if required. Blank fat/protein means unknown. An enabled eCarbs rule needs both values and a duration of 1–10 h.</string>
+    <string name="food_save_failed">Could not save the food and its rule. Please try again.</string>
+    <string name="food_ecarbs_macros">Food total: %1$d g carbs · %2$s g protein · %3$s g fat</string>
+    <string name="food_ecarbs_enable">Use protein/fat eCarbs for this meal</string>
+    <string name="food_ecarbs_rule_enable">Save an eCarbs rule for this food</string>
+    <string name="food_ecarbs_configure_food">Configure the eCarbs rule in the Food entry first.</string>
+    <string name="food_ecarbs_saved_method">Saved rule: %1$s</string>
+    <string name="food_ecarbs_saved_manual">Saved manual equivalent: %1$s g eCarbs per 100 g food</string>
+    <string name="food_ecarbs_per100_calculated">Formula result per 100 g food: %1$s g eCarbs</string>
+    <string name="food_ecarbs_per100_amount">Saved eCarbs per 100 g food</string>
+    <string name="food_ecarbs_list">eCarbs: %1$s g / 100 g</string>
+    <string name="food_ecarbs_rule_hint">Saved with this food and applied automatically in the wizard. A manually adjusted value scales with portion weight; use the calculated amount to return to the formula.</string>
+    <string name="food_ecarbs_rule_invalid">Choose a duration of 1–10 h and a valid eCarbs rule before saving.</string>
+    <string name="food_ecarbs_missing_macros">Enter both protein and fat in the Food entry, using 0 for none, to calculate eCarbs.</string>
+    <string name="food_ecarbs_method">eCarbs calculation method</string>
+    <string name="food_ecarbs_custom">Custom factors</string>
+    <string name="food_ecarbs_fpu">Original FPU (100 kcal)</string>
+    <string name="food_ecarbs_modified_fpu">Modified FPU (200 kcal)</string>
+    <string name="food_ecarbs_custom_description">eCarbs = protein grams × protein factor + fat grams × fat factor. Set the factors and timing agreed with your diabetes team.</string>
+    <string name="food_ecarbs_fpu_description">Reference estimate: (4 × protein grams + 9 × fat grams) ÷ 10. Original FPU methods have been associated with increased hypoglycemia. This is not a pediatric dosing recommendation.</string>
+    <string name="food_ecarbs_modified_description">Reference estimate: (4 × protein grams + 9 × fat grams) ÷ 20. Studied in adults using injections; not established as a pediatric AAPS dosing method.</string>
+    <string name="food_ecarbs_protein_factor">Protein factor</string>
+    <string name="food_ecarbs_fat_factor">Fat factor</string>
+    <string name="food_ecarbs_calculated">Calculated carbohydrate equivalent: %1$d g (rounded)</string>
+    <string name="food_ecarbs_amount">Additional eCarbs for this meal</string>
+    <string name="food_ecarbs_use_calculated">Use calculated amount</string>
+    <string name="food_ecarbs_delay">Delay after carb time</string>
+    <string name="food_ecarbs_duration">Spread eCarbs over</string>
+    <string name="food_ecarbs_preview">%1$d g immediate carbs + %2$d g additional eCarbs, starting %3$d min after carb time, over %4$d h. Replaces the bread/dumpling/pizza calculation.</string>
+    <string name="food_ecarbs_profile_notice">An increased profile can add insulin alongside eCarbs. Review both together before confirming.</string>
+    <string name="food_ecarbs_invalid">Enter a positive portion weight. Carbs and eCarbs must each be within the carb limit; protein/fat must be known for eCarbs. Choose a duration of 1–10 h when food eCarbs are enabled.</string>
+    <string name="food_ecarbs_unavailable">This Food entry could not be loaded. Close the wizard and select the food again.</string>
 </resources>

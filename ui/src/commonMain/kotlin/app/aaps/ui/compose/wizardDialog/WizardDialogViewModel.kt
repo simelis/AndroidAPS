@@ -20,6 +20,7 @@ import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.insulin.ConcentrationHelper
 import app.aaps.core.interfaces.iob.IobCobCalculator
 import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.profile.ProfileRepository
@@ -32,6 +33,7 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.IntKey
+import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.extensions.round
@@ -52,6 +54,8 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ViewModelAssistedFactoryKey
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -110,6 +114,7 @@ class WizardDialogViewModel(
     val sideEffect: SharedFlow<SideEffect> = _sideEffect.asSharedFlow()
 
     private var wizard: BolusWizard? = null
+    private var calculationJob: Job? = null
 
     /**
      * The stored bolus percentage this dialog has already taken into its own state.
@@ -145,6 +150,20 @@ class WizardDialogViewModel(
     private suspend fun initialize() {
         val initialCarbs = savedStateHandle.get<String>("carbs")?.toIntOrNull()
         val initialNotes = savedStateHandle.get<String>("notes")
+        val foodId = savedStateHandle.get<String>("foodId")?.toLongOrNull()
+        val food = foodId?.let { id ->
+            try {
+                persistenceLayer.getFoods().find { it.id == id && it.isValid }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                aapsLogger.error(LTag.UI, "Failed to load wizard food", e)
+                null
+            }
+        }
+        val foodState = food?.let {
+            val settings = FoodECarbsSettingsStore.load(preferences.get(StringNonKey.FoodECarbsSettings), it.id)
+            FoodECarbsState(it, settings = settings).let { state -> state.copy(enabled = settings.isValid && state.hasMacros) }
+        }
 
         val profileStore = profileRepository.profile.value ?: return
 
@@ -190,11 +209,13 @@ class WizardDialogViewModel(
                 initialized = true,
                 // User inputs
                 bg = currentBg,
-                carbs = initialCarbs ?: 0,
+                carbs = foodState?.carbsGrams ?: initialCarbs ?: 0,
+                foodECarbs = foodState,
+                foodUnavailable = foodId != null && food == null,
                 percentage = percentage,
                 directCorrection = 0.0,
                 carbTime = 0,
-                notes = initialNotes ?: "",
+                notes = food?.name ?: initialNotes ?: "",
                 selectedProfileIndex = 0,
                 // Toggles
                 useBg = true,
@@ -272,7 +293,42 @@ class WizardDialogViewModel(
     }
 
     fun updateCarbsType(value: CarbsType) {
-        _uiState.update { it.copy(carbsType = value) }
+        _uiState.update { it.copy(carbsType = value, foodECarbs = it.foodECarbs?.copy(enabled = false, overrideGrams = null)) }
+        recalculate()
+    }
+
+    fun updateFoodPortionGrams(value: Double) {
+        if (!value.isFinite() || value !in 0.0..10000.0) return
+        _uiState.update { state ->
+            val food = state.foodECarbs?.copy(portionGrams = value, overrideGrams = null) ?: return@update state
+            state.copy(carbs = food.carbsGrams, foodECarbs = food)
+        }
+        recalculate()
+    }
+
+    fun toggleFoodECarbs(enabled: Boolean) {
+        _uiState.update { state ->
+            val food = state.foodECarbs ?: return@update state
+            state.copy(
+                carbsType = CarbsType.BREAD,
+                foodECarbs = food.copy(enabled = enabled && food.hasMacros && food.settings.isValid, overrideGrams = null)
+            )
+        }
+        recalculate()
+    }
+
+    fun updateFoodECarbsSettings(settings: FoodECarbsSettings) {
+        _uiState.update { state ->
+            val food = state.foodECarbs ?: return@update state
+            val calculationChanged = food.settings.copy(delayMinutes = settings.delayMinutes, durationHours = settings.durationHours) != settings
+            state.copy(foodECarbs = food.copy(settings = settings, overrideGrams = if (calculationChanged) null else food.overrideGrams))
+        }
+        recalculate()
+    }
+
+    fun updateFoodECarbsGrams(value: Int?) {
+        if (value != null && value !in 0..uiState.value.maxCarbs) return
+        _uiState.update { it.copy(foodECarbs = it.foodECarbs?.copy(overrideGrams = value)) }
         recalculate()
     }
 
@@ -368,17 +424,25 @@ class WizardDialogViewModel(
                 percentage = percentage ?: it.percentage
             )
         }
-        recalculateSuspend()
+        recalculate()
     }
 
     // --- Calculation ---
 
     private fun recalculate() {
-        viewModelScope.launch { recalculateSuspend() }
+        calculationJob?.cancel()
+        wizard = null
+        _uiState.update {
+            val plan = it.carbPlan()
+            it.copy(okVisible = false, hasResult = false, effectiveCarbs = plan.carbs, eCarbs = plan.eCarbs,
+                eCarbsDelayMinutes = plan.delayMinutes, eCarbsDurationHours = plan.durationHours)
+        }
+        calculationJob = viewModelScope.launch { recalculateSuspend() }
     }
 
     private suspend fun recalculateSuspend() {
         val state = uiState.value
+        if (!state.foodInputsValid) return
         val profileStore = profileRepository.profile.value ?: return
 
         // Resolve profile
@@ -408,9 +472,11 @@ class WizardDialogViewModel(
         }
 
         // Carbs type split: effective carbs for wizard, eCarbs for later scheduling
-        val carbsType = state.carbsType
-        val effectiveCarbs = state.carbs * carbsType.carbsPercent / 100
-        val eCarbs = state.carbs * carbsType.eCarbsPercent / 100
+        val plan = state.carbPlan()
+        val effectiveCarbs = plan.carbs
+        val eCarbs = plan.eCarbs
+        if (state.foodECarbs?.enabled == true &&
+            constraintChecker.applyCarbsConstraints(ConstraintObject(eCarbs, aapsLogger)).value() != eCarbs) return
 
         // Carbs constraint check (on effective carbs only)
         val carbsAfterConstraint = constraintChecker.applyCarbsConstraints(ConstraintObject(effectiveCarbs, aapsLogger)).value()
@@ -480,12 +546,12 @@ class WizardDialogViewModel(
                 targetBGLow = 0.0, // not exposed directly
                 targetBGHigh = 0.0,
                 hasResult = true,
-                okVisible = w.data.calculatedTotalInsulin > 0.0 || carbsAfterConstraint > 0,
+                okVisible = w.data.calculatedTotalInsulin > 0.0 || carbsAfterConstraint > 0 || eCarbs > 0,
                 hasTempTarget = hasTT,
                 effectiveCarbs = effectiveCarbs,
                 eCarbs = eCarbs,
-                eCarbsDelayMinutes = carbsType.eCarbsDelayMinutes,
-                eCarbsDurationHours = carbsType.eCarbsDurationHours
+                eCarbsDelayMinutes = plan.delayMinutes,
+                eCarbsDurationHours = plan.durationHours
             )
         }
     }
@@ -493,7 +559,7 @@ class WizardDialogViewModel(
     // --- Action methods ---
 
     fun hasAction(): Boolean =
-        wizard?.let { it.insulinAfterConstraints > 0 || it.carbs > 0 || uiState.value.eCarbs > 0 } ?: false
+        uiState.value.okVisible && (wizard?.let { it.insulinAfterConstraints > 0 || it.carbs > 0 || uiState.value.eCarbs > 0 } ?: false)
 
     fun getConfirmationSummary(): List<ConfirmationLine> {
         val state = uiState.value
@@ -514,8 +580,10 @@ class WizardDialogViewModel(
      */
     fun recordOnly() {
         val state = uiState.value
+        if (!state.okVisible || !state.foodInputsValid) return
+        val calculatedWizard = wizard ?: return
         appScope.launch {
-            wizard?.executeNormal(
+            calculatedWizard.executeNormal(
                 // ShowDeliveryError is the full screen BOLUS_ERROR alarm, so a command dropped on purpose takes the
                 // plain dialog instead. The record-only path should never see one (it writes straight to the
                 // database and never queues a pump command), but the guard is one line and the alarm is not.
@@ -547,7 +615,8 @@ class WizardDialogViewModel(
      */
     fun deliverManualWizard() {
         val state = uiState.value
-        val effectiveCarbs = state.carbs * state.carbsType.carbsPercent / 100
+        if (!state.okVisible || !state.foodInputsValid) return
+        val effectiveCarbs = state.carbPlan().carbs
         // null → recompute on the master's active profile (index 0 = "Active"); else the selected stored profile by name.
         val profileName = if (state.selectedProfileIndex == 0) null else state.profileNames.getOrNull(state.selectedProfileIndex)
         val inputs = WizardBolusExecutor.WizardInputs(

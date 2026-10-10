@@ -1214,4 +1214,5 @@
     <string name="units_sec">sec</string>
     <string name="units_years">y</string>
     <string name="prefs_range_title">Range for visualization</string>
+    <string name="wizard_ecarbs_invalid">Invalid eCarbs timing. Choose a duration of 1–10 h and a supported delay.</string>
 </resources>
