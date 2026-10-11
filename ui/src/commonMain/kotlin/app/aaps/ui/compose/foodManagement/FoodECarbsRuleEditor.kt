@@ -39,9 +39,10 @@ import app.aaps.ui.UiStrings
 @Composable
 internal fun FoodECarbsRuleEditor(
     food: FD, enabled: Boolean, rule: FoodECarbsRule,
-    onEnabledChange: (Boolean) -> Unit, onRuleChange: (FoodECarbsRule) -> Unit
+    onEnabledChange: (Boolean) -> Unit, onRuleChange: (FoodECarbsRule) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
         // A fixed amount per 100 g or a carbs-only split needs no protein or fat, so the switch is always available
         FoodECarbsSwitch(UiStrings.food_ecarbs_rule_enable, enabled, true, onEnabledChange)
         if (enabled) {

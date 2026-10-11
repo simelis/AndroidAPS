@@ -937,7 +937,13 @@ class NSClientV3Plugin(
                     }
 
                     201  -> nsClientRepository.addLog("◄ ADDED", "OK ${dataPair.value::class.simpleName}")
-                    400  -> nsClientRepository.addLog("◄ FAIL", "${dataPair.value::class.simpleName} ${result.errorResponse}")
+
+                    // Stop here and keep the upload cursor. Moving on would end the protection of this local
+                    // edit, and the next Nightscout download would put the older Nightscout copy back.
+                    400  -> {
+                        nsClientRepository.addLog("◄ FAIL", "${dataPair.value::class.simpleName} ${result.errorResponse}")
+                        return config.isEnabled(ExternalOptions.IGNORE_NS_V3_ERRORS)
+                    }
 
                     404  -> {
                         nsClientRepository.addLog("◄ NOT_FOUND", "${dataPair.value::class.simpleName} ${result.errorResponse}")

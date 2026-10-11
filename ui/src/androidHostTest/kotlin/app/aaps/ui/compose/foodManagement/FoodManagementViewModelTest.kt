@@ -26,6 +26,7 @@ import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.whenever
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -256,6 +257,47 @@ internal class FoodManagementViewModelTest {
         advanceUntilIdle()
         verify(preferences).put(StringNonKey.FoodFavourites, "")
         assertThat(sut.filteredFoods.value).isEmpty()
+    }
+
+    @Test
+    fun `the editor star marks a new food as favourite when it is saved`() = runTest {
+        whenever(persistenceLayer.getFoods()).thenReturn(emptyList())
+        val inserted = FD(id = 19, name = "Soup", portion = 100.0, carbs = 5)
+        whenever(persistenceLayer.insertOrUpdateFood(any())).thenReturn(PersistenceLayer.TransactionResult<FD>().apply { this.inserted.add(inserted) })
+        sut.openEditor()
+        sut.updateEditorName("Soup")
+        sut.updateEditorCarbs("5")
+        sut.updateEditorFavourite(true)
+        // Nothing is stored before Save
+        verify(preferences, never()).put(eq(StringNonKey.FoodFavourites), any<String>())
+
+        sut.saveFood()
+        advanceUntilIdle()
+
+        verify(preferences).put(StringNonKey.FoodFavourites, "19")
+        assertThat(sut.uiState.value.favouriteIds).containsExactly(19L)
+    }
+
+    @Test
+    fun `the editor star shows and removes an existing favourite, and Cancel keeps it`() = runTest {
+        whenever(preferences.get(StringNonKey.FoodFavourites)).thenReturn("7")
+        sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25)
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food))
+        whenever(persistenceLayer.insertOrUpdateFood(any())).thenReturn(PersistenceLayer.TransactionResult())
+
+        sut.openEditor(food)
+        assertThat(sut.uiState.value.editorFavourite).isTrue()
+        sut.updateEditorFavourite(false)
+        sut.closeEditor()
+        assertThat(sut.uiState.value.favouriteIds).containsExactly(7L)
+
+        sut.openEditor(food)
+        sut.updateEditorFavourite(false)
+        sut.saveFood()
+        advanceUntilIdle()
+        verify(preferences).put(StringNonKey.FoodFavourites, "")
+        assertThat(sut.uiState.value.favouriteIds).isEmpty()
     }
 
     @Test
