@@ -125,7 +125,7 @@ class StoreDataForDbImplTest : TestBaseWithProfile() {
                 .thenReturn(PersistenceLayer.TransactionResult())
             whenever(persistenceLayer.syncNsTherapyEvents(any(), any()))
                 .thenReturn(PersistenceLayer.TransactionResult())
-            whenever(persistenceLayer.syncNsFood(any()))
+            whenever(persistenceLayer.syncNsFood(any(), any()))
                 .thenReturn(PersistenceLayer.TransactionResult())
             whenever(persistenceLayer.updateTemporaryTargetsNsIds(any()))
                 .thenReturn(PersistenceLayer.TransactionResult())
@@ -195,7 +195,7 @@ class StoreDataForDbImplTest : TestBaseWithProfile() {
         val foods = mutableListOf(fd)
         storeDataForDb.addToFoods(foods)
         storeDataForDb.storeFoodsToDb()
-        verify(persistenceLayer).syncNsFood(argThat { size == 1 && get(0).name == "Apple" })
+        verify(persistenceLayer).syncNsFood(argThat { size == 1 && get(0).name == "Apple" }, any())
         storeDataForDb.storeFoodsToDb()
         verifyNoMoreInteractions(persistenceLayer) // Verifies it was only called once
     }
@@ -240,7 +240,7 @@ class StoreDataForDbImplTest : TestBaseWithProfile() {
 
         // Assert
         verify(persistenceLayer, never()).insertCgmSourceData(any(), any(), any(), any())
-        verify(persistenceLayer, never()).syncNsFood(any())
+        verify(persistenceLayer, never()).syncNsFood(any(), any())
         verify(persistenceLayer, never()).syncNsBolus(any(), any())
         verify(persistenceLayer, never()).syncNsCarbs(any(), any())
         verify(persistenceLayer, never()).syncNsTemporaryTargets(any(), any())

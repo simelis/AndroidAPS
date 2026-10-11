@@ -21,7 +21,7 @@ data class FD(
     var energy: Int? = null, // in kJ
     var unit: String = "g",
     var gi: Int? = null, // not used yet
-    // Kept in AAPS only. It is not part of the Nightscout food, so contentEqualsTo ignores it.
+    // Synced to Nightscout as the aapsECarbsRule field
     var eCarbsRule: FoodECarbsRule? = null
 
 ) : HasIDs {
@@ -37,6 +37,7 @@ data class FD(
         if (name != other.name) return false
         if (category != other.category) return false
         if (subCategory != other.subCategory) return false
+        if (eCarbsRule != other.eCarbsRule) return false
         return unit == other.unit
     }
 

@@ -19,7 +19,10 @@ data class LastModified(
         @SerialName("entries") var entries: Long = 0,           // entries collection
         @SerialName("profile") var profile: Long = 0,           // profile collection
         @SerialName("treatments") var treatments: Long = 0,     // treatments collection
-        @SerialName("foods") var foods: Long = 0,               // foods collection
+        // Not a timestamp: counts food loads, so the full food list is read every 5th time (see
+        // LoadFoodsRunner). Nightscout names the collection "food", so the server never fills this.
+        @SerialName("foods") var foods: Long = 0,
+        @SerialName("food") var food: Long = 0,                 // food collection
         @SerialName("settings") var settings: Long = 0          // settings collection
     )
 
@@ -29,7 +32,7 @@ data class LastModified(
             "entries"      -> collections.entries = value
             "profile"      -> collections.profile = value
             "treatments"   -> collections.treatments = value
-            "foods"        -> collections.foods = value
+            "food"         -> collections.food = value
             "settings"     -> collections.settings = value
         }
     }

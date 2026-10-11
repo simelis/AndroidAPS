@@ -7,6 +7,8 @@ import app.aaps.core.data.model.DS
 import app.aaps.core.data.model.EB
 import app.aaps.core.data.model.EPS
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.model.GV
 import app.aaps.core.data.model.GlucoseUnit
 import app.aaps.core.data.model.ICfg
@@ -34,6 +36,7 @@ import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.StringNonKey
 import app.aaps.core.nssdk.interfaces.NSAndroidClient
+import app.aaps.core.nssdk.localmodel.food.NSFood
 import app.aaps.core.nssdk.localmodel.treatment.CreateUpdateResponse
 import app.aaps.core.nssdk.remotemodel.LastModified
 import app.aaps.plugins.sync.SyncStringsValues
@@ -63,6 +66,7 @@ import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mock
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -470,6 +474,43 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     }
 
     @Test
+    fun `a food edit sends the eCarbs rule`() = runTest {
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGramsPer100g = 7.5)
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, eCarbsRule = rule, ids = IDs(nightscoutId = "ns-food"))
+        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(200, null))
+
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isTrue()
+
+        val sent = argumentCaptor<NSFood>()
+        verify(nsAndroidClient).updateFood(sent.capture())
+        assertThat(sent.firstValue.aapsECarbsRule).isEqualTo(rule.toJson())
+    }
+
+    @Test
+    fun `a food deleted in Nightscout but restored or edited here is added again`() = runTest {
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-old"))
+        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(410, null))
+        whenever(nsAndroidClient.createFood(any())).thenReturn(CreateUpdateResponse(201, "ns-new"))
+
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isTrue()
+
+        val created = argumentCaptor<NSFood>()
+        verify(nsAndroidClient).createFood(created.capture())
+        assertThat(created.firstValue.identifier).isNull()
+        assertThat(storeDataForDb.nsIdFoods.snapshot().single().ids.nightscoutId).isEqualTo("ns-new")
+    }
+
+    @Test
+    fun `a food delete that Nightscout already has is done`() = runTest {
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, isValid = false, ids = IDs(nightscoutId = "ns-old"))
+        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(410, null))
+
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isTrue()
+
+        verify(nsAndroidClient, never()).createFood(any())
+    }
+
+    @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddExtendedBolus() = runTest {
         val extendedBolus = EB(
@@ -706,7 +747,7 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
                 treatments = 1672531200000L // Jan 1, 2023
                 devicestatus = 1672531200000L
                 profile = 1672531200000L
-                foods = 1672531200000L
+                food = 1672531200000L
                 entries = 1672531200000L
             }
         )
@@ -753,7 +794,7 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
                 treatments = 1672531200000L // Jan 1, 2023
                 devicestatus = 1672531200000L
                 profile = 1672531200000L
-                foods = 1672531200000L
+                food = 1672531200000L
                 entries = 1672531200000L
             }
 

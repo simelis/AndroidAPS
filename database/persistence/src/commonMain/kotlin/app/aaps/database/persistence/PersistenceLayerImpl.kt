@@ -2390,9 +2390,9 @@ class PersistenceLayerImpl(
         }
     }
 
-    override suspend fun syncNsFood(foods: List<FD>): PersistenceLayer.TransactionResult<FD> = withContext(aapsIoDispatcher) {
+    override suspend fun syncNsFood(foods: List<FD>, lastUploadedId: Long): PersistenceLayer.TransactionResult<FD> = withContext(aapsIoDispatcher) {
         try {
-            val result = repository.runTransactionForResultSuspend(SyncNsFoodTransaction(foods.asSequence().map { it.toDb() }.toList()))
+            val result = repository.runTransactionForResultSuspend(SyncNsFoodTransaction(foods.asSequence().map { it.toDb() }.toList(), lastUploadedId))
             val transactionResult = PersistenceLayer.TransactionResult<FD>()
             val ueValues = mutableListOf<UE>()
             result.inserted.forEach {
@@ -2424,6 +2424,9 @@ class PersistenceLayerImpl(
             result.updated.forEach {
                 aapsLogger.debug(LTag.DATABASE, "Updated Food $it")
                 transactionResult.updated.add(it.fromDb())
+            }
+            result.skipped.forEach {
+                aapsLogger.debug(LTag.DATABASE, "Kept local Food, not uploaded yet $it")
             }
             log(ueValues)
             transactionResult

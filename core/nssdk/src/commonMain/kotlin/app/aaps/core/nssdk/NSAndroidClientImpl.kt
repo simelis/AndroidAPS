@@ -451,18 +451,20 @@ class NSAndroidClientImpl(
             throw UnsuccessfulNightscoutException("Unsuccessful")
     }
 
-    /*
-        override suspend fun getFoodsModifiedSince(from: Long, limit: Int): NSAndroidClient.ReadResponse<List<NSFood>> = callWrapper(dispatcher) {
+    override suspend fun getFoodsModifiedSince(from: Long, limit: Int): NSAndroidClient.ReadResponse<List<NSFood>> = callWrapper(dispatcher) {
 
-            val response = api.getFoodsModifiedSince(from, limit)
-            val eTag = response.eTagAsLong() ?: throw UnsuccessfulNightscoutException()
-            if (response.isSuccessful) {
-                return@callWrapper NSAndroidClient.ReadResponse(eTag, response.body()?.result?.map(RemoteFood::toNSFood).toNotNull())
-            } else {
-                throw UnsuccessfulNightscoutException()
-            }
-        }
-    */
+        val response = api.getFoodsModifiedSince(from, limit)
+        if (response.isSuccessful) {
+            return@callWrapper NSAndroidClient.ReadResponse(
+                code = response.code, lastServerModified = response.eTagAsLong(),
+                values = response.body()?.result?.map(RemoteFood::toNSFood).toNotNull()
+            )
+        } else if (response.code in 400..499)
+            throw InvalidParameterNightscoutException(response.errorBody() ?: response.message())
+        else
+            throw UnsuccessfulNightscoutException("Unsuccessful")
+    }
+
     override suspend fun createFood(nsFood: NSFood): CreateUpdateResponse = callWrapper(dispatcher) {
 
         val remoteFood = nsFood.toRemoteFood()
