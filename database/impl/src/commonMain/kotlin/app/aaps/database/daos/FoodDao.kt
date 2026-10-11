@@ -33,6 +33,10 @@ internal interface FoodDao : TraceableDao<Food> {
     @Query("SELECT * FROM $TABLE_FOODS WHERE id > :id ORDER BY id ASC limit 1")
     suspend fun getNextModifiedOrNewAfter(id: Long): Food?
 
+    /** Id of the newest change of this food: the row itself, or its newest history row. */
+    @Query("SELECT MAX(id) FROM $TABLE_FOODS WHERE id = :id OR referenceId = :id")
+    suspend fun getLastChangeId(id: Long): Long?
+
     @Query("SELECT * FROM $TABLE_FOODS WHERE id = :referenceId")
     suspend fun getCurrentFromHistoric(referenceId: Long): Food?
 }

@@ -27,6 +27,7 @@ import app.aaps.core.interfaces.nsclient.NSClientRepository
 import app.aaps.core.interfaces.nsclient.StoreDataForDb
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.plugins.sync.nsclientV3.keys.NsclientLongKey
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -188,7 +189,7 @@ class StoreDataForDbImpl(
 
     override suspend fun storeFoodsToDb() = treatmentsMutex.withLock {
         foods.snapshotAndClear()?.let { batch ->
-            val result = persistenceLayer.syncNsFood(batch.toMutableList())
+            val result = persistenceLayer.syncNsFood(batch.toMutableList(), preferences.get(NsclientLongKey.FoodLastSyncedId))
             updated.add(FD::class.label, result.updated.size)
             inserted.add(FD::class.label, result.inserted.size)
             nsIdUpdated.add(FD::class.label, result.invalidated.size)

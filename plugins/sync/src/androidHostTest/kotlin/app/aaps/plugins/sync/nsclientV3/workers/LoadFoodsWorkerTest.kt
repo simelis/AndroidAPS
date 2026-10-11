@@ -109,6 +109,53 @@ internal class LoadFoodsWorkerTest : TestBaseWithProfile() {
     }
 
     @Test
+    fun `food changes and deletes are read from the history every time and move the cursor`() = runTest(timeout = 30.seconds) {
+        nsClientV3Plugin.nsAndroidClient = nsAndroidClient
+        nsClientV3Plugin.lastLoadedSrvModified.collections.foods = 1 // the full list is not due
+        nsClientV3Plugin.lastLoadedSrvModified.collections.food = 1000
+        nsClientV3Plugin.newestDataOnServer = LastModified(LastModified.Collections(food = 2000))
+        sut = buildSut()
+        val deleted = NSFood(name = "Apple", portion = 100.0, carbs = 13, unit = "g", date = now, identifier = "some", isValid = false)
+        whenever(nsAndroidClient.getFoodsModifiedSince(1000, NSClientV3Plugin.RECORDS_TO_LOAD))
+            .thenReturn(NSAndroidClient.ReadResponse(200, 2000, listOf(deleted)))
+
+        val result = sut.doWorkAndLog()
+
+        assertIs<ListenableWorker.Result.Success>(result)
+        verify(nsIncomingDataProcessor).processFood(argThat<List<NSFood>> { single().isValid == false })
+        verify(storeDataForDb).storeFoodsToDb()
+        verify(nsAndroidClient, never()).getFoods(anyInt())
+        assertThat(nsClientV3Plugin.lastLoadedSrvModified.collections.food).isEqualTo(2000)
+    }
+
+    @Test
+    fun `the history is not read when the server has nothing newer`() = runTest(timeout = 30.seconds) {
+        nsClientV3Plugin.nsAndroidClient = nsAndroidClient
+        nsClientV3Plugin.lastLoadedSrvModified.collections.foods = 1
+        nsClientV3Plugin.lastLoadedSrvModified.collections.food = 2000
+        nsClientV3Plugin.newestDataOnServer = LastModified(LastModified.Collections(food = 2000))
+        sut = buildSut()
+
+        sut.doWorkAndLog()
+
+        verify(nsAndroidClient, never()).getFoodsModifiedSince(any(), any())
+    }
+
+    @Test
+    fun `the first full read starts the history at the server time`() = runTest(timeout = 30.seconds) {
+        nsClientV3Plugin.nsAndroidClient = nsAndroidClient
+        nsClientV3Plugin.lastLoadedSrvModified.collections.foods = 0
+        nsClientV3Plugin.newestDataOnServer = LastModified(LastModified.Collections(food = 3000))
+        sut = buildSut()
+        whenever(nsAndroidClient.getFoods(anyInt())).thenReturn(NSAndroidClient.ReadResponse(200, 0, emptyList()))
+
+        sut.doWorkAndLog()
+
+        verify(nsAndroidClient, never()).getFoodsModifiedSince(any(), any())
+        assertThat(nsClientV3Plugin.lastLoadedSrvModified.collections.food).isEqualTo(3000)
+    }
+
+    @Test
     fun `loads foods on 5th attempt`() = runTest(timeout = 30.seconds) {
         whenever(workManager.beginUniqueWork(anyString(), anyOrNull(), anyOrNull<OneTimeWorkRequest>())).thenReturn(workContinuation)
         whenever(workContinuation.then(any<OneTimeWorkRequest>())).thenReturn(workContinuation)

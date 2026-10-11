@@ -15,9 +15,24 @@ Portion weights and changes made for one meal are never saved.
 
 ## Storage and Nightscout
 
-- The rule is stored in the food row in the database (`eCarbsRuleJson`, database version 37). It is read into a typed `FoodECarbsRule`. A rule that cannot be read, or is not valid, is treated as no rule.
-- The rule is kept in AAPS only. It is not sent to Nightscout, and food edits are not uploaded.
-- Foods still download from Nightscout. A food that you save, delete or restore in AAPS is marked `isLocallyEdited`. A Nightscout download never changes that row again, so your edits, your rule and your deletes are kept. Foods you never touched in AAPS still follow Nightscout.
+- The rule is stored in the food row in the database (`eCarbsRuleJson`, database version 37) and read into a typed `FoodECarbsRule`. A rule that cannot be read, or is not valid, is treated as no rule.
+- Food changes made in AAPS or AAPSClient are uploaded to Nightscout (API v3), and the rule goes with them as the `aapsECarbsRule` field. This needs no change on the Nightscout server; it was tested against Nightscout master.
+- A food that you save, delete or restore is marked `isLocallyEdited`. Until that change is uploaded, a Nightscout download does not change the food, because the Nightscout copy is older. After the upload, changes from other devices apply again.
+- Deletes reach the other devices through the Nightscout food history (and the live socket). The plain food list hides deleted foods.
+- If a food was deleted on another device and you restore or edit it here, it is added to Nightscout again as a new food.
+
+### Nightscout behaviour this depends on
+
+- An update must send only the fields that can change. Nightscout refuses `date`, `app`, `utcOffset`, `identifier` and some other fields in an update when they differ from what it stored. Foods made in the Nightscout web editor have no `date` or `app`, so sending them always fails with 400. This is why food update looked broken before.
+- A missing field in an update keeps the old value on the server, so "no rule" is sent as `aapsECarbsRule: null`.
+- Nightscout names the collection `food`. AAPS used to listen for `foods`, so live food changes never arrived; that is fixed.
+- Foods made or edited in the Nightscout web editor (API v1) have no change time, so they are not in the history. AAPS still reads the full food list every 5th time to find them. The web editor also removes `aapsECarbsRule` when it saves a food, so edit foods with rules in AAPS.
+
+Run the live test against a throwaway Nightscout only, because it writes foods:
+
+```
+NS_TEST_URL=http://127.0.0.1:1337 NS_TEST_TOKEN=<token> NS_TEST_API_SECRET=<secret> ./gradlew :core:nssdk:jvmTest --tests "*NightscoutFoodLiveTest"
+```
 
 ## Calculation
 
