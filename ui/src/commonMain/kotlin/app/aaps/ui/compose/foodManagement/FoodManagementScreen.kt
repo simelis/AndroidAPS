@@ -218,7 +218,8 @@ fun FoodManagementScreen(
                         { focusManager.clearFocus(); viewModel.deleteAndCloseEditor() }
                     } else null,
                     isEditing = state.editorFood != null,
-                    onOriginalWeightChange = viewModel::updateEditorOriginalWeight,
+                    onPortionChange = viewModel::updateEditorPortion,
+                    onUnitChange = viewModel::updateEditorUnit,
                     onECarbsEnabledChange = viewModel::updateEditorECarbsEnabled,
                     onECarbsSettingsChange = viewModel::updateEditorECarbsSettings
                 )
@@ -235,7 +236,7 @@ private fun FoodItem(
     onCalculate: () -> Unit,
 ) {
     val nutrition = food.nutrientsPer100g()
-    val basis = if (nutrition != null) stringResource(UiStrings.food_nutrients_basis) else stringResource(UiStrings.food_weight_required)
+    val basis = if (nutrition != null) stringResource(UiStrings.food_nutrients_basis) else "${food.portion} ${food.unit}"
     ElevatedCard(
         onClick = onEdit,
         modifier = Modifier
@@ -275,14 +276,14 @@ private fun FoodItem(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = nutrition?.let { "${NumberFormat.DECIMAL_1.format(it.carbs)}g" } ?: "—",
+                    text = "${NumberFormat.DECIMAL_1.format(nutrition?.carbs ?: food.carbs.toDouble())}g",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 val extras = buildList {
-                    add("F:${nutrition?.fat?.let { NumberFormat.DECIMAL_1.format(it) } ?: "—"}g")
-                    add("P:${nutrition?.protein?.let { NumberFormat.DECIMAL_1.format(it) } ?: "—"}g")
-                    nutrition?.energy?.let { if (it > 0) add("${NumberFormat.DECIMAL_1.format(it)}kJ") }
+                    add("F:${(nutrition?.fat ?: food.fat?.toDouble())?.let { NumberFormat.DECIMAL_1.format(it) } ?: "—"}g")
+                    add("P:${(nutrition?.protein ?: food.protein?.toDouble())?.let { NumberFormat.DECIMAL_1.format(it) } ?: "—"}g")
+                    (nutrition?.energy ?: food.energy?.toDouble())?.let { if (it > 0) add("${NumberFormat.DECIMAL_1.format(it)}kJ") }
                 }
                 if (rule != null && nutrition?.protein != null && nutrition.fat != null) {
                     val eCarbs = rule.manualGramsPer100g ?: rule.equivalentGrams(nutrition.protein, nutrition.fat)
@@ -333,7 +334,8 @@ internal fun FoodEditorContent(
     onCancel: () -> Unit,
     onDelete: (() -> Unit)?,
     isEditing: Boolean,
-    onOriginalWeightChange: (String) -> Unit = {},
+    onPortionChange: (String) -> Unit = {},
+    onUnitChange: (String) -> Unit = {},
     onECarbsEnabledChange: (Boolean) -> Unit = {},
     onECarbsSettingsChange: (FoodECarbsSettings) -> Unit = {},
 ) {
@@ -379,20 +381,19 @@ internal fun FoodEditorContent(
             )
         }
 
-        Text(stringResource(UiStrings.food_nutrients_basis), style = MaterialTheme.typography.titleMedium)
-        if (state.editorFood != null && (state.editorFood.portion != 100.0 || state.editorFood.unit != "g")) {
+        OutlinedTextField(
+            value = state.editorUnit, onValueChange = onUnitChange,
+            label = { Text(stringResource(CoreUiStrings.unit_label)) }, modifier = Modifier.fillMaxWidth(), singleLine = true
+        )
+        if (state.editorUsesGrams) Text(stringResource(UiStrings.food_nutrients_basis), style = MaterialTheme.typography.titleMedium)
+        else OutlinedTextField(
+            value = state.editorPortion, onValueChange = onPortionChange,
+            label = { Text(stringResource(CoreUiStrings.portion)) }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+        )
+        Text(stringResource(UiStrings.food_units_hint), style = MaterialTheme.typography.bodySmall)
+        if (state.editorUsesGrams && state.editorFood?.portionWeightGrams != null && (state.editorFood.portion != 100.0 || state.editorFood.unit != "g")) {
             Text(stringResource(UiStrings.food_nutrients_conversion), style = MaterialTheme.typography.bodySmall)
-        }
-        if (state.editorNeedsWeight) {
-            Text(stringResource(UiStrings.food_original_portion, state.editorFood?.portion.toString(), state.editorFood?.unit ?: ""))
-            OutlinedTextField(
-                value = state.editorOriginalWeight,
-                onValueChange = onOriginalWeightChange,
-                label = { Text(stringResource(UiStrings.food_original_weight)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-            )
         }
 
         OutlinedTextField(
@@ -431,8 +432,9 @@ internal fun FoodEditorContent(
             )
         }
 
-        FoodECarbsRuleEditor(state.editorPreview, state.editorUseECarbs, state.editorECarbsSettings,
+        if (state.editorUsesGrams) FoodECarbsRuleEditor(state.editorPreview, state.editorUseECarbs, state.editorECarbsSettings,
             onECarbsEnabledChange, onECarbsSettingsChange)
+        else Text(stringResource(UiStrings.food_ecarbs_grams_only), style = MaterialTheme.typography.bodySmall)
         if (state.editorSaveAttempted && !state.editorCanSave) {
             Text(stringResource(UiStrings.food_editor_invalid), color = MaterialTheme.colorScheme.error)
         }

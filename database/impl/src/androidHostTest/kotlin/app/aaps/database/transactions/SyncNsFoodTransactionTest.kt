@@ -103,6 +103,62 @@ class SyncNsFoodTransactionTest {
     }
 
     @Test
+    fun `older food documents preserve local rules and queue a repair upload even with unchanged nutrients`() = runTest {
+        val metadata = """{"version":1,"enabled":true,"method":"FPU","delayMinutes":60,"durationHours":3,"manualGramsPer100g":7.5}"""
+        val existing = createFood(7, "ns-123", "Meal", 25).copy(aapsFoodECarbs = metadata)
+        val incoming = createFood(0, "ns-123", "Meal", 25)
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
+        val transaction = SyncNsFoodTransaction(listOf(incoming)).apply { database = this@SyncNsFoodTransactionTest.database }
+        val result = transaction.run()
+        assertThat(result.updated).hasSize(1)
+        assertThat(existing.id).isEqualTo(7)
+        assertThat(existing.aapsFoodECarbs).isEqualTo(metadata)
+        verify(foodDao).updateExistingEntry(existing)
+    }
+
+    @Test
+    fun `remote nutrient edits preserve an omitted rule and explicit disabling replaces it`() = runTest {
+        val existing = createFood(7, "ns-123", "Meal", 25).copy(aapsFoodECarbs = """{"version":1,"enabled":true}""")
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
+        SyncNsFoodTransaction(listOf(createFood(0, "ns-123", "Renamed meal", 30)))
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        assertThat(existing.carbs).isEqualTo(30)
+        assertThat(existing.name).isEqualTo("Renamed meal")
+        assertThat(existing.aapsFoodECarbs).contains("\"enabled\":true")
+        val disabled = """{"version":1,"enabled":false}"""
+        SyncNsFoodTransaction(listOf(createFood(0, "ns-123", "Renamed meal", 30).copy(aapsFoodECarbs = disabled)))
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        assertThat(existing.aapsFoodECarbs).isEqualTo(disabled)
+        assertThat(existing.id).isEqualTo(7)
+    }
+
+    @Test
+    fun `a rule imported on a fresh database travels with its newly assigned food ID`() = runTest {
+        val metadata = """{"version":99,"enabled":true,"futureRule":{"factor":7.5}}"""
+        val incoming = createFood(0, "ns-123", "Meal", 25).copy(aapsFoodECarbs = metadata)
+        whenever(foodDao.insertNewEntry(any())).thenAnswer { invocation -> (invocation.arguments[0] as Food).id = 91; 91L }
+        val result = SyncNsFoodTransaction(listOf(incoming)).apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        assertThat(result.inserted.single().id).isEqualTo(91)
+        assertThat(result.inserted.single().aapsFoodECarbs).isEqualTo(metadata)
+    }
+
+    @Test
+    fun `stale remote rules cannot overwrite a newer local adjustment but newer remote changes apply`() = runTest {
+        val newer = """{"version":1,"enabled":true,"manualGramsPer100g":7.5,"updatedAt":2000}"""
+        val older = """{"version":1,"enabled":true,"manualGramsPer100g":5,"updatedAt":1000}"""
+        val existing = createFood(7, "ns-123", "Meal", 25).copy(aapsFoodECarbs = newer)
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
+        SyncNsFoodTransaction(listOf(createFood(0, "ns-123", "Meal", 25).copy(aapsFoodECarbs = older)))
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        assertThat(existing.aapsFoodECarbs).isEqualTo(newer)
+        verify(foodDao).updateExistingEntry(existing)
+        val latestDisable = """{"version":1,"enabled":false,"updatedAt":3000}"""
+        SyncNsFoodTransaction(listOf(createFood(0, "ns-123", "Meal", 25).copy(aapsFoodECarbs = latestDisable)))
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        assertThat(existing.aapsFoodECarbs).isEqualTo(latestDisable)
+    }
+
+    @Test
     fun `handles multiple foods`() = runTest {
         val food1 = createFood(id = 0, nsId = "ns-1", name = "Apple", carbs = 15)
         val food2 = createFood(id = 0, nsId = "ns-2", name = "Banana", carbs = 25)

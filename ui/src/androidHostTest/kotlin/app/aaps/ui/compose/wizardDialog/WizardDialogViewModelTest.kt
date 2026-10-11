@@ -34,7 +34,6 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.IntKey
-import app.aaps.core.keys.StringNonKey
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.keys.interfaces.Preferences
@@ -127,10 +126,9 @@ internal class WizardDialogViewModelTest {
         assertThat(sut.uiState.value.alarmChecked).isTrue()
     }
 
-    private suspend fun stubFoodInitialization(food: FD, stored: String = "{}") {
+    private suspend fun stubFoodInitialization(food: FD, stored: String? = null) {
         savedStateHandle["foodId"] = food.id.toString()
-        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food))
-        whenever(preferences.get(StringNonKey.FoodECarbsSettings)).thenReturn(stored)
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food.copy(aapsFoodECarbs = stored ?: food.aapsFoodECarbs)))
         val store = mock<ProfileStore>()
         whenever(store.getProfileList()).thenReturn(arrayListOf<CharSequence>("Test"))
         whenever(profileRepository.profile).thenReturn(MutableStateFlow(store))
@@ -154,7 +152,7 @@ internal class WizardDialogViewModelTest {
     fun `food navigation applies a saved rule and waits for an explicit portion weight`() = runTest(mainDispatcher.scheduler) {
         val meal = FD(id = 7, name = "Pizza & salad? #1", portion = 200.0, carbs = 50, protein = 20, fat = 10)
         val settings = FoodECarbsSettings(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
-        stubFoodInitialization(meal, FoodECarbsSettingsStore.save("{}", 7, settings))
+        stubFoodInitialization(meal, FoodECarbsSettingsStore.metadata(settings))
         advanceUntilIdle()
         val state = sut.uiState.value
         assertThat(state.notes).isEqualTo(meal.name)
@@ -166,6 +164,18 @@ internal class WizardDialogViewModelTest {
         sut.updateFoodPortionGrams(300.0)
         assertThat(sut.uiState.value.carbs).isEqualTo(75)
         assertThat(sut.uiState.value.eCarbs).isEqualTo(26)
+    }
+
+    @Test
+    fun `foods without gram weights use their saved carbs without the portion weight integration`() = runTest(mainDispatcher.scheduler) {
+        val rule = FoodECarbsSettingsStore.metadata(FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3))
+        stubFoodInitialization(FD(id = 7, name = "Two slices", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10), rule)
+        advanceUntilIdle()
+        assertThat(sut.uiState.value.carbs).isEqualTo(50)
+        assertThat(sut.uiState.value.notes).isEqualTo("Two slices")
+        assertThat(sut.uiState.value.foodECarbs).isNull()
+        assertThat(sut.uiState.value.foodInputsValid).isTrue()
+        assertThat(sut.uiState.value.eCarbs).isEqualTo(0)
     }
 
     @Test
@@ -261,7 +271,7 @@ internal class WizardDialogViewModelTest {
         sut.toggleFoodECarbs(true)
         sut.updateFoodPortionGrams(300.0)
         sut.updateFoodECarbsGrams(5)
-        verify(preferences, org.mockito.kotlin.never()).put(eq(StringNonKey.FoodECarbsSettings), any<String>())
+        verify(persistenceLayer, org.mockito.kotlin.never()).insertOrUpdateFood(any())
     }
 
     @Test

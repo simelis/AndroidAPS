@@ -11,8 +11,6 @@ import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.db.observeChanges
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
-import app.aaps.core.keys.StringNonKey
-import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.ui.compose.wizardDialog.FoodECarbsSettings
 import app.aaps.ui.compose.wizardDialog.FoodECarbsSettingsStore
 import dev.zacsweers.metro.AppScope
@@ -42,7 +40,6 @@ import kotlin.math.roundToInt
 class FoodManagementViewModel(
     private val persistenceLayer: PersistenceLayer,
     private val aapsLogger: AAPSLogger,
-    private val preferences: Preferences,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FoodManagementUiState())
@@ -88,8 +85,7 @@ class FoodManagementViewModel(
                 val foods = persistenceLayer.getFoods()
                 val categories = foods.mapNotNull { it.category }.filter { it.isNotBlank() }.distinct().sorted()
                 val subCategories = foods.mapNotNull { it.subCategory }.filter { it.isNotBlank() }.distinct().sorted()
-                val savedRules = preferences.get(StringNonKey.FoodECarbsSettings)
-                val rules = foods.associate { it.id to FoodECarbsSettingsStore.load(savedRules, it.id) }.filterValues { it.isValid }
+                val rules = foods.associate { it.id to FoodECarbsSettingsStore.loadMetadata(it.aapsFoodECarbs) }.filterValues { it.isValid }
                 _uiState.update {
                     it.copy(
                         foods = foods,
@@ -120,18 +116,20 @@ class FoodManagementViewModel(
 
     fun openEditor(food: FD? = null) {
         val nutrition = food?.nutrientsPer100g()
-        val settings = food?.let { FoodECarbsSettingsStore.load(preferences.get(StringNonKey.FoodECarbsSettings), it.id) }
+        val settings = food?.let { FoodECarbsSettingsStore.loadMetadata(it.aapsFoodECarbs) }
             ?: FoodECarbsSettings()
         _uiState.update {
             it.copy(
                 editorFood = food, editorName = food?.name ?: "",
                 editorCategory = food?.category ?: "", editorSubCategory = food?.subCategory ?: "",
-                editorCarbs = nutrition?.carbs?.roundToInt()?.toString() ?: "",
-                editorFat = nutrition?.fat?.roundToInt()?.toString() ?: "",
-                editorProtein = nutrition?.protein?.roundToInt()?.toString() ?: "",
-                editorEnergy = nutrition?.energy?.roundToInt()?.toString() ?: "",
-                editorNeedsWeight = food != null && nutrition == null, editorOriginalWeight = "",
-                editorECarbsSettings = settings, editorUseECarbs = settings.isValid,
+                editorCarbs = nutrition?.carbs?.roundToInt()?.toString() ?: food?.carbs?.toString() ?: "",
+                editorFat = nutrition?.fat?.roundToInt()?.toString() ?: food?.fat?.toString() ?: "",
+                editorProtein = nutrition?.protein?.roundToInt()?.toString() ?: food?.protein?.toString() ?: "",
+                editorEnergy = nutrition?.energy?.roundToInt()?.toString() ?: food?.energy?.toString() ?: "",
+                editorPortion = if (nutrition != null || food == null) "100" else food.portion.toString(),
+                editorUnit = if (nutrition != null || food == null) "g" else food.unit,
+                editorECarbsSettings = settings, editorUseECarbs = settings.isValid && nutrition != null,
+                editorRuleChanged = false,
                 editorSaveAttempted = false, editorSaving = false, editorSaveFailed = false, showEditor = true
             )
         }
@@ -148,23 +146,17 @@ class FoodManagementViewModel(
     fun updateEditorFat(v: String) = _uiState.update { it.copy(editorFat = v, editorECarbsSettings = it.editorECarbsSettings.copy(manualGramsPer100g = null)) }
     fun updateEditorProtein(v: String) = _uiState.update { it.copy(editorProtein = v, editorECarbsSettings = it.editorECarbsSettings.copy(manualGramsPer100g = null)) }
     fun updateEditorEnergy(v: String) = _uiState.update { it.copy(editorEnergy = v) }
-    fun updateEditorECarbsEnabled(v: Boolean) = _uiState.update { it.copy(editorUseECarbs = v) }
-    fun updateEditorECarbsSettings(v: FoodECarbsSettings) = _uiState.update { it.copy(editorECarbsSettings = v) }
-
-    fun updateEditorOriginalWeight(v: String) {
-        _uiState.update { state ->
-            val weight = v.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
-            val nutrition = weight?.let { state.editorFood?.copy(portion = it, unit = "g")?.nutrientsPer100g() }
-            state.copy(
-                editorOriginalWeight = v,
-                editorCarbs = nutrition?.carbs?.roundToInt()?.toString() ?: "",
-                editorFat = nutrition?.fat?.roundToInt()?.toString() ?: "",
-                editorProtein = nutrition?.protein?.roundToInt()?.toString() ?: "",
-                editorEnergy = nutrition?.energy?.roundToInt()?.toString() ?: "",
-                editorECarbsSettings = state.editorECarbsSettings.copy(manualGramsPer100g = null)
-            )
-        }
+    fun updateEditorPortion(v: String) = _uiState.update { it.copy(editorPortion = v) }
+    fun updateEditorUnit(v: String) = _uiState.update { state ->
+        val grams = isGramUnit(v)
+        if (grams == state.editorUsesGrams) state.copy(editorUnit = v)
+        else state.copy(editorUnit = v, editorPortion = if (grams) "100" else "",
+            editorCarbs = "", editorFat = "", editorProtein = "", editorEnergy = "", editorUseECarbs = false,
+            editorRuleChanged = state.editorRuleChanged || state.editorECarbsSettings.isValid,
+            editorECarbsSettings = state.editorECarbsSettings.copy(manualGramsPer100g = null))
     }
+    fun updateEditorECarbsEnabled(v: Boolean) = _uiState.update { it.copy(editorUseECarbs = v, editorRuleChanged = true) }
+    fun updateEditorECarbsSettings(v: FoodECarbsSettings) = _uiState.update { it.copy(editorECarbsSettings = v, editorRuleChanged = true) }
 
     fun saveFood() {
         _uiState.update { it.copy(editorSaveAttempted = true) }
@@ -182,13 +174,18 @@ class FoodManagementViewModel(
             name = name,
             category = state.editorCategory.trim().ifBlank { null },
             subCategory = state.editorSubCategory.trim().ifBlank { null },
-            portion = 100.0,
-            unit = "g",
+            portion = if (state.editorUsesGrams) 100.0 else state.editorPortion.toDouble(),
+            unit = if (state.editorUsesGrams) "g" else state.editorUnit.trim(),
             carbs = state.editorCarbs.toInt(),
             fat = state.editorFat.toIntOrNull(),
             protein = state.editorProtein.toIntOrNull(),
             energy = state.editorEnergy.toIntOrNull(),
             gi = state.editorFood?.gi,
+            aapsFoodECarbs = when {
+                state.editorUseECarbs -> FoodECarbsSettingsStore.metadata(state.editorECarbsSettings, state.editorFood?.aapsFoodECarbs)
+                state.editorRuleChanged -> FoodECarbsSettingsStore.metadata(null, state.editorFood?.aapsFoodECarbs)
+                else -> state.editorFood?.aapsFoodECarbs // Preserve an unknown future extension on unrelated edits.
+            },
         )
 
         _uiState.update { it.copy(editorSaving = true, editorSaveFailed = false) }
@@ -198,10 +195,6 @@ class FoodManagementViewModel(
                 val savedFood = result.all().firstOrNull() ?: food.takeIf { it.id > 0 }
                 check(savedFood != null && savedFood.id > 0) { "Saved food has no database ID" }
                 _uiState.update { it.copy(editorFood = savedFood) }
-                val json = preferences.get(StringNonKey.FoodECarbsSettings)
-                preferences.put(StringNonKey.FoodECarbsSettings, if (state.editorUseECarbs)
-                    FoodECarbsSettingsStore.save(json, savedFood.id, state.editorECarbsSettings)
-                else FoodECarbsSettingsStore.remove(json, savedFood.id))
                 _uiState.update { it.copy(showEditor = false) }
                 loadData()
             } catch (e: Exception) {
@@ -270,8 +263,8 @@ data class FoodManagementUiState(
     val editorName: String = "",
     val editorCategory: String = "",
     val editorSubCategory: String = "",
-    val editorNeedsWeight: Boolean = false,
-    val editorOriginalWeight: String = "",
+    val editorPortion: String = "100",
+    val editorUnit: String = "g",
     val editorCarbs: String = "",
     val editorFat: String = "",
     val editorProtein: String = "",
@@ -280,20 +273,24 @@ data class FoodManagementUiState(
     val editorSaving: Boolean = false,
     val editorSaveFailed: Boolean = false,
     val editorUseECarbs: Boolean = false,
+    val editorRuleChanged: Boolean = false,
     val editorECarbsSettings: FoodECarbsSettings = FoodECarbsSettings(),
     // Undo
     val undoFood: FD? = null,
 ) {
+    val editorUsesGrams: Boolean get() = isGramUnit(editorUnit)
     val editorPreview: FD get() = FD(name = editorName, portion = 100.0, carbs = editorCarbs.toIntOrNull() ?: 0,
         fat = editorFat.toIntOrNull(), protein = editorProtein.toIntOrNull())
 
     val editorCanSave: Boolean get() {
         fun nutrient(value: String, required: Boolean = false): Boolean =
-            (!required && value.isBlank()) || value.toIntOrNull()?.let { it in 0..100 } == true
-        val weightValid = !editorNeedsWeight || editorOriginalWeight.toDoubleOrNull()?.let { it.isFinite() && it > 0 } == true
-        return editorName.isNotBlank() && weightValid && nutrient(editorCarbs, required = true) &&
+            (!required && value.isBlank()) || value.toIntOrNull()?.let { it >= 0 && (!editorUsesGrams || it <= 100) } == true
+        val portionValid = editorUsesGrams || editorPortion.toDoubleOrNull()?.let { it.isFinite() && it > 0 } == true
+        return editorName.isNotBlank() && editorUnit.isNotBlank() && portionValid && nutrient(editorCarbs, required = true) &&
             nutrient(editorFat) && nutrient(editorProtein) &&
             (editorEnergy.isBlank() || editorEnergy.toIntOrNull()?.let { it >= 0 } == true) &&
-            (!editorUseECarbs || (editorECarbsSettings.isValid && editorFat.toIntOrNull() != null && editorProtein.toIntOrNull() != null))
+            (!editorUseECarbs || (editorUsesGrams && editorECarbsSettings.isValid && editorFat.toIntOrNull() != null && editorProtein.toIntOrNull() != null))
     }
 }
+
+private fun isGramUnit(unit: String): Boolean = unit.trim().lowercase() in setOf("g", "gram", "grams")

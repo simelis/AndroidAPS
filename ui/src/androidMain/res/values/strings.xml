@@ -352,11 +352,11 @@
     <string name="food_nutrients_basis">Per 100 g</string>
     <string name="food_portion_grams">Your portion weight</string>
     <string name="food_ecarbs_servings_hint">Portion weight scales all nutrients and the saved eCarbs rule. Editing carbs below changes only the meal carbs.</string>
-    <string name="food_weight_required">Edit this Food entry and enter the weight of its original portion in grams first.</string>
-    <string name="food_original_portion">Original portion: %1$s %2$s</string>
-    <string name="food_original_weight">Weight of the original portion (g)</string>
+    <string name="food_weight_required">Portion weighing requires a valid gram-based Food entry.</string>
     <string name="food_nutrients_conversion">Converted nutrients are shown rounded to whole grams. Review before saving on a 100 g basis.</string>
-    <string name="food_editor_invalid">Enter a name, carbs/fat/protein within 0–100 g per 100 g, and a valid original portion weight if required. Blank fat/protein means unknown. An enabled eCarbs rule needs both values and a duration of 1–10 h.</string>
+    <string name="food_editor_invalid">Enter a name, unit, positive portion, and non-negative nutrients. For gram entries, nutrients must be within 0–100 g per 100 g. Blank fat/protein means unknown. An enabled eCarbs rule needs both values and a duration of 1–10 h.</string>
+    <string name="food_units_hint">Gram entries use nutrients per 100 g. Other units use nutrients per entered portion. Switching between these bases clears nutrient inputs so you can enter the correct values.</string>
+    <string name="food_ecarbs_grams_only">Portion weighing and saved eCarbs rules are available for food entered in grams. This food opens the wizard with its saved carbs.</string>
     <string name="food_save_failed">Could not save the food and its rule. Please try again.</string>
     <string name="food_ecarbs_macros">Food total: %1$d g carbs · %2$s g protein · %3$s g fat</string>
     <string name="food_ecarbs_enable">Use protein/fat eCarbs for this meal</string>

@@ -42,7 +42,8 @@ data class Food(
     var protein: Int? = null, // in grams
     var energy: Int? = null, // in kJ
     var unit: String = "g",
-    var gi: Int? = null // not used yet
+    var gi: Int? = null, // not used yet
+    var aapsFoodECarbs: String? = null
 
 ) : TraceableDBEntry {
 
@@ -57,6 +58,7 @@ data class Food(
         if (name != other.name) return false
         if (category != other.category) return false
         if (subCategory != other.subCategory) return false
+        if (aapsFoodECarbs != other.aapsFoodECarbs) return false
         return unit == other.unit
     }
 
@@ -72,6 +74,7 @@ data class Food(
         energy = other.energy
         unit = other.unit
         gi = other.gi
+        aapsFoodECarbs = other.aapsFoodECarbs
         interfaceIDs.nightscoutId = other.interfaceIDs.nightscoutId
     }
 }

@@ -4,12 +4,16 @@ import app.aaps.core.data.model.FD
 import app.aaps.ui.compose.foodManagement.portionWeightGrams
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlin.math.roundToInt
+import kotlin.time.Clock
 
 enum class FoodECarbsMethod { CUSTOM, FPU, MODIFIED_FPU }
 
@@ -79,12 +83,36 @@ data class FoodECarbsState(
             (!enabled || (hasMacros && settings.isValid && eCarbsGrams in 0..maxCarbs))
 }
 
-/** Per-food local rule. Its presence opts this food in; portion weight and one-meal overrides are never saved. */
+/** Versioned food extension; portion weight and one-meal overrides are never saved. */
 object FoodECarbsSettingsStore {
     private fun read(json: String): JsonObject = try {
         Json.parseToJsonElement(json) as? JsonObject ?: JsonObject(emptyMap())
     } catch (_: IllegalArgumentException) {
         JsonObject(emptyMap())
+    }
+
+    fun loadMetadata(json: String?): FoodECarbsSettings {
+        val rule = json?.let { read(it) } ?: return FoodECarbsSettings()
+        if ((rule["version"] as? JsonPrimitive)?.intOrNull != 1 || (rule["enabled"] as? JsonPrimitive)?.booleanOrNull != true)
+            return FoodECarbsSettings()
+        return load(JsonObject(mapOf("1" to rule)).toString(), 1)
+    }
+
+    fun metadata(settings: FoodECarbsSettings?, previous: String? = null, updatedAt: Long = Clock.System.now().toEpochMilliseconds()): String {
+        val original = previous?.let { read(it) }
+        val fields = original?.toMutableMap() ?: mutableMapOf()
+        if (settings != null) {
+            val rule = read(save("{}", 1, settings))["1"] as JsonObject
+            fields.putAll(rule)
+            if (settings.manualGramsPer100g == null) fields.remove("manualGramsPer100g")
+        }
+        fields["version"] = JsonPrimitive(1)
+        fields["enabled"] = JsonPrimitive(settings != null)
+        if (JsonObject(fields) != original) {
+            val priorTime = (original?.get("updatedAt") as? JsonPrimitive)?.longOrNull ?: 0L
+            fields["updatedAt"] = JsonPrimitive(maxOf(updatedAt, if (priorTime == Long.MAX_VALUE) priorTime else priorTime + 1))
+        }
+        return JsonObject(fields).toString()
     }
 
     fun load(json: String, foodId: Long): FoodECarbsSettings {

@@ -37,7 +37,8 @@ internal class FoodExtensionTest {
             protein = 5,
             energy = 600,
             unit = "ml",
-            gi = 40
+            gi = 40,
+            aapsFoodECarbs = """{"version":1,"enabled":true,"manualGramsPer100g":7.5}"""
         )
 
     private fun sampleEntity(): Food =
@@ -65,7 +66,8 @@ internal class FoodExtensionTest {
             protein = 2,
             energy = 300,
             unit = "g",
-            gi = 38
+            gi = 38,
+            aapsFoodECarbs = """{"version":1,"enabled":false}"""
         )
 
     @Test
@@ -152,6 +154,7 @@ internal class FoodExtensionTest {
         assertNull(back.protein)
         assertNull(back.energy)
         assertNull(back.gi)
+        assertNull(back.aapsFoodECarbs)
         assertNull(back.referenceId)
         assertEquals("g", back.unit)
     }
