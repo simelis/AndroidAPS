@@ -617,7 +617,8 @@ internal fun WizardDialogContent(
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
 
-            val bgIsOld = !uiState.hasBgData || uiState.bgAgeMinutes > 9
+            // Before loading, the state has no BG yet. Expanding then would also scroll the screen down to the BG row.
+            val bgIsOld = uiState.isLoaded && (!uiState.hasBgData || uiState.bgAgeMinutes > 9)
             var bgExpanded by rememberSaveable { mutableStateOf(false) }
             LaunchedEffect(bgIsOld) {
                 if (bgIsOld) bgExpanded = true

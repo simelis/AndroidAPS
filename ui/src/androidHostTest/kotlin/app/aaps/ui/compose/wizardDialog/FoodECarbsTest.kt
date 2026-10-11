@@ -46,11 +46,34 @@ class FoodECarbsTest {
     }
 
     @Test
-    fun `missing macros are not treated as known zero amounts`() {
-        assertThat(FoodECarbsState(meal.copy(fat = null), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isFalse()
-        assertThat(FoodECarbsState(meal.copy(protein = null), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isFalse()
-        assertThat(FoodECarbsState(meal.copy(protein = 0, fat = 0), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isTrue()
-        assertThat(FoodECarbsState(meal.copy(fat = -1), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isFalse()
+    fun `FPU counts one unknown nutrient as zero but needs at least one`() {
+        // Fat unknown: only the 20 g protein count, (4 x 20) / 10 = 8 g
+        val noFat = FoodECarbsState(meal.copy(fat = null), portionGrams = 200.0, enabled = true, rule = rule)
+        assertThat(noFat.isValid(100)).isTrue()
+        assertThat(noFat.eCarbsGrams).isEqualTo(8)
+        assertThat(FoodECarbsState(meal.copy(protein = null), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isTrue()
+        assertThat(FoodECarbsState(meal.copy(protein = null, fat = null), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isFalse()
+        assertThat(FoodECarbsState(meal.copy(protein = -1, fat = -1), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isFalse()
+    }
+
+    @Test
+    fun `a fixed amount per 100 gram needs no protein or fat`() {
+        val food = FoodECarbsState(meal.copy(protein = null, fat = null), portionGrams = 200.0, enabled = true,
+            rule = rule.copy(manualGramsPer100g = 5.0))
+        assertThat(food.isValid(100)).isTrue()
+        assertThat(food.eCarbsGrams).isEqualTo(10)
+    }
+
+    @Test
+    fun `carbs held back from the bolus move to the eCarbs and keep the meal total`() {
+        val state = WizardDialogUiState(carbs = 50, maxCarbs = 100,
+            foodECarbs = FoodECarbsState(meal, portionGrams = 200.0, enabled = true, rule = rule.copy(carbsNowPercent = 80)))
+        assertThat(state.carbPlan()).isEqualTo(WizardCarbPlan(40, 27, 60, 3))
+        assertThat(state.foodInputsValid).isTrue()
+        // The moved carbs count against the limit too: 45 g + 10 g moved is over a 50 g limit
+        val food = state.foodECarbs!!
+        assertThat(state.copy(maxCarbs = 50, foodECarbs = food.copy(overrideGrams = 40)).foodInputsValid).isTrue()
+        assertThat(state.copy(maxCarbs = 50, foodECarbs = food.copy(overrideGrams = 45)).foodInputsValid).isFalse()
     }
 
     @Test

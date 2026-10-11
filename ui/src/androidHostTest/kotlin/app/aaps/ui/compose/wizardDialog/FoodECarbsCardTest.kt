@@ -29,7 +29,8 @@ import app.aaps.ui.R as UiR
 @Config(sdk = [35])
 class FoodECarbsCardTest {
     @get:Rule val compose = createComposeRule()
-    private val meal = FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10)
+    private val fpu = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
+    private val meal = FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10, eCarbsRule = fpu)
 
     @Before
     fun setUp() {
@@ -42,8 +43,7 @@ class FoodECarbsCardTest {
         var enabled = false
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal,
-                    rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))),
+                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal, rule = fpu)),
                     FoodECarbsCallbacks(enabled = { enabled = it }))
             }
         }
@@ -57,11 +57,68 @@ class FoodECarbsCardTest {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null))), FoodECarbsCallbacks())
+                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null, protein = null), rule = fpu)),
+                    FoodECarbsCallbacks())
             }
         }
         compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).assertIsNotEnabled()
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_missing_macros)).assertExists()
+    }
+
+    @Test
+    fun aFoodWithoutASavedFormulaShowsNoSwitch() {
+        val context = RuntimeEnvironment.getApplication()
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = null))), FoodECarbsCallbacks())
+            }
+        }
+        compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_no_rule)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_missing_macros)).assertDoesNotExist()
+    }
+
+    @Test
+    fun fpuWithOneUnknownNutrientCanBeUsedAndSaysItCountsAsZero() {
+        val context = RuntimeEnvironment.getApplication()
+        var enabled = false
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null), rule = fpu)),
+                    FoodECarbsCallbacks(enabled = { enabled = it }))
+            }
+        }
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_missing_macros)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).performClick()
+        assertThat(enabled).isTrue()
+    }
+
+    @Test
+    fun enabledFpuWithUnknownFatShowsTheZeroNote() {
+        val context = RuntimeEnvironment.getApplication()
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsCard(WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null),
+                    portionGrams = 200.0, enabled = true, rule = fpu)), FoodECarbsCallbacks())
+            }
+        }
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_fat_unknown)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_protein_unknown)).assertDoesNotExist()
+    }
+
+    @Test
+    fun carbsHeldBackFromTheBolusAreShownAndMovedToTheECarbs() {
+        val context = RuntimeEnvironment.getApplication()
+        val rule = fpu.copy(carbsNowPercent = 80)
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsCard(WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = rule),
+                    portionGrams = 200.0, enabled = true, rule = rule)), FoodECarbsCallbacks())
+            }
+        }
+        // 80 % of 50 g is 40 g now; the other 10 g join the 17 g from protein and fat
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_carbs_split, 40, 80, 10)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_preview, 40, 27, 60, 3)).assertExists()
     }
 
     @Test
@@ -71,8 +128,7 @@ class FoodECarbsCardTest {
             MaterialTheme {
                 FoodECarbsCard(
                     WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(
-                        meal, portionGrams = 200.0, enabled = true,
-                        rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
+                        meal, portionGrams = 200.0, enabled = true, rule = fpu
                     )),
                     FoodECarbsCallbacks()
                 )
@@ -110,5 +166,31 @@ class FoodECarbsCardTest {
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_per100_calculated, "8.5")).assertExists()
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_use_calculated)).performClick()
         assertThat(updated.manualGramsPer100g).isNull()
+    }
+
+    @Test
+    fun foodEditorExplainsWhenTheFormulaNeedsANutrientTheFoodLacks() {
+        val context = RuntimeEnvironment.getApplication()
+        // A custom fat factor needs the fat value
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.CUSTOM, fatPercent = 50, durationHours = 3)
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsRuleEditor(meal.copy(portion = 100.0, fat = null), true, rule, {}, {})
+            }
+        }
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_missing_macros)).assertExists()
+    }
+
+    @Test
+    fun foodEditorSwitchIsAvailableWithoutProteinAndFat() {
+        val context = RuntimeEnvironment.getApplication()
+        var enabled = false
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsRuleEditor(meal.copy(portion = 100.0, fat = null, protein = null), false, FoodECarbsRule(), { enabled = it }, {})
+            }
+        }
+        compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_rule_enable)).performClick()
+        assertThat(enabled).isTrue()
     }
 }

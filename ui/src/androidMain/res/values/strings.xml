@@ -359,9 +359,9 @@
     <string name="food_ecarbs_grams_only">Portion weighing and saved eCarbs rules are available for food entered in grams. This food opens the wizard with its saved carbs.</string>
     <string name="food_save_failed">Could not save the food and its rule. Please try again.</string>
     <string name="food_ecarbs_macros" comment="%1$d=carbs in grams, %2$s=protein grams, %3$s=fat grams, — when unknown. Example: Food total: 50 g carbs · 20 g protein · 10 g fat">Food total: %1$d g carbs · %2$s g protein · %3$s g fat</string>
-    <string name="food_ecarbs_enable">Use protein/fat eCarbs for this meal</string>
+    <string name="food_ecarbs_enable">Use the eCarbs formula of this food for this meal</string>
+    <string name="food_ecarbs_no_rule">No eCarbs formula is saved for this food.</string>
     <string name="food_ecarbs_rule_enable">Save an eCarbs rule for this food</string>
-    <string name="food_ecarbs_configure_food">Configure the eCarbs rule in the Food entry first.</string>
     <string name="food_ecarbs_saved_method" comment="%1$s=name of the calculation method. Example: Saved rule: Custom factors">Saved rule: %1$s</string>
     <string name="food_ecarbs_saved_manual" comment="%1$s=grams with one decimal. Example: 7.5">Saved manual equivalent: %1$s g eCarbs per 100 g food</string>
     <string name="food_ecarbs_per100_calculated" comment="%1$s=grams with one decimal. Example: 7.5">Formula result per 100 g food: %1$s g eCarbs</string>
@@ -369,7 +369,12 @@
     <string name="food_ecarbs_list" comment="Short food list line. %1$s=eCarbs grams per 100 g of food. Example: eCarbs: 7.5 g / 100 g">eCarbs: %1$s g / 100 g</string>
     <string name="food_ecarbs_rule_hint">Saved with this food and applied automatically in the wizard. A manually adjusted value scales with portion weight; use the calculated amount to return to the formula.</string>
     <string name="food_ecarbs_rule_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: Choose a duration of 1–10 h">Choose a duration of %1$d–%2$d h and a valid eCarbs rule before saving.</string>
-    <string name="food_ecarbs_missing_macros">Enter both protein and fat in the Food entry, using 0 for none, to calculate eCarbs.</string>
+    <string name="food_ecarbs_missing_macros">This formula needs protein or fat values that the food does not have. Enter them in the Food entry (0 for none), or save a fixed eCarbs amount per 100 g.</string>
+    <string name="food_ecarbs_protein_unknown">Protein is not known and is counted as 0 g.</string>
+    <string name="food_ecarbs_fat_unknown">Fat is not known and is counted as 0 g.</string>
+    <string name="food_ecarbs_carbs_now">Carbs counted in the bolus now</string>
+    <string name="food_ecarbs_carbs_now_hint">The rest of the carbs is added to the eCarbs, so the meal total stays the same. 100% counts all carbs now.</string>
+    <string name="food_ecarbs_carbs_split" comment="%1$d=carbs counted now in grams, %2$d=percent counted now, %3$d=carbs moved to eCarbs in grams. Example: 40 g carbs counted now (80%), 10 g moved to eCarbs">%1$d g carbs counted now (%2$d%%), %3$d g moved to eCarbs</string>
     <string name="food_ecarbs_method">eCarbs calculation method</string>
     <string name="food_ecarbs_custom">Custom factors</string>
     <string name="food_ecarbs_fpu">Original FPU (100 kcal)</string>
@@ -384,8 +389,8 @@
     <string name="food_ecarbs_use_calculated">Use calculated amount</string>
     <string name="food_ecarbs_delay">Delay after carb time</string>
     <string name="food_ecarbs_duration">Spread eCarbs over</string>
-    <string name="food_ecarbs_preview" comment="%1$d=immediate carbs (g), %2$d=extra eCarbs (g), %3$d=delay in minutes, %4$d=duration in hours. Example: 50 g immediate carbs + 17 g additional eCarbs, starting 60 min after carb time, over 3 h.">%1$d g immediate carbs + %2$d g additional eCarbs, starting %3$d min after carb time, over %4$d h. Replaces the bread/dumpling/pizza calculation.</string>
+    <string name="food_ecarbs_preview" comment="%1$d=immediate carbs (g), %2$d=extra eCarbs (g), %3$d=delay in minutes, %4$d=duration in hours. Example: 50 g immediate carbs + 17 g eCarbs, starting 60 min after carb time, over 3 h.">%1$d g immediate carbs + %2$d g eCarbs, starting %3$d min after carb time, over %4$d h. Replaces the bread/dumpling/pizza calculation.</string>
     <string name="food_ecarbs_profile_notice">An increased profile can add insulin alongside eCarbs. Review both together before confirming.</string>
-    <string name="food_ecarbs_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: 1–10 h">Enter a positive portion weight. Carbs and eCarbs must each be within the carb limit; protein/fat must be known for eCarbs. Choose a duration of %1$d–%2$d h when food eCarbs are enabled.</string>
+    <string name="food_ecarbs_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: 1–10 h">Enter a positive portion weight. Carbs and eCarbs must each be within the carb limit; the food must have the protein or fat its formula needs. Choose a duration of %1$d–%2$d h when food eCarbs are enabled.</string>
     <string name="food_ecarbs_unavailable">This Food entry could not be loaded. Close the wizard and select the food again.</string>
 </resources>
