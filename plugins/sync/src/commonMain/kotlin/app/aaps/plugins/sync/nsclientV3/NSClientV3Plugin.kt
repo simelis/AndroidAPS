@@ -663,7 +663,7 @@ class NSClientV3Plugin(
         when (collection) {
             NsClient.Collection.ENTRIES    -> lastLoadedSrvModified.collections.entries == 0L
             NsClient.Collection.TREATMENTS -> lastLoadedSrvModified.collections.treatments == 0L
-            NsClient.Collection.FOODS      -> lastLoadedSrvModified.collections.foods == 0L
+            NsClient.Collection.FOODS      -> lastLoadedSrvModified.collections.food == 0L
             NsClient.Collection.PROFILE    -> lastLoadedSrvModified.collections.profile == 0L
             NsClient.Collection.SETTINGS   -> lastLoadedSrvModified.collections.settings == 0L
         }
@@ -943,6 +943,16 @@ class NSClientV3Plugin(
                         if (!config.isEnabled(ExternalOptions.IGNORE_NS_V3_ERRORS) &&
                             retryUpdateLater(operation, id, isDeletion = !dataPair.value.isValid)
                         ) return false
+                    }
+
+                    // Deleted in Nightscout, which cannot change a deleted food. A valid food here was
+                    // restored or edited in AAPS after that, so add it again as a new Nightscout food.
+                    410  -> {
+                        nsClientRepository.addLog("◄ GONE", "${dataPair.value::class.simpleName} $id")
+                        if (operation == Operation.UPDATE && dataPair.value.isValid) {
+                            val again = dataPair.value.copy(ids = dataPair.value.ids.copy(nightscoutId = null))
+                            return dbOperationFood(collection, DataSyncSelector.PairFood(again, dataPair.id), progress, Operation.CREATE)
+                        }
                     }
 
                     else -> {

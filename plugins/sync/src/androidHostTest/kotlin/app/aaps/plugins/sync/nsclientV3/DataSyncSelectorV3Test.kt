@@ -2,6 +2,9 @@ package app.aaps.plugins.sync.nsclientV3
 
 import app.aaps.core.data.model.BS
 import app.aaps.core.data.model.CA
+import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.model.IDs
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.nsclient.NSClientRepository
@@ -25,6 +28,7 @@ import org.mockito.Mock
 import org.mockito.internal.verification.Times
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
@@ -43,6 +47,41 @@ class DataSyncSelectorV3Test : TestBaseWithProfile() {
     fun setUp() {
         storeDataForDb = StoreDataForDbImpl(aapsLogger, persistenceLayer, preferences, config, nsClientRepository, CoroutineScope(SupervisorJob() + Dispatchers.Unconfined))
         sut = DataSyncSelectorV3(preferences, aapsLogger, dateUtil, profileFunction, activePlugin, profileRepository, persistenceLayer, storeDataForDb, config, nsClientRepository) { nsClientV3Plugin }
+    }
+
+    @Test
+    fun `food edits upload the rule and a failed write leaves the cursor unchanged`() = runTest {
+        val original = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
+        val edited = original.copy(eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGramsPer100g = 7.5))
+        whenever(persistenceLayer.getLastFoodId()).thenReturn(8)
+        whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(7)
+        whenever(persistenceLayer.getNextSyncElementFood(7)).thenReturn(Pair(edited, original.copy(id = 8)))
+        whenever(nsClientV3Plugin.nsUpdate(eq("food"), any(), any(), anyOrNull())).thenReturn(false)
+        sut.processChangedFoods()
+        verify(preferences, Times(0)).put(NsclientLongKey.FoodLastSyncedId, 8)
+        val sent = argumentCaptor<DataSyncSelector.DataPair>()
+        verify(nsClientV3Plugin).nsUpdate(eq("food"), sent.capture(), any(), anyOrNull())
+        assertThat((sent.firstValue as DataSyncSelector.PairFood).value.eCarbsRule).isEqualTo(edited.eCarbsRule)
+        clearInvocations(preferences, nsClientV3Plugin)
+        whenever(persistenceLayer.getNextSyncElementFood(7)).thenReturn(Pair(edited, original.copy(id = 8)), null)
+        whenever(nsClientV3Plugin.nsUpdate(eq("food"), any(), any(), anyOrNull())).thenReturn(true)
+        sut.processChangedFoods()
+        verify(preferences).put(NsclientLongKey.FoodLastSyncedId, 8)
+    }
+
+    @Test
+    fun `food uploads pause normally and imported records do not get uploaded as new foods`() = runTest {
+        whenever(preferences.get(NsclientBooleanKey.NsPaused)).thenReturn(true)
+        sut.processChangedFoods()
+        verify(persistenceLayer, Times(0)).getNextSyncElementFood(any())
+        whenever(preferences.get(NsclientBooleanKey.NsPaused)).thenReturn(false)
+        val imported = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
+        whenever(persistenceLayer.getLastFoodId()).thenReturn(7)
+        whenever(persistenceLayer.getNextSyncElementFood(any())).thenReturn(Pair(imported, imported), null)
+        sut.processChangedFoods()
+        verify(nsClientV3Plugin, Times(0)).nsAdd(any(), any(), any(), anyOrNull())
+        verify(nsClientV3Plugin, Times(0)).nsUpdate(any(), any(), any(), anyOrNull())
+        verify(preferences).put(NsclientLongKey.FoodLastSyncedId, 7)
     }
 
     @Test
@@ -237,7 +276,7 @@ class DataSyncSelectorV3Test : TestBaseWithProfile() {
     @Test
     fun queueSizeTest() {
         // All counters initialized to -1, so total should be -13 (13 fields)
-        assertThat(sut.queueSize()).isEqualTo(-13)
+        assertThat(sut.queueSize()).isEqualTo(-14)
     }
 
     @Test

@@ -1,5 +1,7 @@
 package app.aaps.plugins.sync.nsclientV3.ws
 
+import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.IDs
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
@@ -126,7 +128,7 @@ class NsFrameHandler(
                 storeDataForDb.requestStoreTreatments(fullSync = false)
             }
 
-            "foods"        -> docString.toNSFood()?.let {
+            "food"         -> docString.toNSFood()?.let {
                 nsIncomingDataProcessor().processFood(listOf(it))
                 storeDataForDb.requestStoreFoods()
             }
@@ -195,6 +197,12 @@ class NsFrameHandler(
             "entries"    -> {
                 storeDataForDb.addToDeleteGlucoseValue(identifier)
                 storeDataForDb.requestUpdateDeletedGlucoseValues()
+            }
+
+            // Only the id comes with a delete. SyncNsFoodTransaction marks the food deleted and copies nothing.
+            "food"       -> if (identifier.isNotEmpty()) {
+                storeDataForDb.addToFoods(mutableListOf(FD(isValid = false, name = "", portion = 0.0, carbs = 0, ids = IDs(nightscoutId = identifier))))
+                storeDataForDb.requestStoreFoods()
             }
         }
     }

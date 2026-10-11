@@ -1,8 +1,11 @@
 package app.aaps.core.data.model
 
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class FoodECarbsRuleTest {
@@ -37,5 +40,24 @@ class FoodECarbsRuleTest {
         assertFalse(rule.copy(manualGramsPer100g = Double.NaN).isValid)
         assertFalse(rule.copy(manualGramsPer100g = 100.1).isValid)
         assertTrue(rule.copy(manualGramsPer100g = 7.5).isValid)
+    }
+
+    @Test
+    fun jsonRoundTripKeepsTheRule() {
+        val manual = rule.copy(manualGramsPer100g = 7.5)
+        assertEquals(manual, FoodECarbsRule.fromJson(manual.toJson()))
+        assertEquals(manual, FoodECarbsRule.fromJsonString(manual.toJsonString()))
+    }
+
+    @Test
+    fun unreadableOrInvalidJsonIsNoRule() {
+        assertNull(FoodECarbsRule.fromJson(null))
+        assertNull(FoodECarbsRule.fromJson(JsonNull))
+        assertNull(FoodECarbsRule.fromJson(JsonPrimitive("FPU")))
+        assertNull(FoodECarbsRule.fromJsonString("not json"))
+        assertNull(FoodECarbsRule.fromJsonString("{\"method\":\"UNKNOWN\",\"durationHours\":3}"))
+        assertNull(FoodECarbsRule.fromJsonString("{\"durationHours\":0}"))
+        // Unknown fields from a newer AAPS are ignored
+        assertEquals(FoodECarbsRule(durationHours = 3), FoodECarbsRule.fromJsonString("{\"durationHours\":3,\"newField\":1}"))
     }
 }
