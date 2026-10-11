@@ -87,7 +87,8 @@ class DataSyncSelectorV3(
             queueCounter.carbsRemaining = (persistenceLayer.getLastCarbsId() ?: 0L) - preferences.get(NsclientLongKey.CarbsLastSyncedId)
             queueCounter.bcrRemaining = (persistenceLayer.getLastBolusCalculatorResultId() ?: 0L) - preferences.get(NsclientLongKey.BolusCalculatorLastSyncedId)
             queueCounter.ttsRemaining = (persistenceLayer.getLastTemporaryTargetId() ?: 0L) - preferences.get(NsclientLongKey.TemporaryTargetLastSyncedId)
-            queueCounter.foodsRemaining = (persistenceLayer.getLastFoodId() ?: 0L) - preferences.get(NsclientLongKey.FoodLastSyncedId)
+            queueCounter.foodsRemaining =
+                if (preferences.get(BooleanKey.NsClientUploadFood)) (persistenceLayer.getLastFoodId() ?: 0L) - preferences.get(NsclientLongKey.FoodLastSyncedId) else 0L
             queueCounter.gvsRemaining = (persistenceLayer.getLastGlucoseValueId() ?: 0L) - preferences.get(NsclientLongKey.GlucoseValueLastSyncedId)
             queueCounter.calsRemaining = (persistenceLayer.getLastCalibrationEntryId() ?: 0L) - preferences.get(NsclientLongKey.CalibrationEntryLastSyncedId)
             queueCounter.tesRemaining = (persistenceLayer.getLastTherapyEventId() ?: 0L) - preferences.get(NsclientLongKey.TherapyEventLastSyncedId)
@@ -391,8 +392,13 @@ class DataSyncSelectorV3(
         }
     }
 
+    /**
+     * Only with [BooleanKey.NsClientUploadFood] on. When off, the cursor does not move, so foods
+     * edited here stay protected from Nightscout downloads, and turning it on later uploads them.
+     */
     @OpenForTesting
     suspend fun processChangedFoods() {
+        if (!preferences.get(BooleanKey.NsClientUploadFood)) return
         var cont = true
         while (cont) {
             if (isPaused) return

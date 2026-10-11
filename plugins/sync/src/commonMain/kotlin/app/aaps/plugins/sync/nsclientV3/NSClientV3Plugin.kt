@@ -1208,6 +1208,8 @@ class NSClientV3Plugin(
             StringKey.NsClientUrl,
             StringKey.NsClientAccessToken,
             BooleanKey.NsClient3UseWs,
+            // Not in the synchronization screen below: that screen is hidden on AAPSClient, and this must show there too
+            BooleanKey.NsClientUploadFood,
             PreferenceSubScreenDef(
                 key = "ns_client_synchronization",
                 title = SyncStrings.ns_sync_options,
