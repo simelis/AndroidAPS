@@ -1,6 +1,7 @@
 package app.aaps.ui.compose.foodManagement
 
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsRule
 
 /** Units that mean grams. Only these foods can be weighed and carry an eCarbs rule. */
 internal fun isGramUnit(unit: String): Boolean = unit.trim().lowercase() in setOf("g", "gram", "grams")
@@ -16,9 +17,12 @@ val FD.portionWeightGrams: Double?
         }
     }
 
-/** An eCarbs rule needs both values. A blank value means unknown, so 0 must be entered for none. */
-val FD.hasProteinAndFat: Boolean
-    get() = protein?.let { it >= 0 } == true && fat?.let { it >= 0 } == true
+/** A blank value means unknown, so 0 must be entered for none. */
+val FD.proteinKnown: Boolean get() = protein?.let { it >= 0 } == true
+val FD.fatKnown: Boolean get() = fat?.let { it >= 0 } == true
+
+/** True when this food has the nutrients that [rule] uses. */
+fun FD.canUse(rule: FoodECarbsRule): Boolean = rule.canUse(proteinKnown, fatKnown)
 
 data class FoodNutrition(val carbs: Double, val fat: Double?, val protein: Double?, val energy: Double?)
 

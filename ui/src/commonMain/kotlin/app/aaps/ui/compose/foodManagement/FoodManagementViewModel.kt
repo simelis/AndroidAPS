@@ -12,6 +12,8 @@ import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.db.observeChanges
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
+import app.aaps.core.keys.StringNonKey
+import app.aaps.core.keys.interfaces.Preferences
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -39,6 +41,7 @@ import kotlin.math.roundToInt
 class FoodManagementViewModel(
     private val persistenceLayer: PersistenceLayer,
     private val aapsLogger: AAPSLogger,
+    private val preferences: Preferences,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FoodManagementUiState())
@@ -124,11 +127,14 @@ class FoodManagementViewModel(
                 editorEnergy = nutrition?.energy?.roundToInt()?.toString() ?: food?.energy?.toString() ?: "",
                 editorPortion = if (nutrition != null || food == null) "100" else food.portion.toString(),
                 editorUnit = if (nutrition != null || food == null) "g" else food.unit,
-                editorECarbsRule = rule ?: FoodECarbsRule(), editorUseECarbs = rule != null && nutrition != null,
+                editorECarbsRule = rule ?: lastSavedRule() ?: FoodECarbsRule(), editorUseECarbs = rule != null && nutrition != null,
                 editorSaveAttempted = false, editorSaving = false, editorSaveFailed = false, showEditor = true
             )
         }
     }
+
+    /** A new formula starts from the last one saved on this phone. */
+    private fun lastSavedRule(): FoodECarbsRule? = FoodECarbsRule.fromJsonString(preferences.get(StringNonKey.FoodLastECarbsRule).ifBlank { null })
 
     fun closeEditor() {
         _uiState.update { it.copy(showEditor = false) }
@@ -184,6 +190,8 @@ class FoodManagementViewModel(
                 val result = persistenceLayer.insertOrUpdateFood(food)
                 val savedFood = result.all().firstOrNull() ?: food.takeIf { it.id > 0 }
                 check(savedFood != null && savedFood.id > 0) { "Saved food has no database ID" }
+                // A fixed amount per 100 g belongs to one food, so it is not carried to the next one
+                food.eCarbsRule?.let { preferences.put(StringNonKey.FoodLastECarbsRule, it.copy(manualGramsPer100g = null).toJsonString()) }
                 _uiState.update { it.copy(editorFood = savedFood, showEditor = false) }
                 loadData()
             } catch (e: Exception) {
@@ -276,6 +284,6 @@ data class FoodManagementUiState(
         return editorName.isNotBlank() && editorUnit.isNotBlank() && portionValid && nutrient(editorCarbs, required = true) &&
             nutrient(editorFat) && nutrient(editorProtein) &&
             (editorEnergy.isBlank() || editorEnergy.toIntOrNull()?.let { it >= 0 } == true) &&
-            (!editorUseECarbs || (editorUsesGrams && editorECarbsRule.isValid && editorFat.toIntOrNull() != null && editorProtein.toIntOrNull() != null))
+            (!editorUseECarbs || (editorUsesGrams && editorECarbsRule.isValid && editorPreview.canUse(editorECarbsRule)))
     }
 }

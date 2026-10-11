@@ -163,7 +163,7 @@ class WizardDialogViewModel(
         }
         val foodState = food?.takeIf { it.portionWeightGrams != null }?.let {
             val rule = it.eCarbsRule
-            FoodECarbsState(it, rule = rule ?: FoodECarbsRule()).let { state -> state.copy(enabled = rule != null && state.hasMacros) }
+            FoodECarbsState(it, rule = rule ?: FoodECarbsRule()).let { state -> state.copy(enabled = rule != null && state.canUseRule) }
         }
 
         val profileStore = profileRepository.profile.value ?: return
@@ -239,6 +239,7 @@ class WizardDialogViewModel(
                 carbsButtonIncrement1 = preferences.get(IntKey.OverviewCarbsButtonIncrement1),
                 carbsButtonIncrement2 = preferences.get(IntKey.OverviewCarbsButtonIncrement2),
                 carbsButtonIncrement3 = preferences.get(IntKey.OverviewCarbsButtonIncrement3),
+                isLoaded = true,
                 // BG card
                 hasBgData = hasBgData,
                 bgAgeMinutes = bgAgeMinutes,
@@ -312,7 +313,7 @@ class WizardDialogViewModel(
             val food = state.foodECarbs ?: return@update state
             state.copy(
                 carbsType = CarbsType.BREAD,
-                foodECarbs = food.copy(enabled = enabled && food.hasMacros && food.rule.isValid, overrideGrams = null)
+                foodECarbs = food.copy(enabled = enabled && food.canUseRule && food.rule.isValid, overrideGrams = null)
             )
         }
         recalculate()

@@ -41,10 +41,9 @@ internal fun FoodECarbsRuleEditor(
     food: FD, enabled: Boolean, rule: FoodECarbsRule,
     onEnabledChange: (Boolean) -> Unit, onRuleChange: (FoodECarbsRule) -> Unit
 ) {
-    val hasMacros = food.hasProteinAndFat
     Column(verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
-        FoodECarbsSwitch(UiStrings.food_ecarbs_rule_enable, enabled, hasMacros || enabled, onEnabledChange)
-        if (!hasMacros) Text(stringResource(UiStrings.food_ecarbs_missing_macros))
+        // A fixed amount per 100 g or a carbs-only split needs no protein or fat, so the switch is always available
+        FoodECarbsSwitch(UiStrings.food_ecarbs_rule_enable, enabled, true, onEnabledChange)
         if (enabled) {
             var expanded by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
@@ -80,6 +79,7 @@ internal fun FoodECarbsRuleEditor(
                     valueRange = FoodECarbsRule.FACTOR_PERCENT.toDoubleRange(), step = 1.0, unitLabel = CoreUiStrings.shortpercent
                 )
             }
+            FoodUnknownNutrients(food, rule)
             val calculated = rule.equivalentGrams((food.protein ?: 0).toDouble(), (food.fat ?: 0).toDouble())
             Text(stringResource(UiStrings.food_ecarbs_per100_calculated, NumberFormat.DECIMAL_1.format(calculated)))
             NumberInputRow(
@@ -90,14 +90,29 @@ internal fun FoodECarbsRuleEditor(
             if (rule.manualGramsPer100g != null) TextButton(onClick = { onRuleChange(rule.copy(manualGramsPer100g = null)) }) {
                 Text(stringResource(UiStrings.food_ecarbs_use_calculated))
             }
+            NumberInputRow(
+                labelRef = UiStrings.food_ecarbs_carbs_now, value = rule.carbsNowPercent.toDouble(),
+                onValueChange = { onRuleChange(rule.copy(carbsNowPercent = it.toInt())) },
+                valueRange = FoodECarbsRule.CARBS_NOW_PERCENT.toDoubleRange(), step = 5.0, unitLabel = CoreUiStrings.shortpercent
+            )
+            Text(stringResource(UiStrings.food_ecarbs_carbs_now_hint), style = MaterialTheme.typography.bodySmall)
             FoodECarbsTiming(rule, onRuleChange)
             Text(stringResource(UiStrings.food_ecarbs_rule_hint), style = MaterialTheme.typography.bodySmall)
+            if (!food.canUse(rule)) Text(stringResource(UiStrings.food_ecarbs_missing_macros), color = MaterialTheme.colorScheme.error)
             if (!rule.isValid) Text(
                 stringResource(UiStrings.food_ecarbs_rule_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last),
                 color = MaterialTheme.colorScheme.error
             )
         }
     }
+}
+
+/** Says which unknown nutrient the formula counts as 0 g, so a lower result is not a surprise. */
+@Composable
+internal fun FoodUnknownNutrients(food: FD, rule: FoodECarbsRule) {
+    if (!rule.countsProteinAndFat || !food.canUse(rule)) return
+    if (!food.proteinKnown) Text(stringResource(UiStrings.food_ecarbs_protein_unknown))
+    if (!food.fatKnown) Text(stringResource(UiStrings.food_ecarbs_fat_unknown))
 }
 
 @Composable

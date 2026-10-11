@@ -22,13 +22,36 @@ data class FoodECarbsRule(
     val delayMinutes: Int = 0,
     val durationHours: Int = 0,
     /** Fixed eCarbs per 100 g of food. When set, it is used instead of the formula. */
-    val manualGramsPer100g: Double? = null
+    val manualGramsPer100g: Double? = null,
+    /**
+     * Part of the meal carbs that the bolus counts now. The rest is not dropped: it is added to the
+     * eCarbs, like the pizza option of the wizard does.
+     */
+    val carbsNowPercent: Int = 100
 ) {
 
     val isValid: Boolean
         get() = proteinPercent in FACTOR_PERCENT && fatPercent in FACTOR_PERCENT &&
-            delayMinutes in DELAY_MINUTES && durationHours in DURATION_HOURS &&
+            delayMinutes in DELAY_MINUTES && durationHours in DURATION_HOURS && carbsNowPercent in CARBS_NOW_PERCENT &&
             (manualGramsPer100g == null || (manualGramsPer100g.isFinite() && manualGramsPer100g in MANUAL_GRAMS_PER_100G))
+
+    /**
+     * True when a food with these known nutrients can use this rule. A fixed amount needs neither and a
+     * custom rule needs only the nutrients it counts. FPU needs at least one: the unknown one counts as
+     * 0 g, which gives fewer eCarbs, not more.
+     */
+    fun canUse(proteinKnown: Boolean, fatKnown: Boolean): Boolean = when {
+        manualGramsPer100g != null        -> true
+        method == FoodECarbsMethod.CUSTOM -> (proteinPercent == 0 || proteinKnown) && (fatPercent == 0 || fatKnown)
+        else                              -> proteinKnown || fatKnown
+    }
+
+    /** True when the formula counts both protein and fat, so an unknown one is counted as 0 g. */
+    val countsProteinAndFat: Boolean
+        get() = manualGramsPer100g == null && method != FoodECarbsMethod.CUSTOM
+
+    /** Splits the meal [carbs] into the carbs counted now and the carbs moved to the eCarbs. */
+    fun carbsNow(carbs: Int): Int = carbs * carbsNowPercent / 100
 
     fun equivalentGrams(proteinGrams: Double, fatGrams: Double): Double {
         if (!proteinGrams.isFinite() || !fatGrams.isFinite() || proteinGrams < 0 || fatGrams < 0) return 0.0
@@ -51,6 +74,7 @@ data class FoodECarbsRule(
         val DELAY_MINUTES = 0..720
         val DURATION_HOURS = 1..10
         val MANUAL_GRAMS_PER_100G = 0.0..100.0
+        val CARBS_NOW_PERCENT = 50..100
 
         private val json = Json {
             ignoreUnknownKeys = true

@@ -19,6 +19,7 @@ import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
 import app.aaps.ui.compose.foodManagement.FoodECarbsSwitch
 import app.aaps.ui.compose.foodManagement.FoodECarbsTiming
+import app.aaps.ui.compose.foodManagement.FoodUnknownNutrients
 import app.aaps.ui.compose.foodManagement.methodLabel
 
 internal data class FoodECarbsCallbacks(
@@ -46,15 +47,23 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                 food.carbsGrams,
                 if (food.food.protein == null) "—" else NumberFormat.DECIMAL_1.format(food.proteinGrams),
                 if (food.food.fat == null) "—" else NumberFormat.DECIMAL_1.format(food.fatGrams)))
-            FoodECarbsSwitch(UiStrings.food_ecarbs_enable, food.enabled, food.enabled || (food.hasMacros && food.rule.isValid), actions.enabled)
-            if (!food.rule.isValid) Text(stringResource(UiStrings.food_ecarbs_configure_food))
-            if (!food.hasMacros) Text(stringResource(UiStrings.food_ecarbs_missing_macros))
+            // Without a saved formula there is nothing to switch on, so the switch is not shown
+            if (food.food.eCarbsRule == null) {
+                Text(stringResource(UiStrings.food_ecarbs_no_rule))
+            } else {
+                FoodECarbsSwitch(UiStrings.food_ecarbs_enable, food.enabled, food.enabled || (food.canUseRule && food.rule.isValid), actions.enabled)
+                if (!food.canUseRule) Text(stringResource(UiStrings.food_ecarbs_missing_macros))
+            }
             if (food.enabled) {
+                val plan = state.carbPlan()
+                FoodUnknownNutrients(food.food, food.rule)
                 food.rule.manualGramsPer100g?.let {
                     Text(stringResource(UiStrings.food_ecarbs_saved_manual, NumberFormat.DECIMAL_1.format(it)))
                 }
                 Text(stringResource(UiStrings.food_ecarbs_saved_method, methodLabel(food.rule.method)))
                 Text(stringResource(UiStrings.food_ecarbs_calculated, food.calculatedGrams))
+                if (food.rule.carbsNowPercent < 100)
+                    Text(stringResource(UiStrings.food_ecarbs_carbs_split, plan.carbs, food.rule.carbsNowPercent, state.carbs - plan.carbs))
                 NumberInputRow(
                     labelRef = UiStrings.food_ecarbs_amount, value = food.eCarbsGrams.toDouble(),
                     onValueChange = { actions.grams(it.toInt()) }, valueRange = 0.0..state.maxCarbs.toDouble(),
@@ -64,7 +73,7 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                     Text(stringResource(UiStrings.food_ecarbs_use_calculated))
                 }
                 FoodECarbsTiming(food.rule, actions.rule)
-                Text(stringResource(UiStrings.food_ecarbs_preview, state.carbs, food.eCarbsGrams,
+                Text(stringResource(UiStrings.food_ecarbs_preview, plan.carbs, plan.eCarbs,
                     food.rule.delayMinutes, food.rule.durationHours))
                 Text(stringResource(UiStrings.food_ecarbs_profile_notice), style = MaterialTheme.typography.bodySmall)
             }

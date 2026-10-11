@@ -5,6 +5,8 @@ import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.keys.StringNonKey
+import app.aaps.core.keys.interfaces.Preferences
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +33,7 @@ internal class FoodManagementViewModelTest {
 
     @Mock private lateinit var persistenceLayer: PersistenceLayer
     @Mock private lateinit var aapsLogger: AAPSLogger
+    @Mock private lateinit var preferences: Preferences
 
     private lateinit var sut: FoodManagementViewModel
 
@@ -42,7 +45,8 @@ internal class FoodManagementViewModelTest {
         // cold flow is still built synchronously during init, so it must be stubbed non-null.
         Dispatchers.setMain(StandardTestDispatcher())
         whenever(persistenceLayer.observeChanges(FD::class)).thenReturn(emptyFlow())
-        sut = FoodManagementViewModel(persistenceLayer, aapsLogger)
+        whenever(preferences.get(StringNonKey.FoodLastECarbsRule)).thenReturn("")
+        sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
     }
 
     @AfterEach
@@ -224,6 +228,41 @@ internal class FoodManagementViewModelTest {
         assertThat(saved.firstValue.carbs).isEqualTo(25)
         assertThat(saved.firstValue.eCarbsRule).isEqualTo(rule)
         assertThat(sut.uiState.value.showEditor).isFalse()
+        // The fixed amount belongs to this food only, so the remembered formula leaves it out
+        verify(preferences).put(StringNonKey.FoodLastECarbsRule, rule.copy(manualGramsPer100g = null).toJsonString())
+    }
+
+    @Test
+    fun `a food without a formula starts from the last saved formula but leaves it off`() {
+        val last = FoodECarbsRule(method = FoodECarbsMethod.MODIFIED_FPU, delayMinutes = 60, durationHours = 4, carbsNowPercent = 80)
+        whenever(preferences.get(StringNonKey.FoodLastECarbsRule)).thenReturn(last.toJsonString())
+        sut.openEditor(FD(id = 3, name = "Bread", portion = 100.0, carbs = 50, fat = 2, protein = 8))
+        assertThat(sut.uiState.value.editorECarbsRule).isEqualTo(last)
+        assertThat(sut.uiState.value.editorUseECarbs).isFalse()
+    }
+
+    @Test
+    fun `a food with its own formula keeps it`() {
+        val own = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
+        val last = FoodECarbsRule(method = FoodECarbsMethod.MODIFIED_FPU, durationHours = 4)
+        whenever(preferences.get(StringNonKey.FoodLastECarbsRule)).thenReturn(last.toJsonString())
+        sut.openEditor(FD(id = 3, name = "Meal", portion = 100.0, carbs = 25, fat = 5, protein = 10, eCarbsRule = own))
+        assertThat(sut.uiState.value.editorECarbsRule).isEqualTo(own)
+    }
+
+    @Test
+    fun `a fixed amount per 100 gram saves without protein and fat`() {
+        sut.openEditor()
+        sut.updateEditorName("Sauce")
+        sut.updateEditorCarbs("10")
+        sut.updateEditorECarbsRule(FoodECarbsRule(durationHours = 3, manualGramsPer100g = 5.0))
+        sut.updateEditorECarbsEnabled(true)
+        assertThat(sut.uiState.value.editorCanSave).isTrue()
+        // FPU without a fixed amount needs at least one of them
+        sut.updateEditorECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
+        assertThat(sut.uiState.value.editorCanSave).isFalse()
+        sut.updateEditorFat("5")
+        assertThat(sut.uiState.value.editorCanSave).isTrue()
     }
 
     @Test

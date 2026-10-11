@@ -51,8 +51,8 @@ class FoodNutritionTest {
     fun `gram units are recognised and protein and fat must both be known`() {
         listOf("g", " Grams ", "gram").forEach { assertThat(isGramUnit(it)).isTrue() }
         listOf("kg", "ml", "pieces").forEach { assertThat(isGramUnit(it)).isFalse() }
-        assertThat(meal.hasProteinAndFat).isTrue()
-        assertThat(meal.copy(fat = null).hasProteinAndFat).isFalse()
-        assertThat(meal.copy(protein = -1).hasProteinAndFat).isFalse()
+        assertThat(meal.proteinKnown && meal.fatKnown).isTrue()
+        assertThat(meal.copy(fat = null).fatKnown).isFalse()
+        assertThat(meal.copy(protein = -1).proteinKnown).isFalse()
     }
 }

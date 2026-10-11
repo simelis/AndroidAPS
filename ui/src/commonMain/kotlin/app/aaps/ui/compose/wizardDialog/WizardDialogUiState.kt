@@ -89,6 +89,12 @@ data class WizardDialogUiState(
     val eCarbsDelayMinutes: Int = 0,
     val eCarbsDurationHours: Int = 0,
 
+    /**
+     * False until the view model has read the real values. The first frame is drawn before that, and
+     * it must not treat the default "no BG" as a missing reading.
+     */
+    val isLoaded: Boolean = false,
+
     // BG source info
     val hasBgData: Boolean = false,
     val bgAgeMinutes: Int = 0,
