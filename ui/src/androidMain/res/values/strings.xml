@@ -350,6 +350,9 @@
     <string name="graph_therapy_event_bg_with_note" comment="Shown when the user taps a BG check in the overview graph. %1$s = glucose with its unit, %2$s = the note the user wrote. Example: 6.1 mmol/L, before lunch">%1$s, %2$s</string>
 
     <string name="food_nutrients_basis">Per 100 g</string>
+    <string name="food_favourite">Favourite</string>
+    <string name="food_favourites">Favourites</string>
+    <string name="food_favourites_empty">No favourite foods yet. Tap the star on a food to add it.</string>
     <string name="food_portion_amount" comment="%1$s=portion size, %2$s=unit as typed by the user. Example: 250 ml">%1$s %2$s</string>
     <string name="food_grams_amount" comment="%1$s=weight in grams, up to one decimal. Example: 12.5 g">%1$s g</string>
     <string name="food_fat_protein" comment="Short food list line. F=fat, P=protein. %1$s=fat grams, %2$s=protein grams, — when unknown. Example: F: 4 g · P: 5 g">F: %1$s g · P: %2$s g</string>
@@ -357,7 +360,7 @@
     <string name="food_portion_grams">Your portion weight</string>
     <string name="food_ecarbs_servings_hint">Portion weight scales all nutrients and the saved eCarbs rule. Editing carbs below changes only the meal carbs.</string>
     <string name="food_nutrients_conversion">Converted nutrients are shown rounded to whole grams. Review before saving on a 100 g basis.</string>
-    <string name="food_editor_invalid">Enter a name, unit, positive portion, and non-negative nutrients. For gram entries, nutrients must be within 0–100 g per 100 g. Blank fat/protein means unknown. An enabled eCarbs rule needs both values.</string>
+    <string name="food_editor_invalid">Enter a name, unit, positive portion, and non-negative nutrients. For gram entries, nutrients must be within 0–100 g per 100 g. Blank fat/protein means unknown. An enabled eCarbs rule needs the protein or fat its formula uses.</string>
     <string name="food_units_hint">Gram entries use nutrients per 100 g. Other units use nutrients per entered portion. Switching between these bases clears nutrient inputs so you can enter the correct values.</string>
     <string name="food_ecarbs_grams_only">Portion weighing and saved eCarbs rules are available for food entered in grams. This food opens the wizard with its saved carbs.</string>
     <string name="food_save_failed">Could not save the food and its rule. Please try again.</string>

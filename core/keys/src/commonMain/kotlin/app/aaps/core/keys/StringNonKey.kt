@@ -70,6 +70,11 @@ enum class StringNonKey(
     QuickLaunchActions(key = "quick_launch_actions", defaultValue = "[{\"type\":\"wizard\"},{\"type\":\"quick_launch_config\"}]"),
     /** Last food eCarbs formula saved on this phone, as JSON. A new formula starts from it. Not synced. */
     FoodLastECarbsRule(key = "food_last_ecarbs_rule", defaultValue = ""),
+    /**
+     * Favourite foods, as database IDs separated by commas. Not exportable: the IDs belong to this
+     * install's database, and after a reinstall the same IDs would point at other foods.
+     */
+    FoodFavourites(key = "food_favourites", defaultValue = "", exportable = false),
     InsulinConfiguration("insulin_configuration", "{}", sync = SyncSpec(SyncChannel.Cold, SyncDirection.Bidirectional)),
     ComposeGraphConfig("compose_graphconfig", ""),
 
