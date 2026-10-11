@@ -9,7 +9,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import app.aaps.core.data.format.NumberFormat
 import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.ui.CoreUiStrings
@@ -33,14 +41,25 @@ internal data class FoodECarbsCallbacks(
 @Composable
 internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallbacks) {
     val food = state.foodECarbs ?: return
+    // A new meal starts without a weight. That is not a mistake yet, so the problem text waits until the
+    // user has entered a weight, and the weight field gets the focus instead.
+    var portionEntered by rememberSaveable { mutableStateOf(false) }
+    val portionFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (food.portionGrams == 0.0) portionFocus.requestFocus()
+    }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(AapsSpacing.extraLarge), verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
             Text(food.food.name, style = MaterialTheme.typography.titleMedium)
             Text(stringResource(UiStrings.food_nutrients_basis))
             NumberInputRow(
                 labelRef = UiStrings.food_portion_grams, value = food.portionGrams,
-                onValueChange = actions.portionGrams, valueRange = 0.0..FoodECarbsState.MAX_PORTION_GRAMS,
-                step = 10.0, decimalPlaces = 1, unitLabel = CoreUiStrings.shortgramm
+                onValueChange = {
+                    portionEntered = true
+                    actions.portionGrams(it)
+                }, valueRange = 0.0..FoodECarbsState.MAX_PORTION_GRAMS,
+                step = 10.0, decimalPlaces = 1, unitLabel = CoreUiStrings.shortgramm,
+                modifier = Modifier.focusRequester(portionFocus)
             )
             Text(stringResource(UiStrings.food_ecarbs_servings_hint), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(UiStrings.food_ecarbs_macros,
@@ -77,7 +96,7 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                     food.rule.delayMinutes, food.rule.durationHours))
                 Text(stringResource(UiStrings.food_ecarbs_profile_notice), style = MaterialTheme.typography.bodySmall)
             }
-            if (!state.foodInputsValid) Text(
+            if (!state.foodInputsValid && (portionEntered || food.portionGrams > 0.0)) Text(
                 stringResource(UiStrings.food_ecarbs_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last),
                 color = MaterialTheme.colorScheme.error
             )

@@ -5,12 +5,14 @@ import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -46,6 +48,7 @@ internal class FoodManagementViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher())
         whenever(persistenceLayer.observeChanges(FD::class)).thenReturn(emptyFlow())
         whenever(preferences.get(StringNonKey.FoodLastECarbsRule)).thenReturn("")
+        whenever(preferences.get(StringNonKey.FoodFavourites)).thenReturn("")
         sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
     }
 
@@ -230,6 +233,38 @@ internal class FoodManagementViewModelTest {
         assertThat(sut.uiState.value.showEditor).isFalse()
         // The fixed amount belongs to this food only, so the remembered formula leaves it out
         verify(preferences).put(StringNonKey.FoodLastECarbsRule, rule.copy(manualGramsPer100g = null).toJsonString())
+    }
+
+    @Test
+    fun `favourites are saved and the favourites filter shows only them`() = runTest {
+        val apple = FD(id = 1, name = "Apple", portion = 100.0, carbs = 12)
+        val bread = FD(id = 2, name = "Bread", portion = 100.0, carbs = 50)
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(apple, bread))
+        sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
+        backgroundScope.launch { sut.filteredFoods.collect {} }
+        advanceUntilIdle()
+
+        sut.toggleFavourite(bread)
+        sut.setShowFavouritesOnly(true)
+        advanceUntilIdle()
+
+        verify(preferences).put(StringNonKey.FoodFavourites, "2")
+        verify(preferences).put(BooleanNonKey.FoodShowFavouritesOnly, true)
+        assertThat(sut.filteredFoods.value).containsExactly(bread)
+
+        sut.toggleFavourite(bread)
+        advanceUntilIdle()
+        verify(preferences).put(StringNonKey.FoodFavourites, "")
+        assertThat(sut.filteredFoods.value).isEmpty()
+    }
+
+    @Test
+    fun `saved favourites and the filter choice are read on start`() {
+        whenever(preferences.get(StringNonKey.FoodFavourites)).thenReturn("3, 7,bad")
+        whenever(preferences.get(BooleanNonKey.FoodShowFavouritesOnly)).thenReturn(true)
+        sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
+        assertThat(sut.uiState.value.favouriteIds).containsExactly(3L, 7L)
+        assertThat(sut.uiState.value.showFavouritesOnly).isTrue()
     }
 
     @Test

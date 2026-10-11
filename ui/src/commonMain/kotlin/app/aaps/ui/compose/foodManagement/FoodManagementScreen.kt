@@ -25,14 +25,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -123,40 +127,44 @@ fun FoodManagementScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Filter chips
-            if (state.allCategories.isNotEmpty()) {
+            // Filter chips. Favourites comes first and is always there, so it can be found before any are marked.
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AapsSpacing.extraLarge),
+                horizontalArrangement = Arrangement.spacedBy(AapsSpacing.medium)
+            ) {
+                FilterChip(
+                    selected = state.showFavouritesOnly,
+                    onClick = { viewModel.setShowFavouritesOnly(!state.showFavouritesOnly) },
+                    label = { Text(stringResource(UiStrings.food_favourites)) },
+                    leadingIcon = { Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                )
+                state.allCategories.forEach { cat ->
+                    FilterChip(
+                        selected = state.filterCategory == cat,
+                        onClick = {
+                            viewModel.setFilterCategory(if (state.filterCategory == cat) null else cat)
+                        },
+                        label = { Text(cat) }
+                    )
+                }
+            }
+            if (filteredSubCategories.isNotEmpty() && state.filterCategory != null) {
                 FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = AapsSpacing.extraLarge),
                     horizontalArrangement = Arrangement.spacedBy(AapsSpacing.medium)
                 ) {
-                    state.allCategories.forEach { cat ->
+                    filteredSubCategories.forEach { sub ->
                         FilterChip(
-                            selected = state.filterCategory == cat,
+                            selected = state.filterSubCategory == sub,
                             onClick = {
-                                viewModel.setFilterCategory(if (state.filterCategory == cat) null else cat)
+                                viewModel.setFilterSubCategory(if (state.filterSubCategory == sub) null else sub)
                             },
-                            label = { Text(cat) }
+                            label = { Text(sub) }
                         )
-                    }
-                }
-                if (filteredSubCategories.isNotEmpty() && state.filterCategory != null) {
-                    FlowRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = AapsSpacing.extraLarge),
-                        horizontalArrangement = Arrangement.spacedBy(AapsSpacing.medium)
-                    ) {
-                        filteredSubCategories.forEach { sub ->
-                            FilterChip(
-                                selected = state.filterSubCategory == sub,
-                                onClick = {
-                                    viewModel.setFilterSubCategory(if (state.filterSubCategory == sub) null else sub)
-                                },
-                                label = { Text(sub) }
-                            )
-                        }
                     }
                 }
             }
@@ -169,7 +177,8 @@ fun FoodManagementScreen(
             } else if (filteredFoods.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = stringResource(CoreUiStrings.no_data),
+                        text = stringResource(if (state.showFavouritesOnly && state.favouriteIds.none { id -> state.foods.any { it.id == id } })
+                            UiStrings.food_favourites_empty else CoreUiStrings.no_data),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -183,6 +192,8 @@ fun FoodManagementScreen(
                     items(filteredFoods, key = { it.id }) { food ->
                         FoodItem(
                             food = food,
+                            isFavourite = food.id in state.favouriteIds,
+                            onToggleFavourite = { viewModel.toggleFavourite(food) },
                             onEdit = { viewModel.openEditor(food) },
                             onCalculate = { onNavigateToWizard(food.id) }
                         )
@@ -198,6 +209,9 @@ fun FoodManagementScreen(
             ModalBottomSheet(
                 onDismissRequest = { focusManager.clearFocus(); viewModel.closeEditor() },
                 sheetState = sheetState,
+                // A drag in the form must only scroll it. With gestures on, a fling down at the top closed the
+                // editor and lost the input. Cancel, back and a tap outside still close it.
+                sheetGesturesEnabled = false,
             ) {
                 FoodEditorContent(
                     state = state,
@@ -227,6 +241,8 @@ fun FoodManagementScreen(
 @Composable
 private fun FoodItem(
     food: FD,
+    isFavourite: Boolean,
+    onToggleFavourite: () -> Unit,
     onEdit: () -> Unit,
     onCalculate: () -> Unit,
 ) {
@@ -281,8 +297,8 @@ private fun FoodItem(
                 val fat = grams(nutrition?.fat ?: food.fat?.toDouble())
                 val protein = grams(nutrition?.protein ?: food.protein?.toDouble())
                 val energy = (nutrition?.energy ?: food.energy?.toDouble())?.takeIf { it > 0 }
-                if (rule != null && nutrition?.protein != null && nutrition.fat != null) {
-                    val eCarbs = rule.manualGramsPer100g ?: rule.equivalentGrams(nutrition.protein, nutrition.fat)
+                if (rule != null && nutrition != null && food.canUse(rule)) {
+                    val eCarbs = rule.manualGramsPer100g ?: rule.equivalentGrams(nutrition.protein ?: 0.0, nutrition.fat ?: 0.0)
                     Text(stringResource(UiStrings.food_ecarbs_list, NumberFormat.UP_TO_1_DECIMAL.format(eCarbs)),
                         style = MaterialTheme.typography.labelSmall)
                 }
@@ -291,6 +307,19 @@ private fun FoodItem(
                     else stringResource(UiStrings.food_fat_protein_energy, fat, protein, NumberFormat.UP_TO_1_DECIMAL.format(energy)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            // Named by the food like the calculator button below, so a screen reader says "Chicken salad, Favourite, on".
+            IconToggleButton(
+                checked = isFavourite,
+                onCheckedChange = { onToggleFavourite() },
+                modifier = Modifier.semantics { contentDescription = food.name }
+            ) {
+                Icon(
+                    imageVector = if (isFavourite) Icons.Filled.Star else Icons.Filled.StarBorder,
+                    contentDescription = stringResource(UiStrings.food_favourite),
+                    modifier = Modifier.size(AapsSpacing.chipIconSize),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
             // Name the food, because every row has this same button. Without it a screen reader

@@ -12,6 +12,7 @@ import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.db.observeChanges
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
+import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
 import dev.zacsweers.metro.AppScope
@@ -52,6 +53,7 @@ class FoodManagementViewModel(
         .map { s ->
             s.foods.filter { food ->
                 (s.searchQuery.isBlank() || food.name.contains(s.searchQuery, ignoreCase = true))
+                    && (!s.showFavouritesOnly || food.id in s.favouriteIds)
                     && (s.filterCategory == null || food.category == s.filterCategory)
                     && (s.filterSubCategory == null || food.subCategory == s.filterSubCategory)
             }
@@ -69,6 +71,12 @@ class FoodManagementViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
+        _uiState.update {
+            it.copy(
+                favouriteIds = preferences.get(StringNonKey.FoodFavourites).split(',').mapNotNull { id -> id.trim().toLongOrNull() }.toSet(),
+                showFavouritesOnly = preferences.get(BooleanNonKey.FoodShowFavouritesOnly)
+            )
+        }
         loadData()
         observeChanges()
     }
@@ -104,6 +112,17 @@ class FoodManagementViewModel(
 
     fun setSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun toggleFavourite(food: FD) {
+        val ids = uiState.value.favouriteIds.let { if (food.id in it) it - food.id else it + food.id }
+        preferences.put(StringNonKey.FoodFavourites, ids.sorted().joinToString(","))
+        _uiState.update { it.copy(favouriteIds = ids) }
+    }
+
+    fun setShowFavouritesOnly(show: Boolean) {
+        preferences.put(BooleanNonKey.FoodShowFavouritesOnly, show)
+        _uiState.update { it.copy(showFavouritesOnly = show) }
     }
 
     fun setFilterCategory(category: String?) {
@@ -251,6 +270,8 @@ data class FoodManagementUiState(
     val searchQuery: String = "",
     val filterCategory: String? = null,
     val filterSubCategory: String? = null,
+    val favouriteIds: Set<Long> = emptySet(),
+    val showFavouritesOnly: Boolean = false,
     val allCategories: List<String> = emptyList(),
     val allSubCategories: List<String> = emptyList(),
     // Editor

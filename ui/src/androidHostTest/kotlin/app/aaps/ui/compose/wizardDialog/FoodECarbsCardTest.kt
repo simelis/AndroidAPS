@@ -1,12 +1,18 @@
 package app.aaps.ui.compose.wizardDialog
 
+import android.content.Context
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performTextReplacement
 import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.model.FoodECarbsRule
@@ -51,6 +57,38 @@ class FoodECarbsCardTest {
         compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).assertIsOff().performClick()
         assertThat(enabled).isTrue()
     }
+
+    @Test
+    fun aNewMealFocusesTheWeightAndShowsNoProblemYet() {
+        val context = RuntimeEnvironment.getApplication()
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal)), FoodECarbsCallbacks())
+            }
+        }
+        compose.onNode(isFocused()).assert(hasText(context.getString(UiR.string.food_portion_grams)))
+        compose.onNodeWithText(invalidText(context)).assertDoesNotExist()
+    }
+
+    @Test
+    fun theProblemShowsOnceAWrongWeightIsEntered() {
+        val context = RuntimeEnvironment.getApplication()
+        var portion: Double? = null
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal)),
+                    FoodECarbsCallbacks(portionGrams = { portion = it }))
+            }
+        }
+        compose.onNode(isFocused()).performTextReplacement("0")
+        compose.onNode(isFocused()).performImeAction()
+
+        assertThat(portion).isEqualTo(0.0)
+        compose.onNodeWithText(invalidText(context)).assertExists()
+    }
+
+    private fun invalidText(context: Context) =
+        context.getString(UiR.string.food_ecarbs_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last)
 
     @Test
     fun missingMacrosDisableTheSwitchAndExplainWhatToEnter() {
