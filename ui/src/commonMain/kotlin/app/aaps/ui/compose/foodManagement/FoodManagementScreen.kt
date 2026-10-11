@@ -211,9 +211,6 @@ fun FoodManagementScreen(
             ModalBottomSheet(
                 onDismissRequest = { focusManager.clearFocus(); viewModel.closeEditor() },
                 sheetState = sheetState,
-                // A drag in the form must only scroll it. With gestures on, a fling down at the top closed the
-                // editor and lost the input. Cancel, back and a tap outside still close it.
-                sheetGesturesEnabled = false,
             ) {
                 FoodEditorContent(
                     state = state,

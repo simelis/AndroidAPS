@@ -45,3 +45,17 @@ internal fun FoodECarbsCardNoFormulaPreview() {
         )
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+internal fun FoodECarbsRowPreview() {
+    MaterialTheme {
+        FoodECarbsRow(
+            state = WizardDialogUiState(
+                carbs = 75, maxCarbs = 100,
+                foodECarbs = FoodECarbsState(previewFood, portionGrams = 250.0, enabled = true, rule = previewRule)
+            ),
+            actions = FoodECarbsCallbacks()
+        )
+    }
+}
