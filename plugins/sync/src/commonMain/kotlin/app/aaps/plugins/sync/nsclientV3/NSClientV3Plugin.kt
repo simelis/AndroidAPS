@@ -663,7 +663,7 @@ class NSClientV3Plugin(
         when (collection) {
             NsClient.Collection.ENTRIES    -> lastLoadedSrvModified.collections.entries == 0L
             NsClient.Collection.TREATMENTS -> lastLoadedSrvModified.collections.treatments == 0L
-            NsClient.Collection.FOODS      -> lastLoadedSrvModified.collections.food == 0L
+            NsClient.Collection.FOODS      -> lastLoadedSrvModified.collections.foods == 0L
             NsClient.Collection.PROFILE    -> lastLoadedSrvModified.collections.profile == 0L
             NsClient.Collection.SETTINGS   -> lastLoadedSrvModified.collections.settings == 0L
         }
@@ -679,6 +679,7 @@ class NSClientV3Plugin(
     override suspend fun resetToFullSync() {
         firstLoadContinueTimestamp = LastModified(LastModified.Collections())
         lastLoadedSrvModified = LastModified(LastModified.Collections())
+        preferences.put(NsclientLongKey.FoodLastLoadedSrvModified, 0L)
         initialLoadFinished = false
         storeLastLoadedSrvModified()
         dataSyncSelectorV3.resetToNextFullSync()

@@ -22,7 +22,10 @@ data class LastModified(
         // Not a timestamp: counts food loads, so the full food list is read every 5th time (see
         // LoadFoodsRunner). Nightscout names the collection "food", so the server never fills this.
         @SerialName("foods") var foods: Long = 0,
-        @SerialName("food") var food: Long = 0,                 // food collection
+        // Newest food change on the server, read from /lastModified only. Never set on the saved
+        // copy: official AAPS reads that copy strictly and would fail on this key. The food cursor
+        // of this install is NsclientLongKey.FoodLastLoadedSrvModified in :plugins:sync.
+        @SerialName("food") var food: Long = 0,
         @SerialName("settings") var settings: Long = 0          // settings collection
     )
 
@@ -32,7 +35,7 @@ data class LastModified(
             "entries"      -> collections.entries = value
             "profile"      -> collections.profile = value
             "treatments"   -> collections.treatments = value
-            "food"         -> collections.food = value
+            "foods"        -> collections.foods = value
             "settings"     -> collections.settings = value
         }
     }

@@ -41,6 +41,7 @@ import app.aaps.core.nssdk.localmodel.treatment.CreateUpdateResponse
 import app.aaps.core.nssdk.remotemodel.LastModified
 import app.aaps.plugins.sync.SyncStringsValues
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.OrphanDetector
+import app.aaps.plugins.sync.nsclientV3.keys.NsclientLongKey
 import app.aaps.plugins.sync.nsclientV3.keys.NsclientStringKey
 import app.aaps.plugins.sync.nsclientV3.ws.NsConnection
 import app.aaps.plugins.sync.nsclientV3.ws.NsLoadExecutor
@@ -66,7 +67,9 @@ import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mock
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argThat
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -747,7 +750,7 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
                 treatments = 1672531200000L // Jan 1, 2023
                 devicestatus = 1672531200000L
                 profile = 1672531200000L
-                food = 1672531200000L
+                foods = 1672531200000L
                 entries = 1672531200000L
             }
         )
@@ -768,6 +771,7 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
 
         // 2. Verify that the empty state was written to preferences to make the reset persistent.
         verify(preferences).put(NsclientStringKey.V3LastModified, expectedEmptyLastModifiedJson)
+        verify(preferences).put(NsclientLongKey.FoodLastLoadedSrvModified, 0L)
         verify(dataSyncSelectorV3).resetToNextFullSync()
     }
 
@@ -786,6 +790,17 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     }
 
     @Test
+    fun `the saved sync state never contains the food key, so official AAPS can still read it`() {
+        // Official AAPS reads this JSON strictly. A websocket food frame must not put "food" in it.
+        sut.lastLoadedSrvModified.set("food", 1672531200000L)
+        sut.lastLoadedSrvModified.collections.treatments = 1672531200000L
+
+        sut.storeLastLoadedSrvModified()
+
+        verify(preferences).put(eq(NsclientStringKey.V3LastModified), argThat<String> { contains("treatments") && !contains("\"food\"") })
+    }
+
+    @Test
     fun `isFirstLoad returns false when collection timestamp is greater than 0`() {
         // Arrange
         // Set a "synced" state where all collection timestamps are non-zero.
@@ -794,7 +809,7 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
                 treatments = 1672531200000L // Jan 1, 2023
                 devicestatus = 1672531200000L
                 profile = 1672531200000L
-                food = 1672531200000L
+                foods = 1672531200000L
                 entries = 1672531200000L
             }
 
