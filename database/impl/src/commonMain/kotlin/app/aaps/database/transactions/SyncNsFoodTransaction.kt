@@ -3,7 +3,7 @@ package app.aaps.database.transactions
 import app.aaps.database.entities.Food
 
 /**
- * Sync the Foods from NS
+ * Sync the Foods from NS. Rows edited in AAPS are skipped, see [Food.isLocallyEdited].
  */
 class SyncNsFoodTransaction(private val foods: List<Food>) : Transaction<SyncNsFoodTransaction.TransactionResult>() {
 
@@ -16,6 +16,10 @@ class SyncNsFoodTransaction(private val foods: List<Food>) : Transaction<SyncNsF
                     database.foodDao.findByNSId(it)
                 }
 
+            if (current?.isLocallyEdited == true) {
+                // Edited or deleted in AAPS. Food edits are not uploaded, so Nightscout has an older copy: keep ours
+                continue
+            }
             if (current != null) {
                 // nsId exists, update if different
                 if (!current.contentEqualsTo(food)) {

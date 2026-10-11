@@ -1,6 +1,8 @@
 package app.aaps.database.persistence.converters
 
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.model.IDs
 import app.aaps.database.entities.Food
 import app.aaps.database.entities.embedments.InterfaceIDs
@@ -37,7 +39,8 @@ internal class FoodExtensionTest {
             protein = 5,
             energy = 600,
             unit = "ml",
-            gi = 40
+            gi = 40,
+            eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGramsPer100g = 7.5)
         )
 
     private fun sampleEntity(): Food =
@@ -92,6 +95,7 @@ internal class FoodExtensionTest {
         assertEquals(600, back.energy)
         assertEquals("ml", back.unit)
         assertEquals(40, back.gi)
+        assertEquals(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGramsPer100g = 7.5), back.eCarbsRule)
 
         // Nested IDs round-trips too.
         assertEquals("nsSys", back.ids.nightscoutSystemId)
@@ -152,7 +156,19 @@ internal class FoodExtensionTest {
         assertNull(back.protein)
         assertNull(back.energy)
         assertNull(back.gi)
+        assertNull(back.eCarbsRule)
         assertNull(back.referenceId)
         assertEquals("g", back.unit)
+    }
+
+    @Test
+    fun unreadableOrInvalidRuleIsReadAsNoRule() {
+        assertNull(sampleEntity().copy(eCarbsRuleJson = "not json").fromDb().eCarbsRule)
+        assertNull(sampleEntity().copy(eCarbsRuleJson = "{\"method\":\"UNKNOWN\",\"durationHours\":3}").fromDb().eCarbsRule)
+        // A broken hand value must remove the rule, never fall back to the formula.
+        assertNull(sampleEntity().copy(eCarbsRuleJson = "{\"durationHours\":3,\"manualGramsPer100g\":\"invalid\"}").fromDb().eCarbsRule)
+        // Duration 0 means the user never chose one, so the rule is not usable.
+        assertNull(sampleEntity().copy(eCarbsRuleJson = "{\"durationHours\":0}").fromDb().eCarbsRule)
+        assertEquals(FoodECarbsRule(durationHours = 3), sampleEntity().copy(eCarbsRuleJson = "{\"durationHours\":3,\"newField\":1}").fromDb().eCarbsRule)
     }
 }

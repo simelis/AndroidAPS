@@ -3,12 +3,15 @@ package app.aaps.database.transactions
 import app.aaps.database.entities.Food
 
 /**
- * Inserts or updates the Food
+ * Inserts or updates the Food from a local edit.
+ *
+ * The row is marked as edited in AAPS, so a later Nightscout download cannot overwrite it.
  */
 class InsertOrUpdateFoodTransaction(private val food: Food) : Transaction<InsertOrUpdateFoodTransaction.TransactionResult>() {
 
     override suspend fun run(): TransactionResult {
         val result = TransactionResult()
+        food.isLocallyEdited = true
         val current = database.foodDao.findById(food.id)
         if (current == null) {
             database.foodDao.insertNewEntry(food)

@@ -5,6 +5,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
+import app.aaps.core.interfaces.resources.TextRefIdRegistry
+import app.aaps.ui.UiStringIds
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -29,6 +32,7 @@ class FoodEditorContentTest {
 
     @Before
     fun setUp() {
+        TextRefIdRegistry.register("ui") { name -> UiStringIds.idOf(name) }
         val ctx: Context = RuntimeEnvironment.getApplication()
         saveLabel = ctx.getString(CoreUiR.string.save)
         cancelLabel = ctx.getString(CoreUiR.string.cancel)
@@ -43,8 +47,6 @@ class FoodEditorContentTest {
                     onNameChange = {},
                     onCategoryChange = {},
                     onSubCategoryChange = {},
-                    onPortionChange = {},
-                    onUnitChange = {},
                     onCarbsChange = {},
                     onFatChange = {},
                     onProteinChange = {},
@@ -56,7 +58,7 @@ class FoodEditorContentTest {
                 )
             }
         }
-        compose.onNodeWithText(saveLabel).assertIsDisplayed()
+        compose.onNodeWithText(saveLabel).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(cancelLabel).assertIsDisplayed()
     }
 }

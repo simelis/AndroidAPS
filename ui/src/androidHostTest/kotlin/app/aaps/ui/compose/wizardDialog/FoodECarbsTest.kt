@@ -1,0 +1,75 @@
+package app.aaps.ui.compose.wizardDialog
+
+import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
+import com.google.common.truth.Truth.assertThat
+import org.junit.jupiter.api.Test
+
+class FoodECarbsTest {
+    private val meal = FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10)
+    private val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
+
+    @Test
+    fun `servings scale every macro before rounding the final equivalent`() {
+        val state = FoodECarbsState(meal, portionGrams = 300.0, enabled = true, rule = rule)
+        assertThat(state.carbsGrams).isEqualTo(75)
+        assertThat(state.proteinGrams).isEqualTo(30.0)
+        assertThat(state.fatGrams).isEqualTo(15.0)
+        assertThat(state.eCarbsGrams).isEqualTo(26)
+    }
+
+    @Test
+    fun `a new meal state starts without a portion or an override`() {
+        val state = FoodECarbsState(meal, rule = rule)
+        assertThat(state.enabled).isFalse()
+        assertThat(state.eCarbsGrams).isEqualTo(0)
+        assertThat(state.portionGrams).isEqualTo(0.0)
+        assertThat(state.overrideGrams).isNull()
+    }
+
+    @Test
+    fun `food calculation replaces pizza split rather than adding another estimate`() {
+        val state = WizardDialogUiState(carbs = 50, carbsType = CarbsType.PIZZA, maxCarbs = 100,
+            foodECarbs = FoodECarbsState(meal, portionGrams = 200.0, enabled = true, rule = rule))
+        assertThat(state.carbPlan()).isEqualTo(WizardCarbPlan(50, 17, 60, 3))
+        assertThat(state.copy(foodECarbs = state.foodECarbs!!.copy(enabled = false)).carbPlan())
+            .isEqualTo(WizardCarbPlan(40, 17, 60, 3))
+    }
+
+    @Test
+    fun `zero carbohydrate food can have eCarbs without dividing by its carbohydrate amount`() {
+        val food = FoodECarbsState(meal.copy(carbs = 0), portionGrams = 200.0, enabled = true, rule = rule)
+        assertThat(food.isValid(100)).isTrue()
+        assertThat(food.carbsGrams).isEqualTo(0)
+        assertThat(food.eCarbsGrams).isEqualTo(17)
+    }
+
+    @Test
+    fun `missing macros are not treated as known zero amounts`() {
+        assertThat(FoodECarbsState(meal.copy(fat = null), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isFalse()
+        assertThat(FoodECarbsState(meal.copy(protein = null), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isFalse()
+        assertThat(FoodECarbsState(meal.copy(protein = 0, fat = 0), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isTrue()
+        assertThat(FoodECarbsState(meal.copy(fat = -1), portionGrams = 200.0, enabled = true, rule = rule).isValid(100)).isFalse()
+    }
+
+    @Test
+    fun `food eCarbs require explicit valid timing and stay within the configured limit`() {
+        val state = FoodECarbsState(meal, portionGrams = 200.0, enabled = true, rule = rule)
+        assertThat(state.isValid(16)).isFalse()
+        assertThat(state.copy(overrideGrams = 10).isValid(16)).isTrue()
+        assertThat(state.copy(overrideGrams = -1).isValid(100)).isFalse()
+        assertThat(state.copy(rule = rule.copy(durationHours = 0)).isValid(100)).isFalse()
+        assertThat(state.copy(rule = rule.copy(durationHours = 11)).isValid(100)).isFalse()
+        assertThat(state.copy(rule = rule.copy(delayMinutes = 721)).isValid(100)).isFalse()
+        assertThat(state.copy(portionGrams = Double.NaN).isValid(100)).isFalse()
+        assertThat(state.copy(portionGrams = Double.POSITIVE_INFINITY).isValid(100)).isFalse()
+    }
+
+    @Test
+    fun `immediate carbs and unavailable foods also block food submission`() {
+        val state = WizardDialogUiState(carbs = 101, maxCarbs = 100, foodECarbs = FoodECarbsState(meal))
+        assertThat(state.foodInputsValid).isFalse()
+        assertThat(state.copy(carbs = 50, foodUnavailable = true).foodInputsValid).isFalse()
+    }
+}

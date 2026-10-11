@@ -20,7 +20,9 @@ data class FD(
     var protein: Int? = null, // in grams
     var energy: Int? = null, // in kJ
     var unit: String = "g",
-    var gi: Int? = null // not used yet
+    var gi: Int? = null, // not used yet
+    // Kept in AAPS only. It is not part of the Nightscout food, so contentEqualsTo ignores it.
+    var eCarbsRule: FoodECarbsRule? = null
 
 ) : HasIDs {
 
