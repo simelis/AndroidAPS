@@ -24,7 +24,6 @@ internal class FoodExtensionKtTest {
             energy = 23,
             unit = "g",
             gi = 25,
-            aapsFoodECarbs = """{"version":1,"enabled":true,"method":"FPU","durationHours":3,"manualGramsPer100g":7.5}""",
             ids = IDs(
                 nightscoutId = "nightscoutId"
             )
@@ -33,6 +32,5 @@ internal class FoodExtensionKtTest {
         val food2 = (food.toNSFood().convertToRemoteAndBack() as NSFood).toFood()
         assertThat(food.contentEqualsTo(food2)).isTrue()
         assertThat(food.ids.contentEqualsTo(food2.ids)).isTrue()
-        assertThat(food2.aapsFoodECarbs).isEqualTo(food.aapsFoodECarbs)
     }
 }

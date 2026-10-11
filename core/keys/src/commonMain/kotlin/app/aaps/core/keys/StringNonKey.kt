@@ -68,8 +68,6 @@ enum class StringNonKey(
     // sync publisher/receiver in :plugins:sync can observe it without an inter-module dependency.
     AutomationEvents(key = "AUTOMATION_EVENTS", defaultValue = "", sync = SyncSpec(SyncChannel.Cold, SyncDirection.Bidirectional)),
     QuickLaunchActions(key = "quick_launch_actions", defaultValue = "[{\"type\":\"wizard\"},{\"type\":\"quick_launch_config\"}]"),
-    // Indexed by local food database ID; must not be restored onto another database or synced to another device.
-    FoodECarbsSettings(key = "food_ecarbs_settings", defaultValue = "{}", exportable = false), // Legacy recovery copy; migrated into food rows.
     InsulinConfiguration("insulin_configuration", "{}", sync = SyncSpec(SyncChannel.Cold, SyncDirection.Bidirectional)),
     ComposeGraphConfig("compose_graphconfig", ""),
 

@@ -3,6 +3,8 @@ package app.aaps.ui.compose.wizardDialog
 import androidx.lifecycle.SavedStateHandle
 import app.aaps.core.data.model.GV
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.model.BolusWizardData
 import app.aaps.core.data.model.GlucoseUnit
 import app.aaps.core.data.pump.defs.PumpDescription
@@ -60,6 +62,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
@@ -126,9 +129,9 @@ internal class WizardDialogViewModelTest {
         assertThat(sut.uiState.value.alarmChecked).isTrue()
     }
 
-    private suspend fun stubFoodInitialization(food: FD, stored: String? = null) {
+    private suspend fun stubFoodInitialization(food: FD, rule: FoodECarbsRule? = null) {
         savedStateHandle["foodId"] = food.id.toString()
-        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food.copy(aapsFoodECarbs = stored ?: food.aapsFoodECarbs)))
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food.copy(eCarbsRule = rule ?: food.eCarbsRule)))
         val store = mock<ProfileStore>()
         whenever(store.getProfileList()).thenReturn(arrayListOf<CharSequence>("Test"))
         whenever(profileRepository.profile).thenReturn(MutableStateFlow(store))
@@ -151,13 +154,13 @@ internal class WizardDialogViewModelTest {
     @Test
     fun `food navigation applies a saved rule and waits for an explicit portion weight`() = runTest(mainDispatcher.scheduler) {
         val meal = FD(id = 7, name = "Pizza & salad? #1", portion = 200.0, carbs = 50, protein = 20, fat = 10)
-        val settings = FoodECarbsSettings(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
-        stubFoodInitialization(meal, FoodECarbsSettingsStore.metadata(settings))
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
+        stubFoodInitialization(meal, rule)
         advanceUntilIdle()
         val state = sut.uiState.value
         assertThat(state.notes).isEqualTo(meal.name)
         assertThat(state.carbs).isEqualTo(0)
-        assertThat(state.foodECarbs!!.settings).isEqualTo(settings)
+        assertThat(state.foodECarbs!!.rule).isEqualTo(rule)
         assertThat(state.foodECarbs!!.enabled).isTrue()
         assertThat(state.eCarbs).isEqualTo(0)
         assertThat(state.foodInputsValid).isFalse()
@@ -168,7 +171,7 @@ internal class WizardDialogViewModelTest {
 
     @Test
     fun `foods without gram weights use their saved carbs without the portion weight integration`() = runTest(mainDispatcher.scheduler) {
-        val rule = FoodECarbsSettingsStore.metadata(FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3))
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
         stubFoodInitialization(FD(id = 7, name = "Two slices", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10), rule)
         advanceUntilIdle()
         assertThat(sut.uiState.value.carbs).isEqualTo(50)
@@ -182,7 +185,7 @@ internal class WizardDialogViewModelTest {
     fun `serving and method changes clear a one meal override and keep all macros in scale`() = runTest(mainDispatcher.scheduler) {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10))
         advanceUntilIdle()
-        sut.updateFoodECarbsSettings(FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3))
+        sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
         sut.toggleFoodECarbs(true)
         sut.updateFoodPortionGrams(200.0)
         sut.updateFoodECarbsGrams(5)
@@ -193,10 +196,10 @@ internal class WizardDialogViewModelTest {
         assertThat(sut.uiState.value.foodECarbs!!.fatGrams).isEqualTo(15.0)
         assertThat(sut.uiState.value.eCarbs).isEqualTo(26)
         sut.updateFoodECarbsGrams(5)
-        sut.updateFoodECarbsSettings(FoodECarbsSettings(method = FoodECarbsMethod.FPU, delayMinutes = 90, durationHours = 4))
+        sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 90, durationHours = 4))
         assertThat(sut.uiState.value.eCarbs).isEqualTo(5)
         assertThat(sut.uiState.value.foodECarbs!!.overrideGrams).isEqualTo(5)
-        sut.updateFoodECarbsSettings(FoodECarbsSettings(method = FoodECarbsMethod.MODIFIED_FPU, durationHours = 3))
+        sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.MODIFIED_FPU, durationHours = 3))
         assertThat(sut.uiState.value.foodECarbs!!.overrideGrams).isNull()
         assertThat(sut.uiState.value.eCarbs).isEqualTo(13)
     }
@@ -205,7 +208,7 @@ internal class WizardDialogViewModelTest {
     fun `switching food mode and legacy presets never combines both calculations`() = runTest(mainDispatcher.scheduler) {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 60, protein = 20, fat = 10))
         advanceUntilIdle()
-        sut.updateFoodECarbsSettings(FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3))
+        sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
         sut.updateFoodPortionGrams(200.0)
         sut.updateCarbsType(CarbsType.PIZZA)
         assertThat(sut.uiState.value.effectiveCarbs).isEqualTo(48)
@@ -245,7 +248,7 @@ internal class WizardDialogViewModelTest {
         advanceUntilIdle()
         sut.updateCarbsType(CarbsType.PIZZA)
         sut.updateFoodPortionGrams(300.0)
-        sut.updateFoodECarbsSettings(FoodECarbsSettings(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3))
+        sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3))
         sut.toggleFoodECarbs(true)
         sut.updateCarbTime(15)
         advanceUntilIdle()
@@ -266,12 +269,12 @@ internal class WizardDialogViewModelTest {
     fun `wizard meal edits never overwrite the stored food rule`() = runTest(mainDispatcher.scheduler) {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10))
         advanceUntilIdle()
-        val settings = FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3)
-        sut.updateFoodECarbsSettings(settings)
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
+        sut.updateFoodECarbsRule(rule)
         sut.toggleFoodECarbs(true)
         sut.updateFoodPortionGrams(300.0)
         sut.updateFoodECarbsGrams(5)
-        verify(persistenceLayer, org.mockito.kotlin.never()).insertOrUpdateFood(any())
+        verify(persistenceLayer, never()).insertOrUpdateFood(any())
     }
 
     @Test

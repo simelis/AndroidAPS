@@ -1,46 +1,42 @@
 # Food-based eCarbs
 
-Open **Manage → Food** (or the Food QuickLaunch shortcut). The add button is on the left, with space below the list to keep it clear of the final row.
+Open **Manage → Food** (or the Food QuickLaunch shortcut). The add button is on the left, and the list has space at the bottom so the button does not cover the last row.
 
-1. For foods entered in grams, enter nutrients **per 100 g**. Existing gram/kilogram portions are converted for display without changing their nutrients in the background. Saving an edited gram food stores it as `portion = 100`, `unit = g`. The database stores whole-gram nutrients, so conversion rounding is shown for review before saving. Wizard calculations on an unedited entry retain the original precision.
-2. Foods measured in pieces, cups, millilitres or other units remain supported. Enter their portion, unit and nutrients for that portion. Their calculator opens the ordinary wizard with the saved carbs and food name, without a portion-weight card or automatic protein/fat rule. No density or piece weight is assumed. Switching between grams and other units clears nutrient inputs so the correct values must be entered for the new basis.
-3. In the food editor, enable **Save an eCarbs rule for this food**, choose a calculation method, and set delay and duration. Both protein and fat must be entered; use zero when absent. No factors or duration are selected for a new rule. Duration must be 1–10 hours; delay may be 0–720 minutes after the wizard's carb time.
-4. The editor shows the formula's carbohydrate equivalent per 100 g. You can adjust this value by hand and save it with the food. A manual value is a fixed equivalent per 100 g; selecting **Use calculated amount** returns to the formula. Changing protein/fat or formula factors resets the manual value.
-5. Select the food's calculator and enter **Your portion weight** in grams. No meal weight is assumed. The wizard scales carbs, protein, fat and the saved eCarbs rule by weight. A configured rule applies automatically. The resulting carb/eCarb grams and timing remain editable for this meal; those edits do not overwrite the food's rule. Editing the wizard's separate carbs field changes only meal carbs.
-6. Review the normal wizard confirmation before submitting. Food mode uses all entered meal carbs for the immediate wizard calculation and schedules additional eCarbs through the existing eCarbs path. It replaces the bread/dumpling/pizza split while enabled. You can turn off the saved rule for one meal or disable it in the food editor to remove the reusable rule.
+## Using it
 
-Rules are stored with the food record and synced in the `aapsFoodECarbs` extension on Nightscout food documents. Meal portion weights and one-meal overrides are never saved.
+1. **Foods in grams** are entered **per 100 g**. Older foods with a gram or kilogram portion are shown converted to 100 g. Nothing is written to the database until you save. When you save, the food is stored as `portion = 100`, `unit = g`. The database keeps whole grams, so the editor shows the rounded values before you save. The wizard uses the original values of a food that was not saved again.
+2. **Foods in other units** (pieces, cups, ml, ...) still work. Enter the portion, unit and nutrients for that portion. Their calculator button opens the normal wizard with the food's carbs and name. There is no portion weight card and no eCarbs rule, because AAPS never guesses the weight of a piece or a cup. Changing the unit between grams and another unit clears the nutrients, so you enter them again for the new basis.
+3. **eCarbs rule.** In the food editor, turn on **Save an eCarbs rule for this food**. Choose a method, a delay and a duration. Protein and fat must both be entered (use 0 for none). A new rule has no factors and no duration, so you must choose them. Duration is 1–10 h. Delay is 0–720 min after the wizard carb time.
+4. The editor shows the formula result per 100 g. You can change this value by hand. A hand value is a fixed number of eCarbs per 100 g; **Use calculated amount** goes back to the formula. Changing protein, fat or the factors clears the hand value.
+5. **In the wizard**, tap the food's calculator button and enter **Your portion weight** in grams. No weight is filled in for you. The wizard scales carbs, protein, fat and the rule by the weight. A saved rule is used automatically. You can still change the eCarbs grams and timing for this meal; this does not change the saved rule. Changing the wizard's carbs field changes only the meal carbs.
+6. Check the normal wizard confirmation before you submit. In food mode, all meal carbs go into the wizard calculation now, and the extra eCarbs are scheduled with the existing eCarbs function. Food mode replaces the bread/dumpling/pizza split. You can turn the rule off for one meal, or turn it off in the food editor to remove it.
 
-## Nightscout synchronization
+Portion weights and changes made for one meal are never saved.
 
-Stock Nightscout API v3 supports food documents with extension fields; no server modification is required. Normal AAPS upload settings and Nightscout food write permissions still apply. This branch previously disabled food uploads; its food queue is now enabled. Updates use `PATCH /api/v3/food/{identifier}` with only mutable food fields, preserving unrelated server fields and avoiding immutable timestamps. Empty identifiers are rejected before any request. Failed food writes keep their queue cursor for retry.
+## Storage and Nightscout
 
-- The versioned extension includes the method, custom factors, delay, duration and optional manual eCarbs per 100 g. Restoring a food on another updated AAPS device restores its rule independently of the local database ID.
-- Incoming older food records with the extension missing or null retain the local extension and queue a repair upload. Changing standard nutrients still works. An explicit `enabled: false` extension disables the rule on other updated devices; omission never means disable.
-- Rule edits carry an `updatedAt` revision timestamp. Stale downloaded rules cannot replace a newer local adjustment; the retained rule is queued for upload. Concurrent edits use the later timestamp, so devices should keep their clocks synchronized. Unrelated nutrient edits do not advance the rule revision.
-- Database version 37 adds a nullable metadata column without replacing existing foods. The former device-local preference rules migrate into their existing food rows before food reads, downloads or uploads. The old preference remains as a recovery copy and never overrides a present rule or explicit disable.
-- Unknown extension versions are preserved and remain inactive. Unrelated food edits preserve them. Editing this custom rule requires an updated AAPS client; Nightscout's standard food editor does not expose these controls. An older editor can strip the extension from the server; an updated device retaining the food repairs it on its next food sync. Avoid clearing all updated local copies before that repair reaches Nightscout.
+- The rule is stored in the food row in the database (`eCarbsRuleJson`, database version 37). It is read into a typed `FoodECarbsRule`. A rule that cannot be read, or is not valid, is treated as no rule.
+- The rule is kept in AAPS only. It is not sent to Nightscout, and food edits are not uploaded.
+- Foods still download from Nightscout. A food that you save, delete or restore in AAPS is marked `isLocallyEdited`. A Nightscout download never changes that row again, so your edits, your rule and your deletes are kept. Foods you never touched in AAPS still follow Nightscout.
 
-Compatibility is checked against the stock [Nightscout collection routes](https://github.com/nightscout/cgm-remote-monitor/blob/master/lib/api3/generic/collection.js) and [validation](https://github.com/nightscout/cgm-remote-monitor/blob/master/lib/api3/shared/operationTools.js). No live user's Nightscout database is modified by the tests.
+## Calculation
 
-## Calculation choices
+`P` and `F` are grams of protein and fat in your portion. Only the final result is rounded to whole grams. A hand value uses `manualGramsPer100g × portionWeight / 100` before rounding.
 
-Let `P` and `F` be grams of protein and fat in the entered portion. Round only the final carbohydrate-equivalent result to the nearest whole gram. A saved manual equivalent instead uses `manualGramsPer100g × portionWeight / 100` before rounding.
-
-| Method | Additional eCarbs |
+| Method | Extra eCarbs |
 | --- | --- |
 | Custom factors | `P × proteinPercent / 100 + F × fatPercent / 100` |
 | Original FPU reference | `(4 × P + 9 × F) / 10` |
 | Modified FPU reference | `(4 × P + 9 × F) / 20` |
 
-These are carbohydrate-equivalent estimates for the existing eCarbs mechanism, not measurements of glucose produced by digestion. The formula selector does not select a complete published insulin regimen or its timing. Original FPU methods have been associated with increased hypoglycemia; the [modified-FPU reference study](https://doi.org/10.1186/s12986-023-00757-w) involved adults using injections. Neither is offered as a validated pediatric AAPS dosing method. Factors and timing need an individual plan with the diabetes team. An increased profile also changes insulin delivery and can overlap with the effect of eCarbs.
+These are estimates for the existing eCarbs function, not a measure of the glucose made by digestion. The method choice is not a full treatment plan and does not set timing. Original FPU methods have been linked to more hypoglycemia. The [modified-FPU study](https://doi.org/10.1186/s12986-023-00757-w) was done with adults on injections. Neither method is a tested dosing method for children in AAPS. Factors and timing must come from a personal plan made with the diabetes team. A raised profile also changes insulin delivery and can add to the effect of eCarbs.
 
-## Validation
+## Checks
 
-- New foods have no eCarbs rule. A valid saved rule applies automatically when that food is selected.
-- Unknown or negative protein/fat values cannot enable food mode.
-- Immediate carbs and additional eCarbs must each fit the configured carb limit. The master rechecks additional eCarbs and timing for manual wizard requests, including requests from paired clients.
-- For gram foods, a positive gram portion and a known weight basis are required. Invalid food settings or an unavailable food entry disable submission. Invalid saved JSON or settings fall back to unconfigured values. Other units use the ordinary wizard with the food's saved carbs.
-- Recalculation invalidates the previous result. A meal with only eCarbs can be confirmed, and a consumed confirmation cannot be submitted again.
+- New foods have no rule. A valid saved rule is used automatically when the food is chosen.
+- Food mode cannot be turned on when protein or fat is unknown or negative.
+- Meal carbs and extra eCarbs must each be within the carb limit. The master checks the eCarbs amount and timing again for manual wizard requests, also when they come from a paired client.
+- A gram food needs a positive portion weight. Invalid food values, or a food that cannot be loaded, block submit.
+- A new calculation removes the old result. A meal with only eCarbs can be confirmed. A confirmation that was already used cannot be submitted again.
 
-Automated coverage includes formula arithmetic, gram scaling, legacy nutrient conversion, other-unit editing and wizard fallback, manual equivalents, database and Nightscout serialization, missing-extension preservation and repair, explicit disabling, legacy preference migration, real SQLite upgrade/reopening, food upload routing and failure retry, exclusive use of food mode versus old presets, request forwarding and timing, missing/deleted food data, UI controls, master constraints and eCarbs-only confirmation. Pump delivery, a live Nightscout deployment and glucose outcomes have not been tested with this feature.
+Pump delivery and glucose results have not been tested with this feature.

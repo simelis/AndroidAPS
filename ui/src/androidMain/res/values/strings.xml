@@ -350,25 +350,28 @@
     <string name="graph_therapy_event_bg_with_note" comment="Shown when the user taps a BG check in the overview graph. %1$s = glucose with its unit, %2$s = the note the user wrote. Example: 6.1 mmol/L, before lunch">%1$s, %2$s</string>
 
     <string name="food_nutrients_basis">Per 100 g</string>
+    <string name="food_portion_amount" comment="%1$s=portion size, %2$s=unit as typed by the user. Example: 250 ml">%1$s %2$s</string>
+    <string name="food_grams_amount" comment="%1$s=weight in grams, up to one decimal. Example: 12.5 g">%1$s g</string>
+    <string name="food_fat_protein" comment="Short food list line. F=fat, P=protein. %1$s=fat grams, %2$s=protein grams, — when unknown. Example: F: 4 g · P: 5 g">F: %1$s g · P: %2$s g</string>
+    <string name="food_fat_protein_energy" comment="Short food list line. F=fat, P=protein. %1$s=fat grams, %2$s=protein grams, %3$s=energy in kJ. Example: F: 4 g · P: 5 g · 600 kJ">F: %1$s g · P: %2$s g · %3$s kJ</string>
     <string name="food_portion_grams">Your portion weight</string>
     <string name="food_ecarbs_servings_hint">Portion weight scales all nutrients and the saved eCarbs rule. Editing carbs below changes only the meal carbs.</string>
-    <string name="food_weight_required">Portion weighing requires a valid gram-based Food entry.</string>
     <string name="food_nutrients_conversion">Converted nutrients are shown rounded to whole grams. Review before saving on a 100 g basis.</string>
-    <string name="food_editor_invalid">Enter a name, unit, positive portion, and non-negative nutrients. For gram entries, nutrients must be within 0–100 g per 100 g. Blank fat/protein means unknown. An enabled eCarbs rule needs both values and a duration of 1–10 h.</string>
+    <string name="food_editor_invalid">Enter a name, unit, positive portion, and non-negative nutrients. For gram entries, nutrients must be within 0–100 g per 100 g. Blank fat/protein means unknown. An enabled eCarbs rule needs both values.</string>
     <string name="food_units_hint">Gram entries use nutrients per 100 g. Other units use nutrients per entered portion. Switching between these bases clears nutrient inputs so you can enter the correct values.</string>
     <string name="food_ecarbs_grams_only">Portion weighing and saved eCarbs rules are available for food entered in grams. This food opens the wizard with its saved carbs.</string>
     <string name="food_save_failed">Could not save the food and its rule. Please try again.</string>
-    <string name="food_ecarbs_macros">Food total: %1$d g carbs · %2$s g protein · %3$s g fat</string>
+    <string name="food_ecarbs_macros" comment="%1$d=carbs in grams, %2$s=protein grams, %3$s=fat grams, — when unknown. Example: Food total: 50 g carbs · 20 g protein · 10 g fat">Food total: %1$d g carbs · %2$s g protein · %3$s g fat</string>
     <string name="food_ecarbs_enable">Use protein/fat eCarbs for this meal</string>
     <string name="food_ecarbs_rule_enable">Save an eCarbs rule for this food</string>
     <string name="food_ecarbs_configure_food">Configure the eCarbs rule in the Food entry first.</string>
-    <string name="food_ecarbs_saved_method">Saved rule: %1$s</string>
-    <string name="food_ecarbs_saved_manual">Saved manual equivalent: %1$s g eCarbs per 100 g food</string>
-    <string name="food_ecarbs_per100_calculated">Formula result per 100 g food: %1$s g eCarbs</string>
+    <string name="food_ecarbs_saved_method" comment="%1$s=name of the calculation method. Example: Saved rule: Custom factors">Saved rule: %1$s</string>
+    <string name="food_ecarbs_saved_manual" comment="%1$s=grams with one decimal. Example: 7.5">Saved manual equivalent: %1$s g eCarbs per 100 g food</string>
+    <string name="food_ecarbs_per100_calculated" comment="%1$s=grams with one decimal. Example: 7.5">Formula result per 100 g food: %1$s g eCarbs</string>
     <string name="food_ecarbs_per100_amount">Saved eCarbs per 100 g food</string>
-    <string name="food_ecarbs_list">eCarbs: %1$s g / 100 g</string>
+    <string name="food_ecarbs_list" comment="Short food list line. %1$s=eCarbs grams per 100 g of food. Example: eCarbs: 7.5 g / 100 g">eCarbs: %1$s g / 100 g</string>
     <string name="food_ecarbs_rule_hint">Saved with this food and applied automatically in the wizard. A manually adjusted value scales with portion weight; use the calculated amount to return to the formula.</string>
-    <string name="food_ecarbs_rule_invalid">Choose a duration of 1–10 h and a valid eCarbs rule before saving.</string>
+    <string name="food_ecarbs_rule_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: Choose a duration of 1–10 h">Choose a duration of %1$d–%2$d h and a valid eCarbs rule before saving.</string>
     <string name="food_ecarbs_missing_macros">Enter both protein and fat in the Food entry, using 0 for none, to calculate eCarbs.</string>
     <string name="food_ecarbs_method">eCarbs calculation method</string>
     <string name="food_ecarbs_custom">Custom factors</string>
@@ -379,13 +382,13 @@
     <string name="food_ecarbs_modified_description">Reference estimate: (4 × protein grams + 9 × fat grams) ÷ 20. Studied in adults using injections; not established as a pediatric AAPS dosing method.</string>
     <string name="food_ecarbs_protein_factor">Protein factor</string>
     <string name="food_ecarbs_fat_factor">Fat factor</string>
-    <string name="food_ecarbs_calculated">Calculated carbohydrate equivalent: %1$d g (rounded)</string>
+    <string name="food_ecarbs_calculated" comment="%1$d=grams. Example: 17">Calculated carbohydrate equivalent: %1$d g (rounded)</string>
     <string name="food_ecarbs_amount">Additional eCarbs for this meal</string>
     <string name="food_ecarbs_use_calculated">Use calculated amount</string>
     <string name="food_ecarbs_delay">Delay after carb time</string>
     <string name="food_ecarbs_duration">Spread eCarbs over</string>
-    <string name="food_ecarbs_preview">%1$d g immediate carbs + %2$d g additional eCarbs, starting %3$d min after carb time, over %4$d h. Replaces the bread/dumpling/pizza calculation.</string>
+    <string name="food_ecarbs_preview" comment="%1$d=immediate carbs (g), %2$d=extra eCarbs (g), %3$d=delay in minutes, %4$d=duration in hours. Example: 50 g immediate carbs + 17 g additional eCarbs, starting 60 min after carb time, over 3 h.">%1$d g immediate carbs + %2$d g additional eCarbs, starting %3$d min after carb time, over %4$d h. Replaces the bread/dumpling/pizza calculation.</string>
     <string name="food_ecarbs_profile_notice">An increased profile can add insulin alongside eCarbs. Review both together before confirming.</string>
-    <string name="food_ecarbs_invalid">Enter a positive portion weight. Carbs and eCarbs must each be within the carb limit; protein/fat must be known for eCarbs. Choose a duration of 1–10 h when food eCarbs are enabled.</string>
+    <string name="food_ecarbs_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: 1–10 h">Enter a positive portion weight. Carbs and eCarbs must each be within the carb limit; protein/fat must be known for eCarbs. Choose a duration of %1$d–%2$d h when food eCarbs are enabled.</string>
     <string name="food_ecarbs_unavailable">This Food entry could not be loaded. Close the wizard and select the food again.</string>
 </resources>

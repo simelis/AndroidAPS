@@ -7,8 +7,8 @@ import app.aaps.database.entities.TABLE_APS_RESULTS
 import app.aaps.database.entities.TABLE_BOLUSES
 import app.aaps.database.entities.TABLE_CALIBRATION_ENTRIES
 import app.aaps.database.entities.TABLE_EFFECTIVE_PROFILE_SWITCHES
-import app.aaps.database.entities.TABLE_GLUCOSE_VALUES
 import app.aaps.database.entities.TABLE_FOODS
+import app.aaps.database.entities.TABLE_GLUCOSE_VALUES
 import app.aaps.database.entities.TABLE_HEART_RATE
 import app.aaps.database.entities.TABLE_PREFERENCE_CHANGES
 import app.aaps.database.entities.TABLE_PROFILE_SWITCHES
@@ -341,7 +341,8 @@ private val migration35to36 = object : Migration(35, 36) {
 
 private val migration36to37 = object : Migration(36, 37) {
     override fun migrate(connection: SQLiteConnection) {
-        connection.execSQL("ALTER TABLE `$TABLE_FOODS` ADD COLUMN `aapsFoodECarbs` TEXT")
+        connection.execSQL("ALTER TABLE `$TABLE_FOODS` ADD COLUMN `eCarbsRuleJson` TEXT")
+        connection.execSQL("ALTER TABLE `$TABLE_FOODS` ADD COLUMN `isLocallyEdited` INTEGER NOT NULL DEFAULT 0")
         dropCustomIndexes(connection)
     }
 }

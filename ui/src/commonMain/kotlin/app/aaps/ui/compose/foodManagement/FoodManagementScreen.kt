@@ -55,6 +55,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.format.NumberFormat
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.AapsSearchField
@@ -65,8 +66,6 @@ import app.aaps.core.ui.compose.consumeOverscroll
 import app.aaps.core.ui.compose.icons.IcCalculator
 import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
-import app.aaps.ui.compose.wizardDialog.FoodECarbsSettings
-import app.aaps.ui.compose.wizardDialog.FoodECarbsRuleEditor
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -186,7 +185,6 @@ fun FoodManagementScreen(
                     items(filteredFoods, key = { it.id }) { food ->
                         FoodItem(
                             food = food,
-                            rule = state.foodRules[food.id],
                             onEdit = { viewModel.openEditor(food) },
                             onCalculate = { onNavigateToWizard(food.id) }
                         )
@@ -221,7 +219,7 @@ fun FoodManagementScreen(
                     onPortionChange = viewModel::updateEditorPortion,
                     onUnitChange = viewModel::updateEditorUnit,
                     onECarbsEnabledChange = viewModel::updateEditorECarbsEnabled,
-                    onECarbsSettingsChange = viewModel::updateEditorECarbsSettings
+                    onECarbsRuleChange = viewModel::updateEditorECarbsRule
                 )
             }
         }
@@ -231,12 +229,13 @@ fun FoodManagementScreen(
 @Composable
 private fun FoodItem(
     food: FD,
-    rule: FoodECarbsSettings?,
     onEdit: () -> Unit,
     onCalculate: () -> Unit,
 ) {
     val nutrition = food.nutrientsPer100g()
-    val basis = if (nutrition != null) stringResource(UiStrings.food_nutrients_basis) else "${food.portion} ${food.unit}"
+    val basis = if (nutrition != null) stringResource(UiStrings.food_nutrients_basis)
+    else stringResource(UiStrings.food_portion_amount, NumberFormat.UP_TO_1_DECIMAL.format(food.portion), food.unit)
+    val rule = food.eCarbsRule
     ElevatedCard(
         onClick = onEdit,
         modifier = Modifier
@@ -275,28 +274,26 @@ private fun FoodItem(
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
+                fun grams(value: Double?): String = value?.let { NumberFormat.UP_TO_1_DECIMAL.format(it) } ?: "—"
                 Text(
-                    text = "${NumberFormat.DECIMAL_1.format(nutrition?.carbs ?: food.carbs.toDouble())}g",
+                    text = stringResource(UiStrings.food_grams_amount, grams(nutrition?.carbs ?: food.carbs.toDouble())),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
-                val extras = buildList {
-                    add("F:${(nutrition?.fat ?: food.fat?.toDouble())?.let { NumberFormat.DECIMAL_1.format(it) } ?: "—"}g")
-                    add("P:${(nutrition?.protein ?: food.protein?.toDouble())?.let { NumberFormat.DECIMAL_1.format(it) } ?: "—"}g")
-                    (nutrition?.energy ?: food.energy?.toDouble())?.let { if (it > 0) add("${NumberFormat.DECIMAL_1.format(it)}kJ") }
-                }
+                val fat = grams(nutrition?.fat ?: food.fat?.toDouble())
+                val protein = grams(nutrition?.protein ?: food.protein?.toDouble())
+                val energy = (nutrition?.energy ?: food.energy?.toDouble())?.takeIf { it > 0 }
                 if (rule != null && nutrition?.protein != null && nutrition.fat != null) {
                     val eCarbs = rule.manualGramsPer100g ?: rule.equivalentGrams(nutrition.protein, nutrition.fat)
-                    Text(stringResource(UiStrings.food_ecarbs_list, NumberFormat.DECIMAL_1.format(eCarbs)),
+                    Text(stringResource(UiStrings.food_ecarbs_list, NumberFormat.UP_TO_1_DECIMAL.format(eCarbs)),
                         style = MaterialTheme.typography.labelSmall)
                 }
-                if (extras.isNotEmpty()) {
-                    Text(
-                        text = extras.joinToString(" "),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = if (energy == null) stringResource(UiStrings.food_fat_protein, fat, protein)
+                    else stringResource(UiStrings.food_fat_protein_energy, fat, protein, NumberFormat.UP_TO_1_DECIMAL.format(energy)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             // Name the food, because every row has this same button. Without it a screen reader
             // says "Bolus wizard" once per row with nothing to tell them apart, and picking the
@@ -337,7 +334,7 @@ internal fun FoodEditorContent(
     onPortionChange: (String) -> Unit = {},
     onUnitChange: (String) -> Unit = {},
     onECarbsEnabledChange: (Boolean) -> Unit = {},
-    onECarbsSettingsChange: (FoodECarbsSettings) -> Unit = {},
+    onECarbsRuleChange: (FoodECarbsRule) -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -432,8 +429,8 @@ internal fun FoodEditorContent(
             )
         }
 
-        if (state.editorUsesGrams) FoodECarbsRuleEditor(state.editorPreview, state.editorUseECarbs, state.editorECarbsSettings,
-            onECarbsEnabledChange, onECarbsSettingsChange)
+        if (state.editorUsesGrams) FoodECarbsRuleEditor(state.editorPreview, state.editorUseECarbs, state.editorECarbsRule,
+            onECarbsEnabledChange, onECarbsRuleChange)
         else Text(stringResource(UiStrings.food_ecarbs_grams_only), style = MaterialTheme.typography.bodySmall)
         if (state.editorSaveAttempted && !state.editorCanSave) {
             Text(stringResource(UiStrings.food_editor_invalid), color = MaterialTheme.colorScheme.error)

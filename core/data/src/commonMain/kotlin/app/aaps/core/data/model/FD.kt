@@ -21,8 +21,8 @@ data class FD(
     var energy: Int? = null, // in kJ
     var unit: String = "g",
     var gi: Int? = null, // not used yet
-    // Versioned JSON extension, also carried by Nightscout. Null means absent, not explicitly disabled.
-    var aapsFoodECarbs: String? = null
+    // Kept in AAPS only. It is not part of the Nightscout food, so contentEqualsTo ignores it.
+    var eCarbsRule: FoodECarbsRule? = null
 
 ) : HasIDs {
 
@@ -37,7 +37,6 @@ data class FD(
         if (name != other.name) return false
         if (category != other.category) return false
         if (subCategory != other.subCategory) return false
-        if (aapsFoodECarbs != other.aapsFoodECarbs) return false
         return unit == other.unit
     }
 
