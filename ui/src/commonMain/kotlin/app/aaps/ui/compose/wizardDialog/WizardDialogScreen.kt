@@ -736,6 +736,8 @@ internal fun WizardDialogContent(
                         onAlarmChange = onAlarmToggle,
                         modifier = itemModifier
                     )
+                    // Food eCarbs (collapsible, only while the food formula is on)
+                    FoodECarbsRow(uiState, foodActions, modifier = itemModifier)
                     // BG (collapsible, auto-expand when old/missing)
                     val bgExpandRequester = rememberBringIntoViewOnExpand(bgExpanded)
                     Column(modifier = itemModifier.bringIntoViewRequester(bgExpandRequester)) {

@@ -389,9 +389,9 @@
     <string name="food_ecarbs_protein_factor">Protein factor</string>
     <string name="food_ecarbs_fat_factor">Fat factor</string>
     <string name="food_ecarbs_amount">Additional eCarbs for this meal</string>
-    <string name="food_ecarbs_result" comment="%1$d=eCarbs in grams, %2$d=delay in minutes, %3$d=duration in hours. Example: 27 g eCarbs, starting 60 min after carb time, over 3 h">%1$d g eCarbs, starting %2$d min after carb time, over %3$d h</string>
-    <string name="food_ecarbs_result_split" comment="%1$d=eCarbs in grams, %2$d=delay in minutes, %3$d=duration in hours, %4$d=carbs counted in the bolus now in grams, %5$d=carbs moved to the eCarbs in grams. Example: 34 g eCarbs, starting 60 min after carb time, over 3 h. 68 g carbs now, 7 g moved to eCarbs">%1$d g eCarbs, starting %2$d min after carb time, over %3$d h. %4$d g carbs now, %5$d g moved to eCarbs</string>
-    <string name="food_ecarbs_adjust">Adjust for this meal</string>
+    <string name="food_ecarbs_label">eCarbs:</string>
+    <string name="food_ecarbs_row_value" comment="eCarbs of this meal. %1$d=eCarbs in grams, %2$d=delay after carb time in minutes, %3$d=duration in hours. Example: 34 g, after 60 min, over 3 h">%1$d g, after %2$d min, over %3$d h</string>
+    <string name="food_ecarbs_moved" comment="%1$d=carbs counted in the bolus now in grams, %2$d=carbs moved to the eCarbs in grams. Example: 68 g carbs now, 7 g moved to eCarbs">%1$d g carbs now, %2$d g moved to eCarbs</string>
     <string name="food_ecarbs_replaces_split">This replaces the bread, dumplings and pizza split.</string>
     <string name="food_card_info">About this food calculation</string>
     <string name="food_ecarbs_use_calculated">Use calculated amount</string>

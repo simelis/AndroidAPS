@@ -1,17 +1,20 @@
 package app.aaps.ui.compose.wizardDialog
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +42,7 @@ import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.AapsSpacing
 import app.aaps.core.ui.compose.NumberInputRow
+import app.aaps.core.ui.compose.rememberBringIntoViewOnExpand
 import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
 import app.aaps.ui.compose.foodManagement.FoodECarbsSwitch
@@ -60,8 +64,8 @@ internal data class FoodECarbsCallbacks(
 /**
  * Apply the stored food formula, with portion and overrides for this meal only.
  *
- * Kept short on purpose: the weight, one nutrient line, the switch and one result line. Background
- * text is in the info tooltip, and the per-meal changes are behind "Adjust for this meal".
+ * Kept short on purpose: the weight, one nutrient line and the switch. Background text is in the
+ * info tooltip, and the eCarbs amount and timing are a row of the wizard inputs ([FoodECarbsRow]).
  */
 @Composable
 internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallbacks, modifier: Modifier = Modifier) {
@@ -69,7 +73,6 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
     // A new meal starts without a weight. That is not a mistake yet, so the problem text waits until the
     // user has entered a weight, and the weight field gets the focus instead.
     var portionEntered by rememberSaveable { mutableStateOf(false) }
-    var adjustExpanded by rememberSaveable { mutableStateOf(false) }
     val portionFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         if (food.portionGrams == 0.0) portionFocus.requestFocus()
@@ -108,39 +111,69 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                 FoodECarbsSwitch(UiStrings.food_ecarbs_enable, food.enabled, food.enabled || (food.canUseRule && food.rule.isValid), actions.enabled)
                 if (!food.canUseRule) Text(stringResource(UiStrings.food_ecarbs_missing_macros), style = MaterialTheme.typography.bodySmall)
             }
+            // The eCarbs amount and timing are a row of the wizard inputs, next to carb time (FoodECarbsRow)
             if (food.enabled) {
-                if (hasWeight) {
-                    val plan = state.carbPlan()
-                    val moved = state.carbs - plan.carbs
-                    Text(
-                        if (moved > 0) stringResource(UiStrings.food_ecarbs_result_split, plan.eCarbs, plan.delayMinutes, plan.durationHours, plan.carbs, moved)
-                        else stringResource(UiStrings.food_ecarbs_result, plan.eCarbs, plan.delayMinutes, plan.durationHours),
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    FoodUnknownNutrients(food.food, food.rule)
-                }
+                if (hasWeight) FoodUnknownNutrients(food.food, food.rule)
                 // A safety note, so it stays visible rather than in the tooltip
                 Text(stringResource(UiStrings.food_ecarbs_profile_notice), style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { adjustExpanded = !adjustExpanded }) {
-                    Text(stringResource(UiStrings.food_ecarbs_adjust))
-                    Icon(if (adjustExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
-                }
-                if (adjustExpanded) {
-                    NumberInputRow(
-                        labelRef = UiStrings.food_ecarbs_amount, value = food.eCarbsGrams.toDouble(),
-                        onValueChange = { actions.grams(it.toInt()) }, valueRange = 0.0..state.maxCarbs.toDouble(),
-                        step = 1.0, unitLabel = CoreUiStrings.shortgramm, compact = true
-                    )
-                    if (food.overrideGrams != null) TextButton(onClick = { actions.grams(null) }) {
-                        Text(stringResource(UiStrings.food_ecarbs_use_calculated))
-                    }
-                    FoodECarbsTiming(food.rule, actions.rule)
-                }
             }
             if (!state.foodInputsValid && (portionEntered || hasWeight)) Text(
                 stringResource(UiStrings.food_ecarbs_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last),
                 color = MaterialTheme.colorScheme.error
             )
+        }
+    }
+}
+
+/**
+ * The eCarbs of the food formula as one row of the wizard inputs, like carb time and percentage:
+ * the value, and a Change button that opens the amount and timing for this meal.
+ */
+@Composable
+internal fun FoodECarbsRow(state: WizardDialogUiState, actions: FoodECarbsCallbacks, modifier: Modifier = Modifier) {
+    val food = state.foodECarbs?.takeIf { it.enabled } ?: return
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val plan = state.carbPlan()
+    val moved = state.carbs - plan.carbs
+    Column(modifier = modifier.bringIntoViewRequester(rememberBringIntoViewOnExpand(expanded))) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AapsSpacing.medium),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    stringResource(UiStrings.food_ecarbs_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    stringResource(UiStrings.food_ecarbs_row_value, plan.eCarbs, plan.delayMinutes, plan.durationHours),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            if (!expanded) FilledTonalButton(onClick = { expanded = true }) {
+                Text(stringResource(CoreUiStrings.change))
+            }
+        }
+        if (moved > 0) Text(
+            stringResource(UiStrings.food_ecarbs_moved, plan.carbs, moved),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
+            Column(verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
+                NumberInputRow(
+                    labelRef = UiStrings.food_ecarbs_amount, value = food.eCarbsGrams.toDouble(),
+                    onValueChange = { actions.grams(it.toInt()) }, valueRange = 0.0..state.maxCarbs.toDouble(),
+                    step = 1.0, unitLabel = CoreUiStrings.shortgramm
+                )
+                if (food.overrideGrams != null) TextButton(onClick = { actions.grams(null) }) {
+                    Text(stringResource(UiStrings.food_ecarbs_use_calculated))
+                }
+                FoodECarbsTiming(food.rule, actions.rule)
+            }
         }
     }
 }
