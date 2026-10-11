@@ -145,7 +145,7 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun enabledFoodModeShowsTheMealNutrientsAndTheProfileWarning() {
+    fun enabledFoodModeShowsTheMealNutrientsAndKeepsTheBackgroundInTheTooltip() {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {
@@ -158,7 +158,11 @@ class FoodECarbsCardTest {
             }
         }
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_macros, 50, "20", "10")).assertExists()
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_profile_notice)).assertExists()
+        val howToChange = context.getString(UiR.string.food_ecarbs_how_to_change)
+        compose.onNodeWithText(howToChange).assertDoesNotExist()
+
+        compose.onNodeWithContentDescription(context.getString(UiR.string.food_card_info)).performClick()
+        compose.onNodeWithText(howToChange).assertExists()
     }
 
     @Test
