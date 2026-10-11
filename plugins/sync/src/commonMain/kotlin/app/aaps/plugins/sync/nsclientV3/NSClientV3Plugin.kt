@@ -248,7 +248,8 @@ class NSClientV3Plugin(
     override suspend fun onStart() {
         super.onStart()
 
-        lastLoadedSrvModified = Json.decodeFromString(preferences.get(NsclientStringKey.V3LastModified))
+        // Lenient: a newer build may have saved keys this one does not know
+        lastLoadedSrvModified = Json { ignoreUnknownKeys = true }.decodeFromString(preferences.get(NsclientStringKey.V3LastModified))
 
         setClient()
 

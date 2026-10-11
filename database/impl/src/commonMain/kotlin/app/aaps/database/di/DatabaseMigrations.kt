@@ -7,6 +7,7 @@ import app.aaps.database.entities.TABLE_APS_RESULTS
 import app.aaps.database.entities.TABLE_BOLUSES
 import app.aaps.database.entities.TABLE_CALIBRATION_ENTRIES
 import app.aaps.database.entities.TABLE_EFFECTIVE_PROFILE_SWITCHES
+import app.aaps.database.entities.TABLE_FOODS
 import app.aaps.database.entities.TABLE_GLUCOSE_VALUES
 import app.aaps.database.entities.TABLE_HEART_RATE
 import app.aaps.database.entities.TABLE_PREFERENCE_CHANGES
@@ -338,6 +339,25 @@ private val migration35to36 = object : Migration(35, 36) {
     }
 }
 
+/**
+ * Back down from the food eCarbs build (simelis/AndroidAPS, branch v4.0-beta1), which is version
+ * 37: it added these two columns to the food table and changed nothing else.
+ *
+ * Not part of official AAPS. This fallback build exists so a phone can go back from that build
+ * without losing its database. Without this step Room finds no path from 37 and, because of
+ * fallbackToDestructiveMigration, drops every table and starts empty.
+ *
+ * The rules are lost here, but they are also on Nightscout and come back when the food build is
+ * installed again.
+ */
+private val migration37to36 = object : Migration(37, 36) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `$TABLE_FOODS` DROP COLUMN `eCarbsRuleJson`")
+        connection.execSQL("ALTER TABLE `$TABLE_FOODS` DROP COLUMN `isLocallyEdited`")
+        dropCustomIndexes(connection)
+    }
+}
+
 /** Every migration, in order. Passed to the Room builder by each platform. */
 internal val databaseMigrations: Array<Migration> = arrayOf(
     migration22to23,
@@ -354,4 +374,5 @@ internal val databaseMigrations: Array<Migration> = arrayOf(
     migration33to34,
     migration34to35,
     migration35to36,
+    migration37to36,
 )
