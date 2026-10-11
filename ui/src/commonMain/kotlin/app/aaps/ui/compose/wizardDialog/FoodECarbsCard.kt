@@ -112,11 +112,7 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                 if (!food.canUseRule) Text(stringResource(UiStrings.food_ecarbs_missing_macros), style = MaterialTheme.typography.bodySmall)
             }
             // The eCarbs amount and timing are a row of the wizard inputs, next to carb time (FoodECarbsRow)
-            if (food.enabled) {
-                if (hasWeight) FoodUnknownNutrients(food.food, food.rule)
-                // A safety note, so it stays visible rather than in the tooltip
-                Text(stringResource(UiStrings.food_ecarbs_profile_notice), style = MaterialTheme.typography.bodySmall)
-            }
+            if (food.enabled && hasWeight) FoodUnknownNutrients(food.food, food.rule)
             if (!state.foodInputsValid && (portionEntered || hasWeight)) Text(
                 stringResource(UiStrings.food_ecarbs_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last),
                 color = MaterialTheme.colorScheme.error
@@ -197,7 +193,7 @@ private fun FoodInfoButton(food: FoodECarbsState) {
                             if (manual != null) stringResource(UiStrings.food_ecarbs_saved_manual, NumberFormat.DECIMAL_1.format(manual))
                             else stringResource(UiStrings.food_ecarbs_saved_method, methodLabel(rule.method))
                         )
-                        Text(stringResource(UiStrings.food_ecarbs_replaces_split))
+                        Text(stringResource(UiStrings.food_ecarbs_how_to_change))
                     }
                 }
             }

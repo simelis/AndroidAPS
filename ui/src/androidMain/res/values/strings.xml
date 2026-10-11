@@ -395,12 +395,11 @@
     <string name="food_ecarbs_label">eCarbs:</string>
     <string name="food_ecarbs_row_value" comment="eCarbs of this meal. %1$d=eCarbs in grams, %2$d=delay after carb time in minutes, %3$d=duration in hours. Example: 34 g, after 60 min, over 3 h">%1$d g, after %2$d min, over %3$d h</string>
     <string name="food_ecarbs_moved" comment="%1$d=carbs counted in the bolus now in grams, %2$d=carbs moved to the eCarbs in grams. Example: 68 g carbs now, 7 g moved to eCarbs">%1$d g carbs now, %2$d g moved to eCarbs</string>
-    <string name="food_ecarbs_replaces_split">This replaces the bread, dumplings and pizza split.</string>
+    <string name="food_ecarbs_how_to_change">To change the eCarbs amount or timing for this meal, tap Change in the eCarbs row next to carb time. The saved formula stays the same.</string>
     <string name="food_card_info">About this food calculation</string>
     <string name="food_ecarbs_use_calculated">Use calculated amount</string>
     <string name="food_ecarbs_delay">Delay after carb time</string>
     <string name="food_ecarbs_duration">Spread eCarbs over</string>
-    <string name="food_ecarbs_profile_notice">A raised profile adds insulin on top of eCarbs.</string>
     <string name="food_ecarbs_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: 1–10 h">Enter a positive portion weight. Carbs and eCarbs must each be within the carb limit; the food must have the protein or fat its formula needs. Choose a duration of %1$d–%2$d h when food eCarbs are enabled.</string>
     <string name="food_ecarbs_unavailable">This Food entry could not be loaded. Close the wizard and select the food again.</string>
 </resources>
