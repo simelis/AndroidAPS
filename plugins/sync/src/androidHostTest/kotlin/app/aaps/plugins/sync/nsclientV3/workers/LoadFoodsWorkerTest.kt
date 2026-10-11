@@ -23,6 +23,7 @@ import app.aaps.plugins.sync.nsclientV3.DataSyncSelectorV3
 import app.aaps.plugins.sync.nsclientV3.NSClientV3Plugin
 import app.aaps.plugins.sync.nsclientV3.NsIncomingDataProcessor
 import app.aaps.plugins.sync.nsclientV3.ReceiverDelegate
+import app.aaps.plugins.sync.nsclientV3.keys.NsclientLongKey
 import app.aaps.shared.tests.TestBaseWithProfile
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,7 +71,7 @@ internal class LoadFoodsWorkerTest : TestBaseWithProfile() {
         TestListenableWorkerBuilder<LoadFoodsWorker>(context)
             .setWorkerFactory(object : WorkerFactory() {
                 override fun createWorker(appContext: Context, workerClassName: String, workerParameters: WorkerParameters) =
-                    LoadFoodsWorker(appContext, workerParameters, aapsLogger, fabricPrivacy, LoadFoodsRunner(aapsLogger, nsClientV3Plugin, dateUtil, storeDataForDb, nsIncomingDataProcessor, nsClientRepository))
+                    LoadFoodsWorker(appContext, workerParameters, aapsLogger, fabricPrivacy, LoadFoodsRunner(aapsLogger, nsClientV3Plugin, dateUtil, storeDataForDb, nsIncomingDataProcessor, nsClientRepository, preferences))
             })
             .build()
 
@@ -112,7 +113,7 @@ internal class LoadFoodsWorkerTest : TestBaseWithProfile() {
     fun `food changes and deletes are read from the history every time and move the cursor`() = runTest(timeout = 30.seconds) {
         nsClientV3Plugin.nsAndroidClient = nsAndroidClient
         nsClientV3Plugin.lastLoadedSrvModified.collections.foods = 1 // the full list is not due
-        nsClientV3Plugin.lastLoadedSrvModified.collections.food = 1000
+        whenever(preferences.get(NsclientLongKey.FoodLastLoadedSrvModified)).thenReturn(1000)
         nsClientV3Plugin.newestDataOnServer = LastModified(LastModified.Collections(food = 2000))
         sut = buildSut()
         val deleted = NSFood(name = "Apple", portion = 100.0, carbs = 13, unit = "g", date = now, identifier = "some", isValid = false)
@@ -125,14 +126,14 @@ internal class LoadFoodsWorkerTest : TestBaseWithProfile() {
         verify(nsIncomingDataProcessor).processFood(argThat<List<NSFood>> { single().isValid == false })
         verify(storeDataForDb).storeFoodsToDb()
         verify(nsAndroidClient, never()).getFoods(anyInt())
-        assertThat(nsClientV3Plugin.lastLoadedSrvModified.collections.food).isEqualTo(2000)
+        verify(preferences).put(NsclientLongKey.FoodLastLoadedSrvModified, 2000)
     }
 
     @Test
     fun `the history is not read when the server has nothing newer`() = runTest(timeout = 30.seconds) {
         nsClientV3Plugin.nsAndroidClient = nsAndroidClient
         nsClientV3Plugin.lastLoadedSrvModified.collections.foods = 1
-        nsClientV3Plugin.lastLoadedSrvModified.collections.food = 2000
+        whenever(preferences.get(NsclientLongKey.FoodLastLoadedSrvModified)).thenReturn(2000)
         nsClientV3Plugin.newestDataOnServer = LastModified(LastModified.Collections(food = 2000))
         sut = buildSut()
 
@@ -152,7 +153,7 @@ internal class LoadFoodsWorkerTest : TestBaseWithProfile() {
         sut.doWorkAndLog()
 
         verify(nsAndroidClient, never()).getFoodsModifiedSince(any(), any())
-        assertThat(nsClientV3Plugin.lastLoadedSrvModified.collections.food).isEqualTo(3000)
+        verify(preferences).put(NsclientLongKey.FoodLastLoadedSrvModified, 3000)
     }
 
     @Test
