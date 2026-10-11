@@ -3,6 +3,7 @@ package app.aaps.implementation.bolus
 import app.aaps.core.data.configuration.Constants
 import app.aaps.core.data.model.BCR
 import app.aaps.core.data.model.BS
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.model.GlucoseUnit
 import app.aaps.core.data.model.ICfg
 import app.aaps.core.data.model.RM
@@ -307,8 +308,12 @@ class WizardBolusExecutorImpl(
         // Food-derived eCarbs are inputs too: recheck on the master's current limits, including relayed clients.
         if (inputs.eCarbsGrams < 0 || constraintChecker.applyCarbsConstraints(ConstraintObject(inputs.eCarbsGrams, aapsLogger)).value() != inputs.eCarbsGrams)
             return WizardBolusExecutor.PrepareResult.Error(rh.gs(CoreUiStrings.wizard_carbs_constraint))
-        if (inputs.eCarbsGrams > 0 && (inputs.eCarbsDurationHours !in 1..10 || inputs.eCarbsDelayMinutes !in -60..780))
-            return WizardBolusExecutor.PrepareResult.Error(rh.gs(CoreUiStrings.wizard_ecarbs_invalid))
+        // The delay here is the food rule delay plus the wizard carb time, which can be up to 60 min before or after.
+        val delayRange = (FoodECarbsRule.DELAY_MINUTES.first - 60)..(FoodECarbsRule.DELAY_MINUTES.last + 60)
+        if (inputs.eCarbsGrams > 0 && (inputs.eCarbsDurationHours !in FoodECarbsRule.DURATION_HOURS || inputs.eCarbsDelayMinutes !in delayRange))
+            return WizardBolusExecutor.PrepareResult.Error(
+                rh.gs(CoreUiStrings.wizard_ecarbs_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last)
+            )
         val wizard = bolusWizardProvider().doCalc(
             profile, profileName, tempTarget, carbsAfterConstraints, cob, inputs.bg, inputs.directCorrection, inputs.percentage,
             inputs.useBg, inputs.useCob, inputs.useIob, inputs.useIob, false, inputs.useTt, inputs.useTrend, inputs.alarm, inputs.notes, inputs.carbTime

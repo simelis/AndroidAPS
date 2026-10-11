@@ -43,7 +43,12 @@ data class Food(
     var energy: Int? = null, // in kJ
     var unit: String = "g",
     var gi: Int? = null, // not used yet
-    var aapsFoodECarbs: String? = null
+    // Fields below are kept in AAPS only. contentEqualsTo and copyFrom compare and copy the
+    // Nightscout fields, so a Nightscout download never changes them.
+    var eCarbsRuleJson: String? = null,
+    // Saved, deleted or restored in AAPS. Food edits are not uploaded, so the Nightscout copy is
+    // older and SyncNsFoodTransaction must not overwrite this row.
+    var isLocallyEdited: Boolean = false
 
 ) : TraceableDBEntry {
 
@@ -58,7 +63,6 @@ data class Food(
         if (name != other.name) return false
         if (category != other.category) return false
         if (subCategory != other.subCategory) return false
-        if (aapsFoodECarbs != other.aapsFoodECarbs) return false
         return unit == other.unit
     }
 
@@ -74,7 +78,6 @@ data class Food(
         energy = other.energy
         unit = other.unit
         gi = other.gi
-        aapsFoodECarbs = other.aapsFoodECarbs
         interfaceIDs.nightscoutId = other.interfaceIDs.nightscoutId
     }
 }

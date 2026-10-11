@@ -1,7 +1,25 @@
 package app.aaps.database.persistence.converters
 
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.database.entities.Food
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+
+private val ruleJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+}
+
+/** A rule that cannot be read or is not valid is treated as no rule, never as a guessed one. */
+private fun String.toECarbsRule(): FoodECarbsRule? =
+    try {
+        ruleJson.decodeFromString<FoodECarbsRule>(this).takeIf { it.isValid }
+    } catch (_: SerializationException) {
+        null
+    } catch (_: IllegalArgumentException) {
+        null
+    }
 
 fun Food.fromDb(): FD =
     FD(
@@ -20,7 +38,7 @@ fun Food.fromDb(): FD =
         energy = this.energy,
         unit = this.unit,
         gi = this.gi,
-        aapsFoodECarbs = this.aapsFoodECarbs,
+        eCarbsRule = this.eCarbsRuleJson?.toECarbsRule(),
         ids = this.interfaceIDs.fromDb()
     )
 
@@ -41,6 +59,6 @@ fun FD.toDb(): Food =
         energy = this.energy,
         unit = this.unit,
         gi = this.gi,
-        aapsFoodECarbs = this.aapsFoodECarbs,
+        eCarbsRuleJson = this.eCarbsRule?.let { ruleJson.encodeToString(it) },
         interfaceIDs_backing = this.ids.toDb()
     )

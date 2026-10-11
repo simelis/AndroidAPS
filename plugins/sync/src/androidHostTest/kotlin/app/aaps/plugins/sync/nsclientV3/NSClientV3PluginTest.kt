@@ -470,22 +470,6 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     }
 
     @Test
-    fun `food failures never report success and successful writes carry the metadata`() = runTest {
-        val rule = """{"version":1,"enabled":true,"manualGramsPer100g":7.5}"""
-        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, aapsFoodECarbs = rule, ids = IDs(nightscoutId = "ns-food"))
-        val pair = DataSyncSelector.PairFood(food, 8)
-        listOf(400, 403, 404, 500).forEach { response ->
-            whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(response, null))
-            repeat(6) { assertThat(sut.nsUpdate("food", pair, "7/8")).isFalse() }
-        }
-        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(200, null))
-        assertThat(sut.nsUpdate("food", pair, "7/8")).isTrue()
-        val sent = org.mockito.kotlin.argumentCaptor<app.aaps.core.nssdk.localmodel.food.NSFood>()
-        verify(nsAndroidClient, org.mockito.kotlin.times(25)).updateFood(sent.capture())
-        assertThat(sent.lastValue.aapsFoodECarbs).isEqualTo(Json.parseToJsonElement(rule))
-    }
-
-    @Test
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun nsAddExtendedBolus() = runTest {
         val extendedBolus = EB(

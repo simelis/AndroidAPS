@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 37,
-    "identityHash": "83bea6c510394237567cc397d5c3ab02",
+    "identityHash": "c5817a05752d840f7ece1f35b0d0807f",
     "entities": [
       {
         "tableName": "apsResults",
@@ -2455,7 +2455,7 @@
       },
       {
         "tableName": "foods",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `version` INTEGER NOT NULL, `dateCreated` INTEGER NOT NULL, `isValid` INTEGER NOT NULL, `referenceId` INTEGER, `name` TEXT NOT NULL, `category` TEXT, `subCategory` TEXT, `portion` REAL NOT NULL, `carbs` INTEGER NOT NULL, `fat` INTEGER, `protein` INTEGER, `energy` INTEGER, `unit` TEXT NOT NULL, `gi` INTEGER, `aapsFoodECarbs` TEXT, `nightscoutSystemId` TEXT, `nightscoutId` TEXT, `pumpType` TEXT, `pumpSerial` TEXT, `temporaryId` INTEGER, `pumpId` INTEGER, `startId` INTEGER, `endId` INTEGER, FOREIGN KEY(`referenceId`) REFERENCES `foods`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `version` INTEGER NOT NULL, `dateCreated` INTEGER NOT NULL, `isValid` INTEGER NOT NULL, `referenceId` INTEGER, `name` TEXT NOT NULL, `category` TEXT, `subCategory` TEXT, `portion` REAL NOT NULL, `carbs` INTEGER NOT NULL, `fat` INTEGER, `protein` INTEGER, `energy` INTEGER, `unit` TEXT NOT NULL, `gi` INTEGER, `eCarbsRuleJson` TEXT, `isLocallyEdited` INTEGER NOT NULL, `nightscoutSystemId` TEXT, `nightscoutId` TEXT, `pumpType` TEXT, `pumpSerial` TEXT, `temporaryId` INTEGER, `pumpId` INTEGER, `startId` INTEGER, `endId` INTEGER, FOREIGN KEY(`referenceId`) REFERENCES `foods`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
         "fields": [
           {
             "fieldPath": "id",
@@ -2541,9 +2541,15 @@
             "affinity": "INTEGER"
           },
           {
-            "fieldPath": "aapsFoodECarbs",
-            "columnName": "aapsFoodECarbs",
+            "fieldPath": "eCarbsRuleJson",
+            "columnName": "eCarbsRuleJson",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isLocallyEdited",
+            "columnName": "isLocallyEdited",
+            "affinity": "INTEGER",
+            "notNull": true
           },
           {
             "fieldPath": "interfaceIDs_backing.nightscoutSystemId",
@@ -3339,7 +3345,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '83bea6c510394237567cc397d5c3ab02')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c5817a05752d840f7ece1f35b0d0807f')"
     ]
   }
 }

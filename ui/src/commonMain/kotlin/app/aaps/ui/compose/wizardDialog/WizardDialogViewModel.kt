@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.time.T
 import app.aaps.core.data.ue.Sources
 import app.aaps.core.data.ui.ConfirmationLine
@@ -34,7 +35,6 @@ import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.interfaces.Preferences
-import app.aaps.ui.compose.foodManagement.portionWeightGrams
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.extensions.round
 import app.aaps.core.objects.extensions.valueToUnits
@@ -45,6 +45,7 @@ import app.aaps.core.objects.wizard.BolusWizard
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.clientcontrol.failText
 import app.aaps.core.ui.compose.icons.IcCalculator
+import app.aaps.ui.compose.foodManagement.portionWeightGrams
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
@@ -161,8 +162,8 @@ class WizardDialogViewModel(
             }
         }
         val foodState = food?.takeIf { it.portionWeightGrams != null }?.let {
-            val settings = FoodECarbsSettingsStore.loadMetadata(it.aapsFoodECarbs)
-            FoodECarbsState(it, settings = settings).let { state -> state.copy(enabled = settings.isValid && state.hasMacros) }
+            val rule = it.eCarbsRule
+            FoodECarbsState(it, rule = rule ?: FoodECarbsRule()).let { state -> state.copy(enabled = rule != null && state.hasMacros) }
         }
 
         val profileStore = profileRepository.profile.value ?: return
@@ -297,7 +298,7 @@ class WizardDialogViewModel(
     }
 
     fun updateFoodPortionGrams(value: Double) {
-        if (!value.isFinite() || value !in 0.0..10000.0) return
+        if (!value.isFinite() || value !in 0.0..FoodECarbsState.MAX_PORTION_GRAMS) return
         _uiState.update { state ->
             val food = state.foodECarbs?.copy(portionGrams = value, overrideGrams = null) ?: return@update state
             state.copy(carbs = food.carbsGrams, foodECarbs = food)
@@ -310,17 +311,17 @@ class WizardDialogViewModel(
             val food = state.foodECarbs ?: return@update state
             state.copy(
                 carbsType = CarbsType.BREAD,
-                foodECarbs = food.copy(enabled = enabled && food.hasMacros && food.settings.isValid, overrideGrams = null)
+                foodECarbs = food.copy(enabled = enabled && food.hasMacros && food.rule.isValid, overrideGrams = null)
             )
         }
         recalculate()
     }
 
-    fun updateFoodECarbsSettings(settings: FoodECarbsSettings) {
+    fun updateFoodECarbsRule(rule: FoodECarbsRule) {
         _uiState.update { state ->
             val food = state.foodECarbs ?: return@update state
-            val calculationChanged = food.settings.copy(delayMinutes = settings.delayMinutes, durationHours = settings.durationHours) != settings
-            state.copy(foodECarbs = food.copy(settings = settings, overrideGrams = if (calculationChanged) null else food.overrideGrams))
+            val calculationChanged = food.rule.copy(delayMinutes = rule.delayMinutes, durationHours = rule.durationHours) != rule
+            state.copy(foodECarbs = food.copy(rule = rule, overrideGrams = if (calculationChanged) null else food.overrideGrams))
         }
         recalculate()
     }

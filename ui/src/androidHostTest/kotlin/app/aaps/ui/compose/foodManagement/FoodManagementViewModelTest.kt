@@ -1,11 +1,10 @@
 package app.aaps.ui.compose.foodManagement
 
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.logging.AAPSLogger
-import app.aaps.ui.compose.wizardDialog.FoodECarbsMethod
-import app.aaps.ui.compose.wizardDialog.FoodECarbsSettings
-import app.aaps.ui.compose.wizardDialog.FoodECarbsSettingsStore
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,9 +22,9 @@ import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.whenever
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class FoodManagementViewModelTest {
@@ -183,25 +182,23 @@ internal class FoodManagementViewModelTest {
     }
 
     @Test
-    fun `disabling a saved rule writes an explicit tombstone and unrelated edits retain future metadata`() = runTest {
-        val rule = FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3)
-        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, fat = 5, protein = 10,
-            aapsFoodECarbs = FoodECarbsSettingsStore.metadata(rule))
+    fun `disabling a saved rule removes it and unrelated edits keep it`() = runTest {
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, fat = 5, protein = 10, eCarbsRule = rule)
         whenever(persistenceLayer.getFoods()).thenReturn(listOf(food))
         whenever(persistenceLayer.insertOrUpdateFood(any())).thenReturn(PersistenceLayer.TransactionResult())
+        sut.openEditor(food)
+        sut.updateEditorName("Renamed meal")
+        sut.saveFood()
+        advanceUntilIdle()
         sut.openEditor(food)
         sut.updateEditorECarbsEnabled(false)
         sut.saveFood()
         advanceUntilIdle()
-        val future = food.copy(aapsFoodECarbs = """{"version":99,"future":"keep me"}""")
-        sut.openEditor(future)
-        sut.updateEditorName("Renamed meal")
-        sut.saveFood()
-        advanceUntilIdle()
         val saved = argumentCaptor<FD>()
-        verify(persistenceLayer, org.mockito.kotlin.times(2)).insertOrUpdateFood(saved.capture())
-        assertThat(saved.allValues[0].aapsFoodECarbs).contains("\"enabled\":false")
-        assertThat(saved.allValues[1].aapsFoodECarbs).isEqualTo(future.aapsFoodECarbs)
+        verify(persistenceLayer, times(2)).insertOrUpdateFood(saved.capture())
+        assertThat(saved.allValues[0].eCarbsRule).isEqualTo(rule)
+        assertThat(saved.allValues[1].eCarbsRule).isNull()
     }
 
     @Test
@@ -215,8 +212,8 @@ internal class FoodManagementViewModelTest {
         sut.updateEditorCarbs("25")
         sut.updateEditorFat("5")
         sut.updateEditorProtein("10")
-        val rule = FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3, manualGramsPer100g = 7.5)
-        sut.updateEditorECarbsSettings(rule)
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGramsPer100g = 7.5)
+        sut.updateEditorECarbsRule(rule)
         sut.updateEditorECarbsEnabled(true)
         sut.saveFood()
         advanceUntilIdle()
@@ -225,7 +222,7 @@ internal class FoodManagementViewModelTest {
         assertThat(saved.firstValue.portion).isEqualTo(100.0)
         assertThat(saved.firstValue.unit).isEqualTo("g")
         assertThat(saved.firstValue.carbs).isEqualTo(25)
-        assertThat(FoodECarbsSettingsStore.loadMetadata(saved.firstValue.aapsFoodECarbs)).isEqualTo(rule)
+        assertThat(saved.firstValue.eCarbsRule).isEqualTo(rule)
         assertThat(sut.uiState.value.showEditor).isFalse()
     }
 
@@ -245,8 +242,8 @@ internal class FoodManagementViewModelTest {
 
     @Test
     fun `changing protein or fat discards the saved manual equivalent preview`() {
-        sut.updateEditorECarbsSettings(FoodECarbsSettings(durationHours = 3, manualGramsPer100g = 5.0))
+        sut.updateEditorECarbsRule(FoodECarbsRule(durationHours = 3, manualGramsPer100g = 5.0))
         sut.updateEditorProtein("20")
-        assertThat(sut.uiState.value.editorECarbsSettings.manualGramsPer100g).isNull()
+        assertThat(sut.uiState.value.editorECarbsRule.manualGramsPer100g).isNull()
     }
 }

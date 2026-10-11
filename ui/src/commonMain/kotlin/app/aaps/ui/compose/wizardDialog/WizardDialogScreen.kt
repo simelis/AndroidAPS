@@ -214,7 +214,7 @@ fun WizardDialogScreen(
         foodActions = FoodECarbsCallbacks(
             portionGrams = viewModel::updateFoodPortionGrams,
             enabled = viewModel::toggleFoodECarbs,
-            settings = viewModel::updateFoodECarbsSettings,
+            rule = viewModel::updateFoodECarbsRule,
             grams = viewModel::updateFoodECarbsGrams
         )
     )

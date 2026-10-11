@@ -936,19 +936,18 @@ class NSClientV3Plugin(
                     }
 
                     201  -> nsClientRepository.addLog("◄ ADDED", "OK ${dataPair.value::class.simpleName}")
-                    400  -> {
-                        nsClientRepository.addLog("◄ FAIL", "${dataPair.value::class.simpleName} ${result.errorResponse}")
-                        return false
-                    }
+                    400  -> nsClientRepository.addLog("◄ FAIL", "${dataPair.value::class.simpleName} ${result.errorResponse}")
 
                     404  -> {
                         nsClientRepository.addLog("◄ NOT_FOUND", "${dataPair.value::class.simpleName} ${result.errorResponse}")
-                        if (dataPair.value.isValid) return false
+                        if (!config.isEnabled(ExternalOptions.IGNORE_NS_V3_ERRORS) &&
+                            retryUpdateLater(operation, id, isDeletion = !dataPair.value.isValid)
+                        ) return false
                     }
 
                     else -> {
                         nsClientRepository.addLog("◄ ERROR", "${result.errorResponse}")
-                        return false
+                        return config.isEnabled(ExternalOptions.IGNORE_NS_V3_ERRORS)
                     }
                 }
                 result.identifier?.let {

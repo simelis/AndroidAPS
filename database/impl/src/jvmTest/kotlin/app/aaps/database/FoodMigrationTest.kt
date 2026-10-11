@@ -13,9 +13,9 @@ import java.io.File
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 
-class FoodMetadataMigrationTest {
+class FoodMigrationTest {
     @Test
-    fun `upgrading a real version 36 database retains foods and persists rules across reopening`() = runTest {
+    fun `upgrading a real version 36 database keeps foods and stores the new local fields`() = runTest {
         val directory = createTempDirectory("aaps-food-migration")
         val fileName = "$directory/aaps.db"
         val schema = Json.parseToJsonElement(File("src/androidDeviceTest/assets/app.aaps.database.AppDatabase/36.json").readText())
@@ -34,7 +34,7 @@ class FoodMetadataMigrationTest {
             connection.execSQL("INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, fat, protein, unit) VALUES (7, 0, 1000, 1, 'Meal', 100, 25, 5, 10, 'g')")
         }
         val builder = JvmAppDatabaseBuilder()
-        val metadata = """{"version":1,"enabled":true,"manualGramsPer100g":7.5}"""
+        val rule = """{"method":"FPU","durationHours":3}"""
         try {
             val database = builder.provideAppDatabase(fileName)
             try {
@@ -42,12 +42,15 @@ class FoodMetadataMigrationTest {
                 assertThat(food.id).isEqualTo(7)
                 assertThat(food.carbs).isEqualTo(25)
                 assertThat(food.fat).isEqualTo(5)
-                assertThat(food.aapsFoodECarbs).isNull()
-                database.foodDao.updateExistingEntry(food.copy(aapsFoodECarbs = metadata))
+                assertThat(food.eCarbsRuleJson).isNull()
+                assertThat(food.isLocallyEdited).isFalse()
+                database.foodDao.updateExistingEntry(food.copy(eCarbsRuleJson = rule, isLocallyEdited = true))
             } finally { database.close() }
             val reopened = builder.provideAppDatabase(fileName)
             try {
-                assertThat(reopened.foodDao.getFoodData().single().aapsFoodECarbs).isEqualTo(metadata)
+                val food = reopened.foodDao.getFoodData().single()
+                assertThat(food.eCarbsRuleJson).isEqualTo(rule)
+                assertThat(food.isLocallyEdited).isTrue()
             } finally { reopened.close() }
         } finally {
             directory.toFile().deleteRecursively()

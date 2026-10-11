@@ -8,8 +8,11 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.interfaces.resources.TextRefIdRegistry
 import app.aaps.ui.UiStringIds
+import app.aaps.ui.compose.foodManagement.FoodECarbsRuleEditor
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Before
@@ -40,7 +43,7 @@ class FoodECarbsCardTest {
         compose.setContent {
             MaterialTheme {
                 FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal,
-                    settings = FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3))),
+                    rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))),
                     FoodECarbsCallbacks(enabled = { enabled = it }))
             }
         }
@@ -69,7 +72,7 @@ class FoodECarbsCardTest {
                 FoodECarbsCard(
                     WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(
                         meal, portionGrams = 200.0, enabled = true,
-                        settings = FoodECarbsSettings(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
+                        rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
                     )),
                     FoodECarbsCallbacks()
                 )
@@ -86,7 +89,7 @@ class FoodECarbsCardTest {
         compose.setContent {
             MaterialTheme {
                 FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal,
-                    enabled = true, settings = FoodECarbsSettings(durationHours = 0))),
+                    enabled = true, rule = FoodECarbsRule(durationHours = 0))),
                     FoodECarbsCallbacks(enabled = { enabled = it }))
             }
         }
@@ -97,11 +100,11 @@ class FoodECarbsCardTest {
     @Test
     fun foodEditorShowsThePer100GramFormulaAndCanResetAManualEquivalent() {
         val context = RuntimeEnvironment.getApplication()
-        val settings = FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3, manualGramsPer100g = 9.5)
-        var updated = settings
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGramsPer100g = 9.5)
+        var updated = rule
         compose.setContent {
             MaterialTheme {
-                FoodECarbsRuleEditor(meal.copy(portion = 100.0, carbs = 25, protein = 10, fat = 5), true, settings, {}, { updated = it })
+                FoodECarbsRuleEditor(meal.copy(portion = 100.0, carbs = 25, protein = 10, fat = 5), true, rule, {}, { updated = it })
             }
         }
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_per100_calculated, "8.5")).assertExists()

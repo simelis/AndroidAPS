@@ -2,6 +2,7 @@ package app.aaps.database.transactions
 
 import app.aaps.database.entities.Food
 
+/** Deletes the Food locally. Marked as edited in AAPS, so a Nightscout download does not bring it back. */
 class InvalidateFoodTransaction(val id: Long) : Transaction<InvalidateFoodTransaction.TransactionResult>() {
 
     override suspend fun run(): TransactionResult {
@@ -10,6 +11,7 @@ class InvalidateFoodTransaction(val id: Long) : Transaction<InvalidateFoodTransa
             ?: throw IllegalArgumentException("There is no such Food with the specified ID.")
         if (food.isValid) {
             food.isValid = false
+            food.isLocallyEdited = true
             database.foodDao.updateExistingEntry(food)
             result.invalidated.add(food)
         }
