@@ -2,20 +2,35 @@ package app.aaps.ui.compose.wizardDialog
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -32,6 +47,8 @@ import app.aaps.ui.compose.foodManagement.FoodUnknownNutrients
 import app.aaps.ui.compose.foodManagement.fatKnown
 import app.aaps.ui.compose.foodManagement.methodLabel
 import app.aaps.ui.compose.foodManagement.proteinKnown
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 internal data class FoodECarbsCallbacks(
     val portionGrams: (Double) -> Unit = {},
@@ -40,72 +57,122 @@ internal data class FoodECarbsCallbacks(
     val grams: (Int?) -> Unit = {}
 )
 
-/** Apply the stored food rule, with portion and overrides for this meal only. */
+/**
+ * Apply the stored food formula, with portion and overrides for this meal only.
+ *
+ * Kept short on purpose: the weight, one nutrient line, the switch and one result line. Background
+ * text is in the info tooltip, and the per-meal changes are behind "Adjust for this meal".
+ */
 @Composable
 internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallbacks, modifier: Modifier = Modifier) {
     val food = state.foodECarbs ?: return
     // A new meal starts without a weight. That is not a mistake yet, so the problem text waits until the
     // user has entered a weight, and the weight field gets the focus instead.
     var portionEntered by rememberSaveable { mutableStateOf(false) }
+    var adjustExpanded by rememberSaveable { mutableStateOf(false) }
     val portionFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         if (food.portionGrams == 0.0) portionFocus.requestFocus()
     }
+    val hasWeight = food.portionGrams > 0.0
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(Modifier.padding(AapsSpacing.extraLarge), verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
-            Text(food.food.name, style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(UiStrings.food_nutrients_basis))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(food.food.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                FoodInfoButton(food)
+            }
             NumberInputRow(
                 labelRef = UiStrings.food_portion_grams, value = food.portionGrams,
                 onValueChange = {
                     portionEntered = true
                     actions.portionGrams(it)
                 }, valueRange = 0.0..FoodECarbsState.MAX_PORTION_GRAMS,
-                step = 10.0, decimalPlaces = 1, unitLabel = CoreUiStrings.shortgramm,
+                step = 10.0, unitLabel = CoreUiStrings.shortgramm, compact = true,
                 modifier = Modifier.focusRequester(portionFocus)
             )
-            Text(stringResource(UiStrings.food_ecarbs_servings_hint), style = MaterialTheme.typography.bodySmall)
-            Text(stringResource(UiStrings.food_ecarbs_macros,
-                food.carbsGrams,
-                if (food.food.proteinKnown) NumberFormat.DECIMAL_1.format(food.proteinGrams) else stringResource(UiStrings.food_value_unknown),
-                if (food.food.fatKnown) NumberFormat.DECIMAL_1.format(food.fatGrams) else stringResource(UiStrings.food_value_unknown)))
+            // Only real numbers: before a weight is entered every amount would be 0
+            if (hasWeight) {
+                val unknown = stringResource(UiStrings.food_value_unknown)
+                Text(stringResource(UiStrings.food_ecarbs_macros,
+                    food.carbsGrams,
+                    if (food.food.proteinKnown) food.proteinGrams.roundToInt().toString() else unknown,
+                    if (food.food.fatKnown) food.fatGrams.roundToInt().toString() else unknown))
+            }
             // Without a saved formula there is nothing to switch on, so the switch is not shown
             if (food.food.eCarbsRule == null) {
-                Text(stringResource(UiStrings.food_ecarbs_no_rule))
+                Text(stringResource(UiStrings.food_ecarbs_no_rule), style = MaterialTheme.typography.bodySmall)
             } else {
                 FoodECarbsSwitch(UiStrings.food_ecarbs_enable, food.enabled, food.enabled || (food.canUseRule && food.rule.isValid), actions.enabled)
-                if (!food.canUseRule) Text(stringResource(UiStrings.food_ecarbs_missing_macros))
+                if (!food.canUseRule) Text(stringResource(UiStrings.food_ecarbs_missing_macros), style = MaterialTheme.typography.bodySmall)
             }
             if (food.enabled) {
-                val plan = state.carbPlan()
-                FoodUnknownNutrients(food.food, food.rule)
-                food.rule.manualGramsPer100g?.let {
-                    Text(stringResource(UiStrings.food_ecarbs_saved_manual, NumberFormat.DECIMAL_1.format(it)))
+                if (hasWeight) {
+                    val plan = state.carbPlan()
+                    val moved = state.carbs - plan.carbs
+                    Text(
+                        if (moved > 0) stringResource(UiStrings.food_ecarbs_result_split, plan.eCarbs, plan.delayMinutes, plan.durationHours, plan.carbs, moved)
+                        else stringResource(UiStrings.food_ecarbs_result, plan.eCarbs, plan.delayMinutes, plan.durationHours),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    FoodUnknownNutrients(food.food, food.rule)
                 }
-                Text(stringResource(UiStrings.food_ecarbs_saved_method, methodLabel(food.rule.method)))
-                Text(stringResource(UiStrings.food_ecarbs_calculated, food.calculatedGrams))
-                if (food.rule.carbsNowPercent < 100)
-                    Text(stringResource(UiStrings.food_ecarbs_carbs_split, plan.carbs, food.rule.carbsNowPercent, state.carbs - plan.carbs))
-                NumberInputRow(
-                    labelRef = UiStrings.food_ecarbs_amount, value = food.eCarbsGrams.toDouble(),
-                    onValueChange = { actions.grams(it.toInt()) }, valueRange = 0.0..state.maxCarbs.toDouble(),
-                    step = 1.0, unitLabel = CoreUiStrings.shortgramm
-                )
-                if (food.overrideGrams != null) TextButton(onClick = { actions.grams(null) }) {
-                    Text(stringResource(UiStrings.food_ecarbs_use_calculated))
-                }
-                FoodECarbsTiming(food.rule, actions.rule)
-                Text(stringResource(UiStrings.food_ecarbs_preview, plan.carbs, plan.eCarbs,
-                    food.rule.delayMinutes, food.rule.durationHours))
+                // A safety note, so it stays visible rather than in the tooltip
                 Text(stringResource(UiStrings.food_ecarbs_profile_notice), style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { adjustExpanded = !adjustExpanded }) {
+                    Text(stringResource(UiStrings.food_ecarbs_adjust))
+                    Icon(if (adjustExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
+                }
+                if (adjustExpanded) {
+                    NumberInputRow(
+                        labelRef = UiStrings.food_ecarbs_amount, value = food.eCarbsGrams.toDouble(),
+                        onValueChange = { actions.grams(it.toInt()) }, valueRange = 0.0..state.maxCarbs.toDouble(),
+                        step = 1.0, unitLabel = CoreUiStrings.shortgramm, compact = true
+                    )
+                    if (food.overrideGrams != null) TextButton(onClick = { actions.grams(null) }) {
+                        Text(stringResource(UiStrings.food_ecarbs_use_calculated))
+                    }
+                    FoodECarbsTiming(food.rule, actions.rule)
+                }
             }
-            if (!state.foodInputsValid && (portionEntered || food.portionGrams > 0.0)) Text(
+            if (!state.foodInputsValid && (portionEntered || hasWeight)) Text(
                 stringResource(UiStrings.food_ecarbs_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last),
                 color = MaterialTheme.colorScheme.error
             )
+        }
+    }
+}
+
+/** Background for this card that does not need to be on screen all the time. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FoodInfoButton(food: FoodECarbsState) {
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val scope = rememberCoroutineScope()
+    val rule = food.food.eCarbsRule
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+        tooltip = {
+            PlainTooltip {
+                Column(verticalArrangement = Arrangement.spacedBy(AapsSpacing.small)) {
+                    Text(stringResource(UiStrings.food_ecarbs_servings_hint))
+                    if (rule != null) {
+                        val manual = rule.manualGramsPer100g
+                        Text(
+                            if (manual != null) stringResource(UiStrings.food_ecarbs_saved_manual, NumberFormat.DECIMAL_1.format(manual))
+                            else stringResource(UiStrings.food_ecarbs_saved_method, methodLabel(rule.method))
+                        )
+                        Text(stringResource(UiStrings.food_ecarbs_replaces_split))
+                    }
+                }
+            }
+        },
+        state = tooltipState
+    ) {
+        IconButton(onClick = { scope.launch { tooltipState.show() } }) {
+            Icon(Icons.Outlined.Info, contentDescription = stringResource(UiStrings.food_card_info))
         }
     }
 }

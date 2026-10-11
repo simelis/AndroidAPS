@@ -155,8 +155,7 @@ class FoodECarbsCardTest {
             }
         }
         // 80 % of 50 g is 40 g now; the other 10 g join the 17 g from protein and fat
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_carbs_split, 40, 80, 10)).assertExists()
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_preview, 40, 27, 60, 3)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_result_split, 27, 60, 3, 40, 10)).assertExists()
     }
 
     @Test
@@ -172,8 +171,36 @@ class FoodECarbsCardTest {
                 )
             }
         }
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_calculated, 17)).assertExists()
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_preview, 50, 17, 60, 3)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_result, 17, 60, 3)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_macros, 50, "20", "10")).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_profile_notice)).assertExists()
+    }
+
+    @Test
+    fun beforeAWeightIsEnteredNoAmountsAreShown() {
+        val context = RuntimeEnvironment.getApplication()
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal, enabled = true, rule = fpu)), FoodECarbsCallbacks())
+            }
+        }
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_macros, 0, "0", "0")).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_result, 0, 60, 3)).assertDoesNotExist()
+    }
+
+    @Test
+    fun theMealChangesAreClosedUntilAdjustIsTapped() {
+        val context = RuntimeEnvironment.getApplication()
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsCard(WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(
+                    meal, portionGrams = 200.0, enabled = true, rule = fpu)), FoodECarbsCallbacks())
+            }
+        }
+        val delay = context.getString(UiR.string.food_ecarbs_delay)
+        compose.onNodeWithText(delay).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_adjust)).performClick()
+        compose.onNodeWithText(delay).assertExists()
     }
 
     @Test
