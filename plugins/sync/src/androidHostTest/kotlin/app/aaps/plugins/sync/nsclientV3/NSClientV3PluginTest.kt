@@ -504,6 +504,15 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
     }
 
     @Test
+    fun `a food edit that Nightscout rejects is not counted as uploaded`() = runTest {
+        // Counting it as uploaded would let the next download put the older Nightscout copy back
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
+        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(400, null, errorResponse = "Bad request"))
+
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isFalse()
+    }
+
+    @Test
     fun `a food delete that Nightscout already has is done`() = runTest {
         val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, isValid = false, ids = IDs(nightscoutId = "ns-old"))
         whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(410, null))

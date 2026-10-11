@@ -114,8 +114,10 @@ class FoodManagementViewModel(
         _uiState.update { it.copy(searchQuery = query) }
     }
 
-    fun toggleFavourite(food: FD) {
-        val ids = uiState.value.favouriteIds.let { if (food.id in it) it - food.id else it + food.id }
+    fun toggleFavourite(food: FD) = setFavourite(food.id, food.id !in uiState.value.favouriteIds)
+
+    private fun setFavourite(id: Long, favourite: Boolean) {
+        val ids = uiState.value.favouriteIds.let { if (favourite) it + id else it - id }
         preferences.put(StringNonKey.FoodFavourites, ids.sorted().joinToString(","))
         _uiState.update { it.copy(favouriteIds = ids) }
     }
@@ -147,6 +149,7 @@ class FoodManagementViewModel(
                 editorPortion = if (nutrition != null || food == null) "100" else food.portion.toString(),
                 editorUnit = if (nutrition != null || food == null) "g" else food.unit,
                 editorECarbsRule = rule ?: lastSavedRule() ?: FoodECarbsRule(), editorUseECarbs = rule != null && nutrition != null,
+                editorFavourite = food != null && food.id in it.favouriteIds,
                 editorSaveAttempted = false, editorSaving = false, editorSaveFailed = false, showEditor = true
             )
         }
@@ -174,6 +177,7 @@ class FoodManagementViewModel(
             editorCarbs = "", editorFat = "", editorProtein = "", editorEnergy = "", editorUseECarbs = false,
             editorECarbsRule = state.editorECarbsRule.copy(manualGramsPer100g = null))
     }
+    fun updateEditorFavourite(v: Boolean) = _uiState.update { it.copy(editorFavourite = v) }
     fun updateEditorECarbsEnabled(v: Boolean) = _uiState.update { it.copy(editorUseECarbs = v) }
     fun updateEditorECarbsRule(v: FoodECarbsRule) = _uiState.update { it.copy(editorECarbsRule = v) }
 
@@ -211,6 +215,7 @@ class FoodManagementViewModel(
                 check(savedFood != null && savedFood.id > 0) { "Saved food has no database ID" }
                 // A fixed amount per 100 g belongs to one food, so it is not carried to the next one
                 food.eCarbsRule?.let { preferences.put(StringNonKey.FoodLastECarbsRule, it.copy(manualGramsPer100g = null).toJsonString()) }
+                if (state.editorFavourite != (savedFood.id in uiState.value.favouriteIds)) setFavourite(savedFood.id, state.editorFavourite)
                 _uiState.update { it.copy(editorFood = savedFood, showEditor = false) }
                 loadData()
             } catch (e: Exception) {
@@ -291,6 +296,7 @@ data class FoodManagementUiState(
     val editorSaveFailed: Boolean = false,
     val editorUseECarbs: Boolean = false,
     val editorECarbsRule: FoodECarbsRule = FoodECarbsRule(),
+    val editorFavourite: Boolean = false,
     // Undo
     val undoFood: FD? = null,
 ) {

@@ -15,6 +15,7 @@ import app.aaps.plugins.sync.nsclientV3.NSClientV3Plugin
 import app.aaps.plugins.sync.nsclientV3.NsIncomingDataProcessor
 import app.aaps.plugins.sync.nsclientV3.keys.NsclientLongKey
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.CancellationException
 
 /**
  * Loads foods in two ways, because Nightscout has two kinds of food:
@@ -42,11 +43,20 @@ class LoadFoodsRunner(
         val nsAndroidClient = nsClientV3Plugin.nsAndroidClient ?: return WorkOutcome.Failure("AndroidClient is null")
         val loadedUpTo = preferences.get(NsclientLongKey.FoodLastLoadedSrvModified)
 
+        // A failed history read must not also skip the full list below, so it has its own error handling
+        var historyError: Exception? = null
         try {
             // The history needs a starting point, so it begins after the first full read
             if (loadedUpTo != 0L && (nsClientV3Plugin.newestDataOnServer?.collections?.food ?: Long.MAX_VALUE) > loadedUpTo)
                 loadChanges(nsAndroidClient, loadedUpTo)
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            aapsLogger.error("Error: ", error)
+            nsClientRepository.addLog("◄ ERROR", error.message)
+            historyError = error
+        }
 
+        try {
             if (nsClientV3Plugin.lastLoadedSrvModified.collections.foods++ % 5 == 0L) {
                 val foods: List<NSFood> = nsAndroidClient.getFoods(1000).values
                 aapsLogger.debug(LTag.NSCLIENT, "FOODS: $foods")
@@ -67,6 +77,10 @@ class LoadFoodsRunner(
             return WorkOutcome.Failure(error.message ?: "error")
         }
 
+        historyError?.let {
+            nsClientV3Plugin.lastOperationError = it.message
+            return WorkOutcome.Failure(it.message ?: "error")
+        }
         nsClientV3Plugin.lastOperationError = null
         return WorkOutcome.Success
     }

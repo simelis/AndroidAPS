@@ -105,7 +105,7 @@
     <string name="pref_title_ns_upload_data">Upload data to NS</string>
     <string name="pref_summary_ns_upload_data">Upload treatments, temp basals, and other data to Nightscout.</string>
     <string name="pref_title_ns_upload_food">Upload food changes</string>
-    <string name="pref_summary_ns_upload_food">Send food list changes and eCarbs rules to Nightscout, so your other phones get them. Turn on only when all your phones use a build that supports it. When off, food changes stay on this phone.</string>
+    <string name="pref_summary_ns_upload_food">Send food list changes and eCarbs formulas to Nightscout, so your other phones get them. Turn on only when all your phones run the same AAPS version, because an older version can drop parts of a formula. On the main AAPS phone, Upload data to NS must be on too. When off, food changes stay on this phone.</string>
     <string name="pref_title_ns_receive_cgm">Receive CGM data from NS</string>
     <string name="pref_summary_ns_receive_cgm">Accept CGM readings from Nightscout.</string>
     <string name="pref_title_ns_receive_profile_store">Receive profile store from NS</string>

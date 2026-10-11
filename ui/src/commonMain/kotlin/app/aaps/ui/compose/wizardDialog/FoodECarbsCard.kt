@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,7 +29,9 @@ import app.aaps.ui.UiStrings
 import app.aaps.ui.compose.foodManagement.FoodECarbsSwitch
 import app.aaps.ui.compose.foodManagement.FoodECarbsTiming
 import app.aaps.ui.compose.foodManagement.FoodUnknownNutrients
+import app.aaps.ui.compose.foodManagement.fatKnown
 import app.aaps.ui.compose.foodManagement.methodLabel
+import app.aaps.ui.compose.foodManagement.proteinKnown
 
 internal data class FoodECarbsCallbacks(
     val portionGrams: (Double) -> Unit = {},
@@ -39,7 +42,7 @@ internal data class FoodECarbsCallbacks(
 
 /** Apply the stored food rule, with portion and overrides for this meal only. */
 @Composable
-internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallbacks) {
+internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallbacks, modifier: Modifier = Modifier) {
     val food = state.foodECarbs ?: return
     // A new meal starts without a weight. That is not a mistake yet, so the problem text waits until the
     // user has entered a weight, and the weight field gets the focus instead.
@@ -48,7 +51,10 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
     LaunchedEffect(Unit) {
         if (food.portionGrams == 0.0) portionFocus.requestFocus()
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    ) {
         Column(Modifier.padding(AapsSpacing.extraLarge), verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
             Text(food.food.name, style = MaterialTheme.typography.titleMedium)
             Text(stringResource(UiStrings.food_nutrients_basis))
@@ -64,8 +70,8 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
             Text(stringResource(UiStrings.food_ecarbs_servings_hint), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(UiStrings.food_ecarbs_macros,
                 food.carbsGrams,
-                if (food.food.protein == null) "—" else NumberFormat.DECIMAL_1.format(food.proteinGrams),
-                if (food.food.fat == null) "—" else NumberFormat.DECIMAL_1.format(food.fatGrams)))
+                if (food.food.proteinKnown) NumberFormat.DECIMAL_1.format(food.proteinGrams) else stringResource(UiStrings.food_value_unknown),
+                if (food.food.fatKnown) NumberFormat.DECIMAL_1.format(food.fatGrams) else stringResource(UiStrings.food_value_unknown)))
             // Without a saved formula there is nothing to switch on, so the switch is not shown
             if (food.food.eCarbsRule == null) {
                 Text(stringResource(UiStrings.food_ecarbs_no_rule))

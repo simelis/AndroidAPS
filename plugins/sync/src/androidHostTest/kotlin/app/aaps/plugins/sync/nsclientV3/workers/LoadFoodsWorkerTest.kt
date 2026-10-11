@@ -130,6 +130,23 @@ internal class LoadFoodsWorkerTest : TestBaseWithProfile() {
     }
 
     @Test
+    fun `a failed history read still lets the full list load, and the run reports the error`() = runTest(timeout = 30.seconds) {
+        nsClientV3Plugin.nsAndroidClient = nsAndroidClient
+        nsClientV3Plugin.lastLoadedSrvModified.collections.foods = 0 // the full list is due
+        whenever(preferences.get(NsclientLongKey.FoodLastLoadedSrvModified)).thenReturn(1000)
+        nsClientV3Plugin.newestDataOnServer = LastModified(LastModified.Collections(food = 2000))
+        sut = buildSut()
+        whenever(nsAndroidClient.getFoodsModifiedSince(any(), any())).thenThrow(RuntimeException("history down"))
+        whenever(nsAndroidClient.getFoods(anyInt())).thenReturn(NSAndroidClient.ReadResponse(200, 0, emptyList()))
+
+        val result = sut.doWorkAndLog()
+
+        assertIs<ListenableWorker.Result.Failure>(result)
+        verify(nsAndroidClient).getFoods(anyInt())
+        assertThat(nsClientV3Plugin.lastOperationError).isEqualTo("history down")
+    }
+
+    @Test
     fun `the history is not read when the server has nothing newer`() = runTest(timeout = 30.seconds) {
         nsClientV3Plugin.nsAndroidClient = nsAndroidClient
         nsClientV3Plugin.lastLoadedSrvModified.collections.foods = 1
