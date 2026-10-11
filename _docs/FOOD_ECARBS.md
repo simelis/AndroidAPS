@@ -16,7 +16,7 @@ Portion weights and changes made for one meal are never saved.
 ## Storage and Nightscout
 
 - The rule is stored in the food row in the database (`eCarbsRuleJson`, database version 37) and read into a typed `FoodECarbsRule`. A rule that cannot be read, or is not valid, is treated as no rule.
-- Food changes made in AAPS or AAPSClient are uploaded to Nightscout (API v3), and the rule goes with them as the `aapsECarbsRule` field. This needs no change on the Nightscout server; it was tested against Nightscout master.
+- Food changes made in AAPS or AAPSClient are uploaded to Nightscout (API v3) when **Upload food changes** is on in the Nightscout client settings, and the rule goes with them as the `aapsECarbsRule` field. It is off by default: a phone with official AAPS would take over uploaded food changes without the rule, so turn it on only when all your phones use this build. When off, food changes stay on this phone, and turning it on later uploads them. This needs no change on the Nightscout server; it was tested against Nightscout master.
 - A food that you save, delete or restore is marked `isLocallyEdited`. Until that change is uploaded, a Nightscout download does not change the food, because the Nightscout copy is older. After the upload, changes from other devices apply again.
 - Deletes reach the other devices through the Nightscout food history (and the live socket). The plain food list hides deleted foods.
 - If a food was deleted on another device and you restore or edit it here, it is added to Nightscout again as a new food.
