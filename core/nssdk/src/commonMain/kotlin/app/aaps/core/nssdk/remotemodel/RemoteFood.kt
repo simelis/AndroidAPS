@@ -2,6 +2,7 @@ package app.aaps.core.nssdk.remotemodel
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /**
  * Depending on the type, different other fields are present.
@@ -32,6 +33,7 @@ internal data class RemoteFood(
     @SerialName("energy") val energy: Int? = null,
     @SerialName("protein") val protein: Int? = null,
     @SerialName("fat") val fat: Int? = null,
+    @SerialName("aapsFoodECarbs") val aapsFoodECarbs: JsonElement? = null,
     @SerialName("identifier")
     val identifier: String?,       // string Main addressing, required field that identifies document in the collection. The client should not create the identifier, the server automatically assigns it when the document is inserted.
     @SerialName("isValid")

@@ -33,8 +33,8 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.IntKey
-import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.ui.compose.foodManagement.portionWeightGrams
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.extensions.round
 import app.aaps.core.objects.extensions.valueToUnits
@@ -160,8 +160,8 @@ class WizardDialogViewModel(
                 null
             }
         }
-        val foodState = food?.let {
-            val settings = FoodECarbsSettingsStore.load(preferences.get(StringNonKey.FoodECarbsSettings), it.id)
+        val foodState = food?.takeIf { it.portionWeightGrams != null }?.let {
+            val settings = FoodECarbsSettingsStore.loadMetadata(it.aapsFoodECarbs)
             FoodECarbsState(it, settings = settings).let { state -> state.copy(enabled = settings.isValid && state.hasMacros) }
         }
 
@@ -208,7 +208,7 @@ class WizardDialogViewModel(
             WizardDialogUiState(
                 // User inputs
                 bg = currentBg,
-                carbs = foodState?.carbsGrams ?: initialCarbs ?: 0,
+                carbs = foodState?.carbsGrams ?: food?.carbs ?: initialCarbs ?: 0,
                 foodECarbs = foodState,
                 foodUnavailable = foodId != null && food == null,
                 percentage = percentage,

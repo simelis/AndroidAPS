@@ -3,8 +3,6 @@ package app.aaps.ui.compose.foodManagement
 import app.aaps.core.data.model.FD
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.logging.AAPSLogger
-import app.aaps.core.keys.StringNonKey
-import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.ui.compose.wizardDialog.FoodECarbsMethod
 import app.aaps.ui.compose.wizardDialog.FoodECarbsSettings
 import app.aaps.ui.compose.wizardDialog.FoodECarbsSettingsStore
@@ -34,7 +32,6 @@ internal class FoodManagementViewModelTest {
 
     @Mock private lateinit var persistenceLayer: PersistenceLayer
     @Mock private lateinit var aapsLogger: AAPSLogger
-    @Mock private lateinit var preferences: Preferences
 
     private lateinit var sut: FoodManagementViewModel
 
@@ -46,8 +43,7 @@ internal class FoodManagementViewModelTest {
         // cold flow is still built synchronously during init, so it must be stubbed non-null.
         Dispatchers.setMain(StandardTestDispatcher())
         whenever(persistenceLayer.observeChanges(FD::class)).thenReturn(emptyFlow())
-        whenever(preferences.get(StringNonKey.FoodECarbsSettings)).thenReturn("{}")
-        sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
+        sut = FoodManagementViewModel(persistenceLayer, aapsLogger)
     }
 
     @AfterEach
@@ -149,16 +145,63 @@ internal class FoodManagementViewModelTest {
     }
 
     @Test
-    fun `a non mass portion needs an explicit weight and is never assumed to weigh 100 grams`() {
+    fun `non gram foods keep their portion units and nutrients without requiring a gram weight`() {
         sut.openEditor(FD(id = 7, name = "Meal", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10))
-        assertThat(sut.uiState.value.editorNeedsWeight).isTrue()
-        assertThat(sut.uiState.value.editorCanSave).isFalse()
-        sut.updateEditorOriginalWeight("200")
-        assertThat(sut.uiState.value.editorCarbs).isEqualTo("25")
-        assertThat(sut.uiState.value.editorProtein).isEqualTo("10")
+        assertThat(sut.uiState.value.editorUsesGrams).isFalse()
+        assertThat(sut.uiState.value.editorPortion).isEqualTo("2.0")
+        assertThat(sut.uiState.value.editorUnit).isEqualTo("pieces")
+        assertThat(sut.uiState.value.editorCarbs).isEqualTo("50")
+        assertThat(sut.uiState.value.editorProtein).isEqualTo("20")
         assertThat(sut.uiState.value.editorCanSave).isTrue()
-        sut.updateEditorOriginalWeight("NaN")
+        sut.updateEditorPortion("NaN")
         assertThat(sut.uiState.value.editorCanSave).isFalse()
+    }
+
+    @Test
+    fun `switching a food between grams and other units requires fresh nutrients for the new basis`() {
+        sut.openEditor(FD(id = 7, name = "Meal", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10))
+        sut.updateEditorUnit("g")
+        assertThat(sut.uiState.value.editorUsesGrams).isTrue()
+        assertThat(sut.uiState.value.editorPortion).isEqualTo("100")
+        assertThat(sut.uiState.value.editorCarbs).isEmpty()
+        assertThat(sut.uiState.value.editorCanSave).isFalse()
+    }
+
+    @Test
+    fun `saving a non gram food retains its original units and carbs`() = runTest {
+        val food = FD(id = 7, name = "Meal", portion = 2.0, unit = "pieces", carbs = 150, protein = 20, fat = 10)
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food))
+        whenever(persistenceLayer.insertOrUpdateFood(any())).thenReturn(PersistenceLayer.TransactionResult())
+        sut.openEditor(food)
+        sut.saveFood()
+        advanceUntilIdle()
+        val saved = argumentCaptor<FD>()
+        verify(persistenceLayer).insertOrUpdateFood(saved.capture())
+        assertThat(saved.firstValue.portion).isEqualTo(2.0)
+        assertThat(saved.firstValue.unit).isEqualTo("pieces")
+        assertThat(saved.firstValue.carbs).isEqualTo(150)
+    }
+
+    @Test
+    fun `disabling a saved rule writes an explicit tombstone and unrelated edits retain future metadata`() = runTest {
+        val rule = FoodECarbsSettings(method = FoodECarbsMethod.FPU, durationHours = 3)
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, fat = 5, protein = 10,
+            aapsFoodECarbs = FoodECarbsSettingsStore.metadata(rule))
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food))
+        whenever(persistenceLayer.insertOrUpdateFood(any())).thenReturn(PersistenceLayer.TransactionResult())
+        sut.openEditor(food)
+        sut.updateEditorECarbsEnabled(false)
+        sut.saveFood()
+        advanceUntilIdle()
+        val future = food.copy(aapsFoodECarbs = """{"version":99,"future":"keep me"}""")
+        sut.openEditor(future)
+        sut.updateEditorName("Renamed meal")
+        sut.saveFood()
+        advanceUntilIdle()
+        val saved = argumentCaptor<FD>()
+        verify(persistenceLayer, org.mockito.kotlin.times(2)).insertOrUpdateFood(saved.capture())
+        assertThat(saved.allValues[0].aapsFoodECarbs).contains("\"enabled\":false")
+        assertThat(saved.allValues[1].aapsFoodECarbs).isEqualTo(future.aapsFoodECarbs)
     }
 
     @Test
@@ -182,9 +225,7 @@ internal class FoodManagementViewModelTest {
         assertThat(saved.firstValue.portion).isEqualTo(100.0)
         assertThat(saved.firstValue.unit).isEqualTo("g")
         assertThat(saved.firstValue.carbs).isEqualTo(25)
-        val json = argumentCaptor<String>()
-        verify(preferences).put(eq(StringNonKey.FoodECarbsSettings), json.capture())
-        assertThat(FoodECarbsSettingsStore.load(json.firstValue, 19)).isEqualTo(rule)
+        assertThat(FoodECarbsSettingsStore.loadMetadata(saved.firstValue.aapsFoodECarbs)).isEqualTo(rule)
         assertThat(sut.uiState.value.showEditor).isFalse()
     }
 

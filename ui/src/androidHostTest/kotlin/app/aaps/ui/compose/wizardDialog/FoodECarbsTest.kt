@@ -91,6 +91,28 @@ class FoodECarbsTest {
     }
 
     @Test
+    fun `versioned metadata preserves manual values and explicit disabling while unknown versions stay inactive`() {
+        val saved = settings.copy(manualGramsPer100g = 7.5)
+        val metadata = FoodECarbsSettingsStore.metadata(saved, """{"future":"keep"}""")
+        assertThat(FoodECarbsSettingsStore.loadMetadata(metadata)).isEqualTo(saved)
+        assertThat(metadata).contains("\"future\":\"keep\"")
+        val disabled = FoodECarbsSettingsStore.metadata(null, metadata)
+        assertThat(FoodECarbsSettingsStore.loadMetadata(disabled).isValid).isFalse()
+        assertThat(disabled).contains("\"enabled\":false")
+        assertThat(FoodECarbsSettingsStore.loadMetadata("""{"version":99,"enabled":true,"durationHours":3}""").isValid).isFalse()
+        assertThat(FoodECarbsSettingsStore.loadMetadata("false").isValid).isFalse()
+    }
+
+    @Test
+    fun `rule revisions advance only for rule changes and remain monotonic if the clock goes backwards`() {
+        val first = FoodECarbsSettingsStore.metadata(settings, updatedAt = 2000)
+        assertThat(FoodECarbsSettingsStore.metadata(settings, first, updatedAt = 3000)).isEqualTo(first)
+        val edited = FoodECarbsSettingsStore.metadata(settings.copy(manualGramsPer100g = 7.5), first, updatedAt = 1000)
+        assertThat(edited).contains("\"updatedAt\":2001")
+        assertThat(FoodECarbsSettingsStore.metadata(null, edited, updatedAt = 1000)).contains("\"updatedAt\":2002")
+    }
+
+    @Test
     fun `corrupt or unsupported settings revert to unconfigured custom factors`() {
         listOf("", "not json", "[]", """{"7":{"method":"FUTURE","durationHours":3}}""",
             """{"7":{"method":"FPU","durationHours":300}}""",

@@ -152,7 +152,8 @@ class PersistenceLayerImpl(
     private val dateUtil: DateUtil,
     private val config: Config,
     private val apsResultProvider: () -> APSResult,
-    private val fabricPrivacy: FabricPrivacy
+    private val fabricPrivacy: FabricPrivacy,
+    private val foodECarbsMigration: FoodECarbsMigration
 ) : PersistenceLayer {
 
     private suspend fun log(entries: List<UE>) {
@@ -2342,14 +2343,17 @@ class PersistenceLayerImpl(
     }
 
     override suspend fun getFoods(): List<FD> = withContext(aapsIoDispatcher) {
+        foodECarbsMigration.migrate()
         repository.getFoodData().map { it.fromDb() }
     }
 
     override suspend fun getNextSyncElementFood(id: Long): Pair<FD, FD>? = withContext(aapsIoDispatcher) {
+        foodECarbsMigration.migrate()
         repository.getNextSyncElementFood(id)?.let { pair -> Pair(pair.first.fromDb(), pair.second.fromDb()) }
     }
 
     override suspend fun getLastFoodId(): Long? = withContext(aapsIoDispatcher) {
+        foodECarbsMigration.migrate()
         repository.getLastFoodId()
     }
 
@@ -2392,6 +2396,7 @@ class PersistenceLayerImpl(
 
     override suspend fun syncNsFood(foods: List<FD>): PersistenceLayer.TransactionResult<FD> = withContext(aapsIoDispatcher) {
         try {
+            foodECarbsMigration.migrate()
             val result = repository.runTransactionForResultSuspend(SyncNsFoodTransaction(foods.asSequence().map { it.toDb() }.toList()))
             val transactionResult = PersistenceLayer.TransactionResult<FD>()
             val ueValues = mutableListOf<UE>()

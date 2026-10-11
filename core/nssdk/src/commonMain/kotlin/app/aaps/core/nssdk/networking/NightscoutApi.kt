@@ -22,6 +22,8 @@ import io.ktor.http.takeFrom
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * The Nightscout API v3 endpoints, on Ktor.
@@ -196,26 +198,32 @@ internal class NightscoutApi(
             nsUrl("v3", "food"); jsonBody(remoteFood)
         }
 
-    /**
-     * Food update and delete **deliberately do not send a request. Do not "fix" these.**
-     *
-     * The Retrofit versions declared an `{identifier}` parameter that was missing from the path, so
-     * Retrofit refused to build them and no request was ever made - the throw is swallowed by the
-     * broad catch in `NSClientV3Plugin`, and food edits have never synced. The matching endpoint is
-     * broken on the Nightscout side, so sending would not help.
-     *
-     * Writing the "obvious" URL here would turn "never sends" into `PATCH /api/v3/food` and
-     * `DELETE /api/v3/food` **with no identifier** - a request against the whole collection on a
-     * live Nightscout. So the local failure is reproduced on purpose, keeping today's behaviour.
-     * When Nightscout supports these, change both sides together.
-     */
-    @Suppress("UNUSED_PARAMETER")
-    suspend fun updateFood(remoteFood: RemoteFood, identifier: String): NsHttpResponse<RemoteCreateUpdateResponse> =
-        error("v3/food update is not supported by Nightscout - no request is sent, see NightscoutApi.updateFood")
+    /** Patch one food. Omit immutable date/app/device fields and preserve unrelated server extensions. */
+    suspend fun updateFood(remoteFood: RemoteFood, identifier: String): NsHttpResponse<RemoteCreateUpdateResponse> {
+        require(identifier.isNotBlank())
+        val patch = buildJsonObject {
+            put("type", remoteFood.type)
+            put("name", remoteFood.name)
+            put("category", remoteFood.category)
+            put("subcategory", remoteFood.subcategory)
+            put("unit", remoteFood.unit)
+            put("portion", remoteFood.portion)
+            put("carbs", remoteFood.carbs)
+            put("gi", remoteFood.gi)
+            put("energy", remoteFood.energy)
+            put("protein", remoteFood.protein)
+            put("fat", remoteFood.fat)
+            remoteFood.aapsFoodECarbs?.let { put("aapsFoodECarbs", it) }
+        }
+        return call(HttpMethod.Patch, RemoteCreateUpdateResponse.serializer()) {
+            nsUrl("v3", "food", identifier); jsonBody(patch)
+        }
+    }
 
-    @Suppress("UNUSED_PARAMETER")
-    suspend fun deleteFood(identifier: String): NsHttpResponse<RemoteCreateUpdateResponse> =
-        error("v3/food delete is not supported by Nightscout - no request is sent, see NightscoutApi.updateFood")
+    suspend fun deleteFood(identifier: String): NsHttpResponse<RemoteCreateUpdateResponse> {
+        require(identifier.isNotBlank())
+        return call(HttpMethod.Delete, RemoteCreateUpdateResponse.serializer()) { nsUrl("v3", "food", identifier) }
+    }
 
     // ---------------------------------------------------------------- profile
 

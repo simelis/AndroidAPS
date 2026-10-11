@@ -20,6 +20,7 @@ fun Food.fromDb(): FD =
         energy = this.energy,
         unit = this.unit,
         gi = this.gi,
+        aapsFoodECarbs = this.aapsFoodECarbs,
         ids = this.interfaceIDs.fromDb()
     )
 
@@ -40,5 +41,6 @@ fun FD.toDb(): Food =
         energy = this.energy,
         unit = this.unit,
         gi = this.gi,
+        aapsFoodECarbs = this.aapsFoodECarbs,
         interfaceIDs_backing = this.ids.toDb()
     )
