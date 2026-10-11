@@ -25,6 +25,7 @@ Portion weights and changes made for one meal are never saved.
 
 - An update must send only the fields that can change. Nightscout refuses `date`, `app`, `utcOffset`, `identifier` and some other fields in an update when they differ from what it stored. Foods made in the Nightscout web editor have no `date` or `app`, so sending them always fails with 400. This is why food update looked broken before.
 - A missing field in an update keeps the old value on the server, so "no rule" is sent as `aapsECarbsRule: null`.
+- The food download cursor is its own preference (`ns_food_last_loaded_srv_modified`). It is not in the saved Nightscout sync state (`V3LastModified`), because official AAPS reads that state strictly and would fail on a key it does not know.
 - Nightscout names the collection `food`. AAPS used to listen for `foods`, so live food changes never arrived; that is fixed.
 - Foods made or edited in the Nightscout web editor (API v1) have no change time, so they are not in the history. AAPS still reads the full food list every 5th time to find them. The web editor also removes `aapsECarbsRule` when it saves a food, so edit foods with rules in AAPS.
 
@@ -33,6 +34,14 @@ Run the live test against a throwaway Nightscout only, because it writes foods:
 ```
 NS_TEST_URL=http://127.0.0.1:1337 NS_TEST_TOKEN=<token> NS_TEST_API_SECRET=<secret> ./gradlew :core:nssdk:jvmTest --tests "*NightscoutFoodLiveTest"
 ```
+
+## Going back to official AAPS
+
+This build uses database version 37. Official 4.0.0-beta1 is version 36 and cannot read it: Room finds no way back, so it drops every table and starts with an empty database.
+
+To go back, install the fallback build first (branch `v4.0-beta1-fallback`, version name `4.0.0-beta1-fallback`). It is official 4.0.0-beta1 plus one step from 37 back to 36, which removes the two food columns and keeps all other data. Build it with Branch CI from the same fork, so it is signed with the same key and installs over this build without losing data. From the fallback, official builds upgrade as usual.
+
+The food rules are not lost: they are on Nightscout and come back when this build is installed again.
 
 ## Calculation
 
