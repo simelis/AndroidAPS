@@ -3,6 +3,7 @@ package app.aaps.ui.compose.quickLaunch
 import android.content.Context
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -195,6 +196,28 @@ class QuickLaunchConfigScreenTest {
         val offered = viewModel.uiState.value.availableStaticItems.map { it.action }
         assertThat(offered).doesNotContain(QuickLaunchAction.Fill)
         assertThat(offered).contains(QuickLaunchAction.BatteryChange)
+    }
+
+    @Test
+    fun theFoodListIsOfferedAndCanBeAdded() {
+        viewModels.labelOf = { if (it == QuickLaunchAction.Food) "Food" else it.typeId }
+        viewModels.givenSelected(emptyList())
+
+        setScreen()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasContentDescription(addLabelFor("Food")))
+        compose.onNodeWithContentDescription(addLabelFor("Food")).performClick()
+
+        assertThat(storedActions()).containsExactly(QuickLaunchAction.Food, QuickLaunchAction.QuickLaunchConfig).inOrder()
+    }
+
+    @Test
+    fun theFoodListIsNotOfferedOnAnUnpairedClient() {
+        viewModels.labelOf = { if (it == QuickLaunchAction.Food) "Food" else it.typeId }
+        viewModels.asUnpairedClient()
+
+        setScreen()
+
+        compose.onNodeWithContentDescription(addLabelFor("Food")).assertDoesNotExist()
     }
 
     // ---------------------------------------------------------------------------------------------

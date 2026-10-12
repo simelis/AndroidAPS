@@ -1013,7 +1013,6 @@
     <string name="name">Nombre</string>
     <string name="category">Categoría</string>
     <string name="subcategory">Subcategoría</string>
-    <string name="portion">Porción</string>
     <string name="unit_label">Unidad</string>
     <string name="undo">Deshacer</string>
     <string name="no_data">Sin datos</string>

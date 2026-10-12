@@ -87,6 +87,7 @@ import app.aaps.core.ui.compose.CarbTimeRow
 import app.aaps.core.ui.compose.ExpandableRowHeader
 import app.aaps.core.ui.compose.NumberInputRow
 import app.aaps.core.ui.compose.QuickAddButtons
+import app.aaps.core.ui.compose.banner.WarningBanner
 import app.aaps.core.ui.compose.bottomBarSafeArea
 import app.aaps.core.ui.compose.clearFocusOnTap
 import app.aaps.core.ui.compose.consumeOverscroll
@@ -94,6 +95,7 @@ import app.aaps.core.ui.compose.dialogs.ElementConfirmationDialog
 import app.aaps.core.ui.compose.icons.IcBread
 import app.aaps.core.ui.compose.icons.IcCake
 import app.aaps.core.ui.compose.icons.IcPizza
+import app.aaps.core.ui.compose.icons.IcPluginFood
 import app.aaps.core.ui.compose.icons.IcTtManual
 import app.aaps.core.ui.compose.metroViewModel
 import app.aaps.core.ui.compose.navigation.color
@@ -214,7 +216,13 @@ fun WizardDialogScreen(
         onCalculationExpandToggle = viewModel::toggleCalculationExpanded,
         onNavigateBack = onNavigateBack,
         onConfirmClick = { showConfirmation = true },
-        onSettingsClick = { showSettings = true }
+        onSettingsClick = { showSettings = true },
+        foodActions = FoodECarbsCallbacks(
+            amount = viewModel::updateFoodAmount,
+            enabled = viewModel::toggleFoodECarbs,
+            rule = viewModel::updateFoodECarbsRule,
+            grams = viewModel::updateFoodECarbsGrams
+        )
     )
 }
 
@@ -242,7 +250,8 @@ internal fun WizardDialogContent(
     onCalculationExpandToggle: () -> Unit,
     onNavigateBack: () -> Unit,
     onConfirmClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    foodActions: FoodECarbsCallbacks = FoodECarbsCallbacks()
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -283,7 +292,7 @@ internal fun WizardDialogContent(
                     focusManager.clearFocus()
                     onConfirmClick()
                 },
-                enabled = uiState.okVisible,
+                enabled = uiState.okVisible && uiState.foodInputsValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .bottomBarSafeArea()
@@ -351,7 +360,7 @@ internal fun WizardDialogContent(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             // Result summary (always visible)
-                            if (uiState.hasResult && (uiState.totalInsulin > 0.0 || uiState.carbs > 0)) {
+                            if (uiState.hasResult && (uiState.totalInsulin > 0.0 || uiState.carbs > 0 || uiState.eCarbs > 0)) {
                                 if (uiState.totalInsulin > 0.0) {
                                     Text(
                                         text = stringResource(InterfacesStrings.format_insulin_units, uiState.totalInsulin),
@@ -612,6 +621,9 @@ internal fun WizardDialogContent(
                 }
             }
 
+            FoodECarbsCard(uiState, foodActions)
+            if (uiState.foodUnavailable) WarningBanner(message = stringResource(UiStrings.food_ecarbs_unavailable))
+
             // --- All inputs in one card (gap-as-divider pattern) ---
             val itemModifier = Modifier
                 .fillMaxWidth()
@@ -646,6 +658,7 @@ internal fun WizardDialogContent(
                             step = 1.0,
                             unitLabel = TextRef.Literal("g")
                         )
+                        CarbsSplitLine(uiState)
                         QuickAddButtons(
                             increment1 = uiState.carbsButtonIncrement1,
                             increment2 = uiState.carbsButtonIncrement2,
@@ -654,6 +667,9 @@ internal fun WizardDialogContent(
                         )
 
                         // Carbs type selector
+                        val food = uiState.foodECarbs?.takeIf { it.food.eCarbsRule != null }
+                        val foodSelected = food?.enabled == true
+                        val choices = CarbsType.entries.size + if (food != null) 1 else 0
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -665,9 +681,9 @@ internal fun WizardDialogContent(
                             ) {
                                 CarbsType.entries.forEachIndexed { index, type ->
                                     SegmentedButton(
-                                        selected = uiState.carbsType == type,
+                                        selected = !foodSelected && uiState.carbsType == type,
                                         onClick = { onCarbsTypeChange(type) },
-                                        shape = SegmentedButtonDefaults.itemShape(index, CarbsType.entries.size),
+                                        shape = SegmentedButtonDefaults.itemShape(index, choices),
                                         icon = {}
                                     ) {
                                         Icon(
@@ -683,6 +699,19 @@ internal fun WizardDialogContent(
                                         )
                                     }
                                 }
+                                if (food != null) SegmentedButton(
+                                    selected = foodSelected,
+                                    onClick = { foodActions.enabled(true) },
+                                    shape = SegmentedButtonDefaults.itemShape(choices - 1, choices),
+                                    enabled = foodSelected || (food.canUseRule && food.rule.isValid),
+                                    icon = {}
+                                ) {
+                                    Icon(
+                                        imageVector = IcPluginFood,
+                                        contentDescription = stringResource(UiStrings.food_ecarbs_enable),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
 
                             val tooltipState = rememberTooltipState()
@@ -693,7 +722,7 @@ internal fun WizardDialogContent(
                                     PlainTooltip {
                                         Column {
                                             Text(
-                                                text = when (uiState.carbsType) {
+                                                text = if (food != null && foodSelected) food.food.name else when (uiState.carbsType) {
                                                     CarbsType.BREAD -> stringResource(CoreUiStrings.carbs_type_bread)
                                                     CarbsType.CAKE  -> stringResource(CoreUiStrings.carbs_type_cake)
                                                     CarbsType.PIZZA -> stringResource(CoreUiStrings.carbs_type_pizza)
@@ -701,7 +730,7 @@ internal fun WizardDialogContent(
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
-                                                text = carbsTypeEffect(uiState.carbsType),
+                                                text = if (foodSelected) foodFormulaEffect(uiState) else carbsTypeEffect(uiState.carbsType),
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
@@ -740,6 +769,8 @@ internal fun WizardDialogContent(
                         onAlarmChange = onAlarmToggle,
                         modifier = itemModifier
                     )
+                    // Food eCarbs (collapsible, only with the food formula)
+                    FoodECarbsRow(uiState, foodActions, modifier = itemModifier)
                     // BG (collapsible, auto-expand when old/missing)
                     val bgExpandRequester = rememberBringIntoViewOnExpand(bgExpandedByUser)
                     Column(modifier = itemModifier.bringIntoViewRequester(bgExpandRequester)) {

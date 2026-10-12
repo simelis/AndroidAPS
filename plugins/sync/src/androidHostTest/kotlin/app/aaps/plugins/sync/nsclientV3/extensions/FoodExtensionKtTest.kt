@@ -33,4 +33,11 @@ internal class FoodExtensionKtTest {
         assertThat(food.contentEqualsTo(food2)).isTrue()
         assertThat(food.ids.contentEqualsTo(food2.ids)).isTrue()
     }
+
+    @Test
+    fun `a food from Nightscout is asked every time when its unit is a weight`() {
+        val food = FD(name = "Slice", portion = 30.0, unit = "g", carbs = 15, ids = IDs(nightscoutId = "id"))
+        assertThat(food.toNSFood().toFood().askAmount).isTrue()
+        assertThat(food.copy(unit = "pieces").toNSFood().toFood().askAmount).isFalse()
+    }
 }

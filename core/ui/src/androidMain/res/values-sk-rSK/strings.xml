@@ -1020,7 +1020,6 @@
     <string name="name">Názov</string>
     <string name="category">Kategória</string>
     <string name="subcategory">Podkategória</string>
-    <string name="portion">Porcia</string>
     <string name="unit_label">Jednotka</string>
     <string name="undo">Krok späť</string>
     <string name="no_data">Žiadne dáta</string>
