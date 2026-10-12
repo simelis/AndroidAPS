@@ -28,7 +28,7 @@ internal class FoodExtensionKtTest {
             energy = 23,
             unit = "g",
             gi = 25,
-            eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGramsPer100g = 7.5),
+            eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGrams = 7.5),
             ids = IDs(
                 nightscoutId = "nightscoutId"
             )
@@ -46,5 +46,16 @@ internal class FoodExtensionKtTest {
         assertThat((food.toNSFood().convertToRemoteAndBack() as NSFood).toFood().eCarbsRule).isNull()
         assertThat(food.toNSFood().copy(aapsECarbsRule = JsonNull).toFood().eCarbsRule).isNull()
         assertThat(food.toNSFood().copy(aapsECarbsRule = JsonPrimitive("FPU")).toFood().eCarbsRule).isNull()
+    }
+
+    @Test
+    fun `how a food is counted is synced, and a food that does not say is weighed when its unit is a weight`() {
+        val slice = FD(name = "Slice", portion = 30.0, unit = "g", carbs = 15, byWeight = false, ids = IDs(nightscoutId = "id"))
+        val back = (slice.toNSFood().convertToRemoteAndBack() as NSFood).toFood()
+        assertThat(back.byWeight).isFalse()
+        assertThat(back.contentEqualsTo(slice)).isTrue()
+        // Like a food from the Nightscout web editor
+        assertThat(slice.toNSFood().copy(aapsByWeight = null).toFood().byWeight).isTrue()
+        assertThat(slice.copy(unit = "piece").toNSFood().copy(aapsByWeight = null).toFood().byWeight).isFalse()
     }
 }

@@ -20,6 +20,20 @@ class FoodECarbsTest {
     }
 
     @Test
+    fun `a food counted in portions scales by the number of portions, a fixed amount too`() {
+        val slice = FD(id = 8, name = "Slice", portion = 30.0, unit = "g", carbs = 15, protein = 10, fat = 10, byWeight = false)
+        val state = FoodECarbsState(slice, portions = 2.0, enabled = true, rule = rule)
+        assertThat(state.byWeight).isFalse()
+        assertThat(state.carbsGrams).isEqualTo(30)
+        // (4 × 20 + 9 × 20) / 10 = 26
+        assertThat(state.eCarbsGrams).isEqualTo(26)
+        assertThat(state.isValid(100)).isTrue()
+        assertThat(state.copy(rule = rule.copy(manualGrams = 5.0)).eCarbsGrams).isEqualTo(10)
+        assertThat(state.copy(portions = 0.0).isValid(100)).isFalse()
+        assertThat(state.copy(portions = FoodECarbsState.MAX_PORTIONS + 1).isValid(100)).isFalse()
+    }
+
+    @Test
     fun `a new meal state starts without a portion or an override`() {
         val state = FoodECarbsState(meal, rule = rule)
         assertThat(state.enabled).isFalse()
@@ -59,7 +73,7 @@ class FoodECarbsTest {
     @Test
     fun `a fixed amount per 100 gram needs no protein or fat`() {
         val food = FoodECarbsState(meal.copy(protein = null, fat = null), portionGrams = 200.0, enabled = true,
-            rule = rule.copy(manualGramsPer100g = 5.0))
+            rule = rule.copy(manualGrams = 5.0))
         assertThat(food.isValid(100)).isTrue()
         assertThat(food.eCarbsGrams).isEqualTo(10)
     }

@@ -79,7 +79,7 @@ class DataSyncSelectorV3Test : TestBaseWithProfile() {
     fun `food edits upload the rule and a failed write leaves the cursor unchanged`() = runTest {
         whenever(preferences.get(BooleanKey.NsClientUploadFood)).thenReturn(true)
         val original = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
-        val edited = original.copy(eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGramsPer100g = 7.5))
+        val edited = original.copy(eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGrams = 7.5))
         whenever(persistenceLayer.getLastFoodId()).thenReturn(8)
         whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(7)
         whenever(persistenceLayer.getNextSyncElementFood(7)).thenReturn(Pair(edited, original.copy(id = 8)))

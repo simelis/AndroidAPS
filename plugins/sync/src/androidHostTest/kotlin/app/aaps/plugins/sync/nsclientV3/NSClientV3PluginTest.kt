@@ -478,7 +478,7 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
 
     @Test
     fun `a food edit sends the eCarbs rule`() = runTest {
-        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGramsPer100g = 7.5)
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGrams = 7.5)
         val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, eCarbsRule = rule, ids = IDs(nightscoutId = "ns-food"))
         whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(200, null))
 

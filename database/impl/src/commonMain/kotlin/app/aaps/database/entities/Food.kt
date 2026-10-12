@@ -47,7 +47,9 @@ data class Food(
     var eCarbsRuleJson: String? = null,
     // Saved, deleted or restored in AAPS. Kept in AAPS only. Until this change is uploaded, the
     // Nightscout copy is older and SyncNsFoodTransaction must not overwrite this row.
-    var isLocallyEdited: Boolean = false
+    var isLocallyEdited: Boolean = false,
+    // Nutrients per 100 g and weighed in the wizard; false means per portion. Synced as aapsByWeight
+    var byWeight: Boolean = true
 
 ) : TraceableDBEntry {
 
@@ -63,6 +65,7 @@ data class Food(
         if (category != other.category) return false
         if (subCategory != other.subCategory) return false
         if (eCarbsRuleJson != other.eCarbsRuleJson) return false
+        if (byWeight != other.byWeight) return false
         return unit == other.unit
     }
 
@@ -79,6 +82,7 @@ data class Food(
         unit = other.unit
         gi = other.gi
         eCarbsRuleJson = other.eCarbsRuleJson
+        byWeight = other.byWeight
         interfaceIDs.nightscoutId = other.interfaceIDs.nightscoutId
     }
 }

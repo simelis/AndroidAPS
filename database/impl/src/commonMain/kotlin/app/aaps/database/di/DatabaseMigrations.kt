@@ -339,10 +339,16 @@ private val migration35to36 = object : Migration(35, 36) {
     }
 }
 
+/**
+ * Food eCarbs formula, local edit protection, and whether a food is weighed. Existing foods keep the
+ * old rule for the last one: a food in grams or kg is weighed, any other is counted in portions.
+ */
 private val migration36to37 = object : Migration(36, 37) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("ALTER TABLE `$TABLE_FOODS` ADD COLUMN `eCarbsRuleJson` TEXT")
         connection.execSQL("ALTER TABLE `$TABLE_FOODS` ADD COLUMN `isLocallyEdited` INTEGER NOT NULL DEFAULT 0")
+        connection.execSQL("ALTER TABLE `$TABLE_FOODS` ADD COLUMN `byWeight` INTEGER NOT NULL DEFAULT 1")
+        connection.execSQL("UPDATE `$TABLE_FOODS` SET `byWeight` = 0 WHERE LOWER(TRIM(`unit`)) NOT IN ('g', 'gram', 'grams', 'kg')")
         dropCustomIndexes(connection)
     }
 }

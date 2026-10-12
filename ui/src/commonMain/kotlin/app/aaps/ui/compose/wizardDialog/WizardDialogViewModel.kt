@@ -45,7 +45,6 @@ import app.aaps.core.objects.wizard.BolusWizard
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.clientcontrol.failText
 import app.aaps.core.ui.compose.icons.IcCalculator
-import app.aaps.ui.compose.foodManagement.portionWeightGrams
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
@@ -161,7 +160,7 @@ class WizardDialogViewModel(
                 null
             }
         }
-        val foodState = food?.takeIf { it.portionWeightGrams != null }?.let {
+        val foodState = food?.let {
             val rule = it.eCarbsRule
             FoodECarbsState(it, rule = rule ?: FoodECarbsRule()).let { state -> state.copy(enabled = rule != null && state.canUseRule) }
         }
@@ -210,7 +209,7 @@ class WizardDialogViewModel(
                 initialized = true,
                 // User inputs
                 bg = currentBg,
-                carbs = foodState?.carbsGrams ?: food?.carbs ?: initialCarbs ?: 0,
+                carbs = foodState?.carbsGrams ?: initialCarbs ?: 0,
                 foodECarbs = foodState,
                 foodUnavailable = foodId != null && food == null,
                 percentage = percentage,
@@ -303,6 +302,15 @@ class WizardDialogViewModel(
         if (!value.isFinite() || value !in 0.0..FoodECarbsState.MAX_PORTION_GRAMS) return
         _uiState.update { state ->
             val food = state.foodECarbs?.copy(portionGrams = value, overrideGrams = null) ?: return@update state
+            state.copy(carbs = food.carbsGrams, foodECarbs = food)
+        }
+        recalculate()
+    }
+
+    fun updateFoodPortions(value: Double) {
+        if (!value.isFinite() || value !in 0.0..FoodECarbsState.MAX_PORTIONS) return
+        _uiState.update { state ->
+            val food = state.foodECarbs?.copy(portions = value, overrideGrams = null) ?: return@update state
             state.copy(carbs = food.carbsGrams, foodECarbs = food)
         }
         recalculate()

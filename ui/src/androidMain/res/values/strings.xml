@@ -361,10 +361,17 @@
     <string name="food_fat_protein_energy" comment="Short food list line. F=fat, P=protein. %1$s=fat grams, %2$s=protein grams, %3$s=energy in kJ. Example: F: 4 g · P: 5 g · 600 kJ">F: %1$s g · P: %2$s g · %3$s kJ</string>
     <string name="food_portion_grams">Your portion weight</string>
     <string name="food_ecarbs_servings_hint">Your portion weight scales all nutrients and the eCarbs formula. Changing the carbs field below changes only the meal carbs.</string>
+    <string name="food_ecarbs_portions_hint">The number of portions scales all nutrients and the eCarbs formula. Changing the carbs field below changes only the meal carbs.</string>
+    <string name="food_portions">Portions</string>
+    <string name="food_portion_size" comment="Size of one portion of a food. %1$s=portion size, %2$s=unit as typed by the user. Example: 1 portion = 250 ml">1 portion = %1$s %2$s</string>
     <string name="food_nutrients_conversion">Converted nutrients are shown rounded to whole grams. Review before saving on a 100 g basis.</string>
+    <string name="food_by_weight">Nutrients per 100 g</string>
+    <string name="food_by_weight_info">On: enter the nutrients of 100 g. The wizard asks how many grams you eat.
+Off: enter a portion and its unit, for example 1 piece or 250 ml, and the nutrients of that portion. The wizard asks how many portions you eat.</string>
+    <string name="food_basis_changed_weight">Check the values below: they are now the nutrients of 100 g.</string>
+    <string name="food_basis_changed_portion">Check the values below: they are now the nutrients of one portion.</string>
+    <string name="food_more_info">More information</string>
     <string name="food_editor_invalid">Enter a name, unit, positive portion, and non-negative nutrients. For gram entries, nutrients must be within 0–100 g per 100 g. Blank fat/protein means unknown. An enabled eCarbs formula needs the protein or fat it uses.</string>
-    <string name="food_units_hint">Gram entries use nutrients per 100 g. Other units use nutrients per entered portion. Switching between these bases clears nutrient inputs so you can enter the correct values.</string>
-    <string name="food_ecarbs_grams_only">Portion weighing and saved eCarbs formulas are available for food entered in grams. This food opens the wizard with its saved carbs.</string>
     <string name="food_save_failed">Could not save the food and its formula. Please try again.</string>
     <string name="food_ecarbs_macros" comment="Nutrients of this meal. %1$d=carbs in grams, %2$s=protein grams, %3$s=fat grams, — when unknown. Example: 75 g carbs · 30 g protein · 25 g fat">%1$d g carbs · %2$s g protein · %3$s g fat</string>
     <string name="food_ecarbs_enable">Use the eCarbs formula of this food for this meal</string>
@@ -372,9 +379,13 @@
     <string name="food_ecarbs_rule_enable">Save an eCarbs formula for this food</string>
     <string name="food_ecarbs_saved_method" comment="%1$s=name of the calculation method. Example: Saved formula: Custom factors">Saved formula: %1$s</string>
     <string name="food_ecarbs_saved_manual" comment="%1$s=grams with one decimal. Example: Fixed amount: 7.5 g eCarbs per 100 g food">Fixed amount: %1$s g eCarbs per 100 g food</string>
+    <string name="food_ecarbs_saved_manual_portion" comment="%1$s=grams with one decimal. Example: Fixed amount: 7.5 g eCarbs per portion">Fixed amount: %1$s g eCarbs per portion</string>
+    <string name="food_ecarbs_portion_calculated" comment="%1$s=grams with one decimal. Example: 7.5">Formula result per portion: %1$s g eCarbs</string>
     <string name="food_ecarbs_per100_calculated" comment="%1$s=grams with one decimal. Example: 7.5">Formula result per 100 g food: %1$s g eCarbs</string>
     <string name="food_ecarbs_per100_amount">Saved eCarbs per 100 g food</string>
+    <string name="food_ecarbs_portion_amount">Saved eCarbs per portion</string>
     <string name="food_ecarbs_list" comment="Short food list line. %1$s=eCarbs grams per 100 g of food. Example: eCarbs: 7.5 g / 100 g">eCarbs: %1$s g / 100 g</string>
+    <string name="food_ecarbs_list_portion" comment="Short food list line. %1$s=eCarbs grams per portion of the food. Example: eCarbs: 7.5 g / portion">eCarbs: %1$s g / portion</string>
     <string name="food_ecarbs_rule_hint">Saved with this food and applied automatically in the wizard. A manually adjusted value scales with portion weight; use the calculated amount to return to the formula.</string>
     <string name="food_ecarbs_rule_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: Choose a duration of 1–10 h">Choose a duration of %1$d–%2$d h and a valid eCarbs formula before saving.</string>
     <string name="food_ecarbs_missing_macros">This formula needs protein or fat values that the food does not have. Enter them in the Food entry (0 for none), or save a fixed eCarbs amount per 100 g.</string>
