@@ -1016,7 +1016,6 @@
     <string name="name">Pavadinimas</string>
     <string name="category">Kategorija</string>
     <string name="subcategory">Subkategorija</string>
-    <string name="portion">Porcija</string>
     <string name="unit_label">Vienetas</string>
     <string name="undo">Anuliuoti</string>
     <string name="no_data">Nėra duomenų</string>

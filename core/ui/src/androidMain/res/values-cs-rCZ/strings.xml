@@ -1043,7 +1043,6 @@
     <string name="name">Název</string>
     <string name="category">Kategorie</string>
     <string name="subcategory">Podkategorie</string>
-    <string name="portion">Porce</string>
     <string name="unit_label">Jednotka</string>
     <string name="undo">Vrátit zpět</string>
     <string name="no_data">Žádná data</string>
