@@ -1014,7 +1014,6 @@
     <string name="name">名稱</string>
     <string name="category">類別</string>
     <string name="subcategory">子類別</string>
-    <string name="portion">份量</string>
     <string name="unit_label">單位</string>
     <string name="undo">復原</string>
     <string name="no_data">無資料</string>

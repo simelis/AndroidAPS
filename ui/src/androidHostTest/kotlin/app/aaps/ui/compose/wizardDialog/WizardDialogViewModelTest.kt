@@ -152,7 +152,7 @@ internal class WizardDialogViewModelTest {
     }
 
     @Test
-    fun `food navigation applies a saved rule and waits for an explicit portion weight`() = runTest(mainDispatcher.scheduler) {
+    fun `food navigation applies a saved rule and waits for the amount eaten`() = runTest(mainDispatcher.scheduler) {
         val meal = FD(id = 7, name = "Pizza & salad? #1", portion = 200.0, carbs = 50, protein = 20, fat = 10)
         val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
         stubFoodInitialization(meal, rule)
@@ -211,7 +211,7 @@ internal class WizardDialogViewModelTest {
     }
 
     @Test
-    fun `switching food mode and legacy presets never combines both calculations`() = runTest(mainDispatcher.scheduler) {
+    fun `switching between food mode and the presets never combines both calculations`() = runTest(mainDispatcher.scheduler) {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 60, protein = 20, fat = 10))
         advanceUntilIdle()
         sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))

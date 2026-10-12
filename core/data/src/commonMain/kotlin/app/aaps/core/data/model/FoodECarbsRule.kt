@@ -23,8 +23,8 @@ data class FoodECarbsRule(
     val delayMinutes: Int = 0,
     val durationHours: Int = 0,
     /**
-     * Fixed eCarbs per 100 g of a weighed food, or per portion of a food counted in portions. When set,
-     * it is used instead of the formula. The JSON name is kept from when every rule food was weighed.
+     * Fixed eCarbs for the saved amount of the food. When set, it is used instead of the formula. The
+     * JSON name is kept from an earlier version, when the amount was always 100 g.
      */
     @SerialName("manualGramsPer100g") val manualGrams: Double? = null,
     /**
@@ -45,7 +45,7 @@ data class FoodECarbsRule(
      * 0 g, which gives fewer eCarbs, not more.
      */
     fun canUse(proteinKnown: Boolean, fatKnown: Boolean): Boolean = when {
-        manualGrams != null        -> true
+        manualGrams != null               -> true
         method == FoodECarbsMethod.CUSTOM -> (proteinPercent == 0 || proteinKnown) && (fatPercent == 0 || fatKnown)
         else                              -> proteinKnown || fatKnown
     }

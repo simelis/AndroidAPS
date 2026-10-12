@@ -350,8 +350,8 @@
     <string name="food_favourite">Favourite</string>
     <string name="food_favourites">Favourites</string>
     <string name="food_value_unknown" comment="Shown instead of a nutrient amount that is not known">—</string>
-    <string name="food_details_category" comment="Food list line. %1$s=basis, like Per 100 g or 250 ml, %2$s=category. Example: Per 100 g · Snacks">%1$s · %2$s</string>
-    <string name="food_details_subcategory" comment="Food list line. %1$s=basis, like Per 100 g or 250 ml, %2$s=category, %3$s=subcategory. Example: Per 100 g · Snacks / Sweet">%1$s · %2$s / %3$s</string>
+    <string name="food_details_category" comment="Food list line. %1$s=amount and unit of the food, like 100 g or 3 pieces, %2$s=category. Example: 100 g · Snacks">%1$s · %2$s</string>
+    <string name="food_details_subcategory" comment="Food list line. %1$s=amount and unit of the food, like 100 g or 3 pieces, %2$s=category, %3$s=subcategory. Example: 100 g · Snacks / Sweet">%1$s · %2$s / %3$s</string>
     <string name="food_favourites_empty">No favourite foods yet. Tap the star on a food to add it.</string>
     <string name="food_portion_amount" comment="%1$s=portion size, %2$s=unit as typed by the user. Example: 250 ml">%1$s %2$s</string>
     <string name="food_fat_protein" comment="Short food list line. F=fat, P=protein. %1$s=fat grams, %2$s=protein grams, — when unknown. Example: F: 4 g · P: 5 g">F: %1$s g · P: %2$s g</string>
@@ -365,7 +365,7 @@
     <string name="food_ecarbs_amount_calculated" comment="%1$s=amount saved with the food, %2$s=its unit, %3$s=grams with one decimal. Example: Formula result for 100 g: 7.5 g eCarbs">Formula result for %1$s %2$s: %3$s g eCarbs</string>
     <string name="food_ecarbs_amount_fixed" comment="%1$s=amount saved with the food, %2$s=its unit. Example: Saved eCarbs for 100 g">Saved eCarbs for %1$s %2$s</string>
     <string name="food_more_info">More information</string>
-    <string name="food_editor_invalid">Enter a name, unit, positive portion, and non-negative nutrients. For gram entries, nutrients must be within 0–100 g per 100 g. Blank fat/protein means unknown. An enabled eCarbs formula needs the protein or fat it uses.</string>
+    <string name="food_editor_invalid">Enter a name, a unit, a positive amount and the carbs. Nutrients cannot be negative. Blank fat or protein means unknown. An enabled eCarbs formula needs the protein or fat it uses.</string>
     <string name="food_save_failed">Could not save the food and its formula. Please try again.</string>
     <string name="food_ecarbs_macros" comment="Nutrients of this meal. %1$d=carbs in grams, %2$s=protein grams, %3$s=fat grams, — when unknown. Example: 75 g carbs · 30 g protein · 25 g fat">%1$d g carbs · %2$s g protein · %3$s g fat</string>
     <string name="food_ecarbs_enable">Use the eCarbs formula of this food for this meal</string>
@@ -374,9 +374,9 @@
     <string name="food_ecarbs_saved_method" comment="%1$s=name of the calculation method. Example: Saved formula: Custom factors">Saved formula: %1$s</string>
     <string name="food_ecarbs_saved_manual_amount" comment="%1$s=grams with one decimal, %2$s=amount saved with the food, %3$s=its unit as typed by the user. Example: Fixed amount: 7.5 g eCarbs per 3 pieces">Fixed amount: %1$s g eCarbs per %2$s %3$s</string>
     <string name="food_ecarbs_list" comment="Short food list line, for the amount shown next to it. %1$s=eCarbs grams. Example: eCarbs: 7.5 g">eCarbs: %1$s g</string>
-    <string name="food_ecarbs_rule_hint">Saved with this food and applied automatically in the wizard. A manually adjusted value scales with portion weight; use the calculated amount to return to the formula.</string>
+    <string name="food_ecarbs_rule_hint">Saved with this food and applied automatically in the wizard. A value changed by hand is a fixed eCarbs amount for the saved amount of the food; use the calculated amount to go back to the formula.</string>
     <string name="food_ecarbs_rule_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: Choose a duration of 1–10 h">Choose a duration of %1$d–%2$d h and a valid eCarbs formula before saving.</string>
-    <string name="food_ecarbs_missing_macros">This formula needs protein or fat values that the food does not have. Enter them in the Food entry (0 for none), or save a fixed eCarbs amount per 100 g.</string>
+    <string name="food_ecarbs_missing_macros">This formula needs protein or fat values that the food does not have. Enter them in the Food entry (0 for none), or save a fixed eCarbs amount.</string>
     <string name="food_ecarbs_protein_unknown">Protein is not known and is counted as 0 g.</string>
     <string name="food_ecarbs_fat_unknown">Fat is not known and is counted as 0 g.</string>
     <string name="food_ecarbs_carbs_now">Carbs counted in the bolus now</string>
@@ -399,6 +399,6 @@
     <string name="food_ecarbs_use_calculated">Use calculated amount</string>
     <string name="food_ecarbs_delay">Delay after carb time</string>
     <string name="food_ecarbs_duration">Spread eCarbs over</string>
-    <string name="food_ecarbs_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: 1–10 h">Enter a positive portion weight. Carbs and eCarbs must each be within the carb limit; the food must have the protein or fat its formula needs. Choose a duration of %1$d–%2$d h when food eCarbs are enabled.</string>
+    <string name="food_ecarbs_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: 1–10 h">Enter a positive amount eaten. Carbs and eCarbs must each be within the carb limit; the food must have the protein or fat its formula needs. Choose a duration of %1$d–%2$d h when food eCarbs are enabled.</string>
     <string name="food_ecarbs_unavailable">This Food entry could not be loaded. Close the wizard and select the food again.</string>
 </resources>

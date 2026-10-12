@@ -57,7 +57,7 @@ class FoodECarbsTest {
     }
 
     @Test
-    fun `zero carbohydrate food can have eCarbs without dividing by its carbohydrate amount`() {
+    fun `a food without carbs can still have eCarbs`() {
         val food = FoodECarbsState(meal.copy(carbs = 0), amount = 200.0, enabled = true, rule = rule)
         assertThat(food.isValid(100)).isTrue()
         assertThat(food.carbsGrams).isEqualTo(0)

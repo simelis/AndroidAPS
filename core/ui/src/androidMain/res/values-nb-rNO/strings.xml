@@ -1015,7 +1015,6 @@
     <string name="name">Navn</string>
     <string name="category">Kategori</string>
     <string name="subcategory">Underkategori</string>
-    <string name="portion">Porsjon</string>
     <string name="unit_label">Enhet</string>
     <string name="undo">Angre</string>
     <string name="no_data">Ingen data</string>

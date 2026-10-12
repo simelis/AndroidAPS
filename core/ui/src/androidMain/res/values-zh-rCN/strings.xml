@@ -991,7 +991,6 @@
     <string name="name">名称</string>
     <string name="category">类别</string>
     <string name="subcategory">子类别</string>
-    <string name="portion">份量</string>
     <string name="unit_label">单位</string>
     <string name="undo">撤销</string>
     <string name="no_data">没有数据</string>

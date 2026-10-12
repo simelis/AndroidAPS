@@ -988,7 +988,6 @@
     <string name="name">Nom</string>
     <string name="category">Catégorie</string>
     <string name="subcategory">Sous-catégorie</string>
-    <string name="portion">Portion</string>
     <string name="unit_label">Unité</string>
     <string name="undo">Annuler</string>
     <string name="no_data">Aucune donnée</string>

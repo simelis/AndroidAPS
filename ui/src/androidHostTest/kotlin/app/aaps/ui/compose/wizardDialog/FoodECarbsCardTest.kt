@@ -73,7 +73,7 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun theProblemShowsOnceAWrongWeightIsEntered() {
+    fun theProblemShowsOnceAWrongAmountIsEntered() {
         val context = RuntimeEnvironment.getApplication()
         var portion: Double? = null
         compose.setContent {
@@ -93,7 +93,7 @@ class FoodECarbsCardTest {
         context.getString(UiR.string.food_ecarbs_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last)
 
     @Test
-    fun missingMacrosDisableTheSwitchAndExplainWhatToEnter() {
+    fun missingMacrosDisableTheFoodChoiceAndExplainWhatToEnter() {
         val context = RuntimeEnvironment.getApplication()
         val state = WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null, protein = null), rule = fpu))
         compose.setContent {
@@ -109,7 +109,7 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun aFoodWithoutASavedFormulaShowsNoSwitch() {
+    fun aFoodWithoutASavedFormulaShowsNoFoodChoice() {
         val context = RuntimeEnvironment.getApplication()
         val state = WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = null)))
         compose.setContent {
@@ -178,7 +178,7 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun beforeAWeightIsEnteredNoAmountsAreShown() {
+    fun beforeAnAmountIsEnteredNoNutrientsAreShown() {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {

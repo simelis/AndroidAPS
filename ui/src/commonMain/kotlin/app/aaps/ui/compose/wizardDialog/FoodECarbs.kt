@@ -7,7 +7,7 @@ import kotlin.math.roundToInt
 
 data class WizardCarbPlan(val carbs: Int, val eCarbs: Int, val delayMinutes: Int, val durationHours: Int)
 
-/** Food mode replaces the old percentage preset; it must never add both estimates for the same meal. */
+/** Food mode replaces the bread, dumplings and pizza split; it must never add both estimates for the same meal. */
 fun WizardDialogUiState.carbPlan(): WizardCarbPlan {
     val food = foodECarbs
     return if (food?.enabled == true) {

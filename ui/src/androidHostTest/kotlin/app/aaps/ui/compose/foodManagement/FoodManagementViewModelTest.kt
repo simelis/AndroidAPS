@@ -9,6 +9,7 @@ import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
 import com.google.common.truth.Truth.assertThat
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
@@ -159,7 +160,7 @@ internal class FoodManagementViewModelTest {
     }
 
     @Test
-    fun `non gram foods keep their portion units and nutrients without requiring a gram weight`() {
+    fun `foods in pieces keep their unit and nutrients and need no weight`() {
         sut.openEditor(FD(id = 7, name = "Meal", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10))
         assertThat(sut.uiState.value.editorPortion).isEqualTo("2")
         assertThat(sut.uiState.value.editorUnit).isEqualTo("pieces")
@@ -168,6 +169,19 @@ internal class FoodManagementViewModelTest {
         assertThat(sut.uiState.value.editorCanSave).isTrue()
         sut.updateEditorPortion("NaN")
         assertThat(sut.uiState.value.editorCanSave).isFalse()
+    }
+
+    @Test
+    fun `an amount with decimals opens unchanged and can be saved on a comma locale`() {
+        val locale = Locale.getDefault()
+        Locale.setDefault(Locale.forLanguageTag("lt"))
+        try {
+            sut.openEditor(FD(id = 7, name = "Meal", portion = 2.25, unit = "pieces", carbs = 50))
+            assertThat(sut.uiState.value.editorPortion).isEqualTo("2.25")
+            assertThat(sut.uiState.value.editorCanSave).isTrue()
+        } finally {
+            Locale.setDefault(locale)
+        }
     }
 
     @Test
@@ -224,7 +238,7 @@ internal class FoodManagementViewModelTest {
     }
 
     @Test
-    fun `saving a non gram food retains its original units and carbs`() = runTest {
+    fun `saving a food in pieces keeps its unit and carbs`() = runTest {
         val food = FD(id = 7, name = "Meal", portion = 2.0, unit = "pieces", carbs = 150, protein = 20, fat = 10)
         whenever(persistenceLayer.getFoods()).thenReturn(listOf(food))
         whenever(persistenceLayer.insertOrUpdateFood(any())).thenReturn(PersistenceLayer.TransactionResult())
@@ -259,7 +273,7 @@ internal class FoodManagementViewModelTest {
     }
 
     @Test
-    fun `saving a new food stores its 100 gram nutrients and manual rule under the assigned ID`() = runTest {
+    fun `saving a new food stores its nutrients and fixed amount under the assigned ID`() = runTest {
         whenever(persistenceLayer.getFoods()).thenReturn(emptyList())
         val inserted = FD(id = 19, name = "Meal", portion = 100.0, carbs = 25, fat = 5, protein = 10)
         val result = PersistenceLayer.TransactionResult<FD>().apply { this.inserted.add(inserted) }
@@ -377,7 +391,7 @@ internal class FoodManagementViewModelTest {
     }
 
     @Test
-    fun `a fixed amount per 100 gram saves without protein and fat`() {
+    fun `a fixed amount saves without protein and fat`() {
         sut.openEditor()
         sut.updateEditorName("Sauce")
         sut.updateEditorCarbs("10")
@@ -406,7 +420,7 @@ internal class FoodManagementViewModelTest {
     }
 
     @Test
-    fun `changing protein or fat discards the saved manual equivalent preview`() {
+    fun `changing protein or fat clears the fixed amount`() {
         sut.updateEditorECarbsRule(FoodECarbsRule(durationHours = 3, manualGrams = 5.0))
         sut.updateEditorProtein("20")
         assertThat(sut.uiState.value.editorECarbsRule.manualGrams).isNull()

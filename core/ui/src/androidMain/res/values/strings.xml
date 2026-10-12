@@ -1081,7 +1081,6 @@
     <string name="name">Name</string>
     <string name="category">Category</string>
     <string name="subcategory">Subcategory</string>
-    <string name="portion">Portion</string>
     <string name="unit_label">Unit</string>
     <string name="undo">Undo</string>
     <string name="no_data">No data</string>

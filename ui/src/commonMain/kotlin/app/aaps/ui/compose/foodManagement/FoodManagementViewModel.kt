@@ -146,7 +146,7 @@ class FoodManagementViewModel(
                 editorFat = food?.fat?.toString() ?: "",
                 editorProtein = food?.protein?.toString() ?: "",
                 editorEnergy = food?.energy?.toString() ?: "",
-                editorPortion = food?.portion?.formatAmount() ?: "100",
+                editorPortion = food?.portion?.toEditText() ?: "100",
                 editorUnit = food?.unit ?: "g",
                 editorECarbsRule = rule ?: lastSavedRule() ?: FoodECarbsRule(), editorUseECarbs = rule != null,
                 editorFavourite = food != null && food.id in it.favouriteIds,

@@ -23,7 +23,7 @@ internal fun FoodECarbsCardNewMealPreview() {
 
 @Preview(showBackground = true)
 @Composable
-internal fun FoodECarbsCardWithWeightPreview() {
+internal fun FoodECarbsCardWithAmountPreview() {
     MaterialTheme {
         FoodECarbsCard(
             state = WizardDialogUiState(

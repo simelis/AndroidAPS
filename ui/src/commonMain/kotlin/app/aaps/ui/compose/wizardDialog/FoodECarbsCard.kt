@@ -52,13 +52,11 @@ internal data class FoodECarbsCallbacks(
 )
 
 /**
- * Apply the stored food formula, with portion and overrides for this meal only.
+ * Apply the stored food formula, with the amount eaten and changes for this meal only.
  *
- * Kept short on purpose: the weight (or the amount in the food's unit) and one nutrient line. The formula
- * itself is chosen next to bread, dumplings and pizza ([CarbsTypeSelector]), and the split is shown under
- * the carbs field ([CarbsSplitLine]).
- * Background text is in the info tooltip, and the eCarbs amount and timing are a row of the wizard
- * inputs ([FoodECarbsRow]).
+ * Shows the amount eaten and one nutrient line. The formula is chosen next to bread, dumplings and pizza
+ * ([CarbsTypeSelector]), the split is shown under the carbs field ([CarbsSplitLine]), and the eCarbs
+ * amount and timing are a row of the wizard inputs ([FoodECarbsRow]). Background text is in the tooltip.
  */
 @Composable
 internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallbacks, modifier: Modifier = Modifier) {
