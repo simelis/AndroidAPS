@@ -386,6 +386,16 @@ private val migration36to37 = object : Migration(36, 37) {
     }
 }
 
+private val migration37to38 = object : Migration(37, 38) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `$TABLE_FOODS` ADD COLUMN `eCarbsRuleJson` TEXT")
+        connection.execSQL("ALTER TABLE `$TABLE_FOODS` ADD COLUMN `askAmount` INTEGER NOT NULL DEFAULT 1")
+        // Existing foods keep the old behaviour: only a food in g or kg asks for the amount every time
+        connection.execSQL("UPDATE `$TABLE_FOODS` SET `askAmount` = 0 WHERE LOWER(TRIM(`unit`)) NOT IN ('g', 'gram', 'grams', 'kg')")
+        dropCustomIndexes(connection)
+    }
+}
+
 /** Every migration, in order. Passed to the Room builder by each platform. */
 internal val databaseMigrations: Array<Migration> = arrayOf(
     migration22to23,
@@ -403,4 +413,5 @@ internal val databaseMigrations: Array<Migration> = arrayOf(
     migration34to35,
     migration35to36,
     migration36to37,
+    migration37to38,
 )

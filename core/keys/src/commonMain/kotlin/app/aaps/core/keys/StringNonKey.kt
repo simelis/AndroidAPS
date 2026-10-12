@@ -73,6 +73,9 @@ enum class StringNonKey(
     // sync publisher/receiver in :plugins:sync can observe it without an inter-module dependency.
     AutomationEvents(key = "AUTOMATION_EVENTS", defaultValue = "", sync = SyncSpec(SyncChannel.Cold, SyncDirection.Bidirectional)),
     QuickLaunchActions(key = "quick_launch_actions", defaultValue = "[{\"type\":\"wizard\"},{\"type\":\"quick_launch_config\"}]"),
+    FoodLastECarbsRule(key = "food_last_ecarbs_rule", defaultValue = ""),
+    // Not exportable: the food IDs belong to this database and point at other foods after a reinstall
+    FoodFavourites(key = "food_favourites", defaultValue = "", exportable = false),
     InsulinConfiguration("insulin_configuration", "{}", sync = SyncSpec(SyncChannel.Cold, SyncDirection.Bidirectional)),
     ComposeGraphConfig("compose_graphconfig", ""),
     // The tab the Statistics screen opens on: the last one used (per-device UI state, not a user-facing preference)

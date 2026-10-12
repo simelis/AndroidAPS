@@ -1016,7 +1016,6 @@
     <string name="name">Nume</string>
     <string name="category">Categorie</string>
     <string name="subcategory">Subcategorie</string>
-    <string name="portion">Porție</string>
     <string name="unit_label">Unitate</string>
     <string name="undo">Anulați</string>
     <string name="no_data">Lipsă date</string>
