@@ -20,17 +20,22 @@ class FoodECarbsTest {
     }
 
     @Test
-    fun `a food counted in portions scales by the number of portions, a fixed amount too`() {
+    fun `a food that is not weighed scales by the amount eaten in its own unit, a fixed amount too`() {
         val slice = FD(id = 8, name = "Slice", portion = 30.0, unit = "g", carbs = 15, protein = 10, fat = 10, byWeight = false)
-        val state = FoodECarbsState(slice, portions = 2.0, enabled = true, rule = rule)
+        // Starts at the saved amount, so a usual meal is taken as it is
+        assertThat(FoodECarbsState(slice).amount).isEqualTo(30.0)
+        assertThat(FoodECarbsState(slice).carbsGrams).isEqualTo(15)
+        val state = FoodECarbsState(slice, amount = 60.0, enabled = true, rule = rule)
         assertThat(state.byWeight).isFalse()
         assertThat(state.carbsGrams).isEqualTo(30)
         // (4 × 20 + 9 × 20) / 10 = 26
         assertThat(state.eCarbsGrams).isEqualTo(26)
         assertThat(state.isValid(100)).isTrue()
         assertThat(state.copy(rule = rule.copy(manualGrams = 5.0)).eCarbsGrams).isEqualTo(10)
-        assertThat(state.copy(portions = 0.0).isValid(100)).isFalse()
-        assertThat(state.copy(portions = FoodECarbsState.MAX_PORTIONS + 1).isValid(100)).isFalse()
+        assertThat(state.copy(amount = 0.0).isValid(100)).isFalse()
+        assertThat(state.copy(amount = state.maxAmount + 1).isValid(100)).isFalse()
+        assertThat(state.amountStep).isEqualTo(10.0)
+        assertThat(FoodECarbsState(slice.copy(portion = 3.0, unit = "pieces")).amountStep).isEqualTo(0.5)
     }
 
     @Test

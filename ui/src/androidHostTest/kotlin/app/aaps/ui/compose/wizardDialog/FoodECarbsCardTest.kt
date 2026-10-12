@@ -222,17 +222,17 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun aFoodCountedInPortionsAsksForPortionsNotForAWeight() {
+    fun aFoodNotWeighedAsksForTheAmountInItsOwnUnitNotForAWeight() {
         val context = RuntimeEnvironment.getApplication()
-        val slice = meal.copy(portion = 1.0, unit = "slice", byWeight = false)
+        val slice = meal.copy(portion = 3.0, unit = "slices", byWeight = false)
         compose.setContent {
             MaterialTheme {
                 FoodECarbsCard(WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(slice, rule = fpu, enabled = true)),
                     FoodECarbsCallbacks())
             }
         }
-        compose.onNodeWithText(context.getString(UiR.string.food_portions)).assertExists()
-        compose.onNodeWithText(context.getString(UiR.string.food_portion_size, "1", "slice")).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_amount_eaten)).assertExists()
+        compose.onNodeWithText("slices").assertExists()
         compose.onNodeWithText(context.getString(UiR.string.food_portion_grams)).assertDoesNotExist()
         compose.onNodeWithText(invalidText(context)).assertDoesNotExist()
     }
