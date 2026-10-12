@@ -28,6 +28,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import app.aaps.core.data.format.NumberFormat
 import app.aaps.core.data.model.FoodECarbsRule
+import app.aaps.core.keys.interfaces.TextRef
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.AapsSpacing
 import app.aaps.core.ui.compose.NumberInputRow
@@ -45,7 +46,7 @@ import kotlin.math.roundToInt
 
 internal data class FoodECarbsCallbacks(
     val portionGrams: (Double) -> Unit = {},
-    val portions: (Double) -> Unit = {},
+    val amount: (Double) -> Unit = {},
     val enabled: (Boolean) -> Unit = {},
     val rule: (FoodECarbsRule) -> Unit = {},
     val grams: (Int?) -> Unit = {}
@@ -54,7 +55,7 @@ internal data class FoodECarbsCallbacks(
 /**
  * Apply the stored food formula, with portion and overrides for this meal only.
  *
- * Kept short on purpose: the weight (or the number of portions), one nutrient line and the switch.
+ * Kept short on purpose: the weight (or the amount in the food's unit), one nutrient line and the switch.
  * Background text is in the info tooltip, and the eCarbs amount and timing are a row of the wizard
  * inputs ([FoodECarbsRow]).
  */
@@ -86,20 +87,15 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                 }, valueRange = 0.0..FoodECarbsState.MAX_PORTION_GRAMS,
                 step = 10.0, unitLabel = CoreUiStrings.shortgramm, compact = true,
                 modifier = Modifier.focusRequester(portionFocus)
-            ) else {
-                NumberInputRow(
-                    labelRef = UiStrings.food_portions, value = food.portions,
-                    onValueChange = {
-                        portionEntered = true
-                        actions.portions(it)
-                    }, valueRange = 0.0..FoodECarbsState.MAX_PORTIONS,
-                    step = FoodECarbsState.PORTIONS_STEP, decimalPlaces = 1, compact = true
-                )
-                Text(
-                    stringResource(UiStrings.food_portion_size, food.food.portion.formatPortion(), food.food.unit),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+            // Starts at the amount saved with the food, so a usual meal is taken as it is
+            ) else NumberInputRow(
+                labelRef = UiStrings.food_amount_eaten, value = food.amount,
+                onValueChange = {
+                    portionEntered = true
+                    actions.amount(it)
+                }, valueRange = 0.0..food.maxAmount, step = food.amountStep,
+                decimalPlaces = if (food.amountStep < 1.0) 1 else 0, unitLabel = TextRef.Literal(food.food.unit), compact = true
+            )
             // Only real numbers: before a weight is entered every amount would be 0
             if (hasWeight) {
                 val unknown = stringResource(UiStrings.food_value_unknown)
@@ -183,15 +179,17 @@ internal fun FoodECarbsRow(state: WizardDialogUiState, actions: FoodECarbsCallba
 private fun FoodInfoButton(food: FoodECarbsState) {
     val rule = food.food.eCarbsRule
     InfoTooltipButton(stringResource(UiStrings.food_card_info)) {
-        Text(stringResource(if (food.byWeight) UiStrings.food_ecarbs_servings_hint else UiStrings.food_ecarbs_portions_hint))
+        Text(stringResource(if (food.byWeight) UiStrings.food_ecarbs_servings_hint else UiStrings.food_ecarbs_amount_hint))
         if (rule != null) {
             val manual = rule.manualGrams
             Text(
-                if (manual != null) stringResource(
-                    if (food.byWeight) UiStrings.food_ecarbs_saved_manual else UiStrings.food_ecarbs_saved_manual_portion,
-                    NumberFormat.DECIMAL_1.format(manual)
-                )
-                else stringResource(UiStrings.food_ecarbs_saved_method, methodLabel(rule.method))
+                when {
+                    manual == null -> stringResource(UiStrings.food_ecarbs_saved_method, methodLabel(rule.method))
+                    food.byWeight  -> stringResource(UiStrings.food_ecarbs_saved_manual, NumberFormat.DECIMAL_1.format(manual))
+                    else           -> stringResource(
+                        UiStrings.food_ecarbs_saved_manual_amount, NumberFormat.DECIMAL_1.format(manual), food.food.portion.formatPortion(), food.food.unit
+                    )
+                }
             )
             Text(stringResource(UiStrings.food_ecarbs_how_to_change))
         }

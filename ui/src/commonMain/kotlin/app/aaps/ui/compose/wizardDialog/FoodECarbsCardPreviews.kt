@@ -62,14 +62,14 @@ internal fun FoodECarbsRowPreview() {
 
 @Preview(showBackground = true)
 @Composable
-internal fun FoodECarbsCardPortionsPreview() {
+internal fun FoodECarbsCardAmountPreview() {
     MaterialTheme {
         FoodECarbsCard(
             state = WizardDialogUiState(
                 carbs = 30, maxCarbs = 100,
                 foodECarbs = FoodECarbsState(
-                    previewFood.copy(name = "Pizza slice", portion = 1.0, unit = "slice", byWeight = false),
-                    portions = 2.0, enabled = true, rule = previewRule
+                    previewFood.copy(name = "Pizza", portion = 3.0, unit = "slices", byWeight = false),
+                    enabled = true, rule = previewRule
                 )
             ),
             actions = FoodECarbsCallbacks()

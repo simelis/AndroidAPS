@@ -170,20 +170,20 @@ internal class WizardDialogViewModelTest {
     }
 
     @Test
-    fun `foods counted in portions start at one portion and scale carbs and eCarbs by the portions`() = runTest(mainDispatcher.scheduler) {
+    fun `foods that are not weighed start at their saved amount and scale carbs and eCarbs by the amount eaten`() = runTest(mainDispatcher.scheduler) {
         val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
         stubFoodInitialization(FD(id = 7, name = "Two slices", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10), rule)
         advanceUntilIdle()
         val food = sut.uiState.value.foodECarbs!!
         assertThat(food.byWeight).isFalse()
-        assertThat(food.portions).isEqualTo(1.0)
+        assertThat(food.amount).isEqualTo(2.0)
         assertThat(food.enabled).isTrue()
         assertThat(sut.uiState.value.carbs).isEqualTo(50)
         assertThat(sut.uiState.value.notes).isEqualTo("Two slices")
         assertThat(sut.uiState.value.foodInputsValid).isTrue()
 
-        // (4 × 40 + 9 × 20) / 10 = 34
-        sut.updateFoodPortions(2.0)
+        // 4 pieces is twice the saved 2: (4 × 40 + 9 × 20) / 10 = 34
+        sut.updateFoodAmount(4.0)
         assertThat(sut.uiState.value.carbs).isEqualTo(100)
         assertThat(sut.uiState.value.eCarbs).isEqualTo(34)
     }
