@@ -1,5 +1,7 @@
 package app.aaps.plugins.sync.nsclientV3.ws
 
+import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.IDs
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
@@ -138,7 +140,7 @@ class NsFrameHandler(
                 storeDataForDb.requestStoreTreatments(fullSync = false)
             }
 
-            "foods"        -> decode(collection, raw) { docString.toNSFood() }?.let {
+            "food"         -> decode(collection, raw) { docString.toNSFood() }?.let {
                 nsIncomingDataProcessor().processFood(listOf(it))
                 storeDataForDb.requestStoreFoods()
             }
@@ -218,6 +220,12 @@ class NsFrameHandler(
             "entries"    -> if (nsIncomingDataProcessor().acceptsGlucose(doFullSync = false)) {
                 storeDataForDb.addToDeleteGlucoseValue(identifier)
                 storeDataForDb.requestUpdateDeletedGlucoseValues()
+            }
+
+            // A delete has only the id. The empty fields are not copied, only the food is marked deleted
+            "food"       -> if (identifier.isNotEmpty()) {
+                storeDataForDb.addToFoods(mutableListOf(FD(isValid = false, name = "", portion = 0.0, carbs = 0, ids = IDs(nightscoutId = identifier))))
+                storeDataForDb.requestStoreFoods()
             }
         }
     }

@@ -42,7 +42,8 @@ data class Food(
     var protein: Int? = null, // in grams
     var energy: Int? = null, // in kJ
     var unit: String = "g",
-    var gi: Int? = null // not used yet
+    var gi: Int? = null, // not used yet
+    var isLocallyEdited: Boolean = false // changed in AAPS: NS must not overwrite it until uploaded
 
 ) : TraceableDBEntry {
 

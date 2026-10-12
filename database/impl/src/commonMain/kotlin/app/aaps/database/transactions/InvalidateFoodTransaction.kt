@@ -10,6 +10,7 @@ class InvalidateFoodTransaction(val id: Long) : Transaction<InvalidateFoodTransa
             ?: throw IllegalArgumentException("There is no such Food with the specified ID.")
         if (food.isValid) {
             food.isValid = false
+            food.isLocallyEdited = true
             database.foodDao.updateExistingEntry(food)
             result.invalidated.add(food)
         }

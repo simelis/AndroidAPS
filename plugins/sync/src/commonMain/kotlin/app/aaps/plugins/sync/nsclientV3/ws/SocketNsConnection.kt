@@ -220,6 +220,6 @@ class SocketNsConnection(
 
     private companion object {
 
-        val COLLECTIONS = listOf("devicestatus", "entries", "profile", "treatments", "foods", "settings")
+        val COLLECTIONS = listOf("devicestatus", "entries", "profile", "treatments", "food", "settings")
     }
 }
