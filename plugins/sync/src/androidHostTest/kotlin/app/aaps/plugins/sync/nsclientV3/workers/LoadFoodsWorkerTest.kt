@@ -160,17 +160,24 @@ internal class LoadFoodsWorkerTest : TestBaseWithProfile() {
     }
 
     @Test
-    fun `the first full read starts the history at the server time`() = runTest(timeout = 30.seconds) {
+    fun `the first load reads the whole history, so deletes made before it are seen`() = runTest(timeout = 30.seconds) {
         nsClientV3Plugin.nsAndroidClient = nsAndroidClient
         nsClientV3Plugin.lastLoadedSrvModified.collections.foods = 0
         nsClientV3Plugin.newestDataOnServer = LastModified(LastModified.Collections(food = 3000))
         sut = buildSut()
+        val deleted = NSFood(name = "Apple", portion = 100.0, carbs = 13, unit = "g", date = now, identifier = "some", isValid = false)
+        whenever(nsAndroidClient.getFoodsModifiedSince(0, NSClientV3Plugin.RECORDS_TO_LOAD))
+            .thenReturn(NSAndroidClient.ReadResponse(200, 2500, listOf(deleted)))
         whenever(nsAndroidClient.getFoods(anyInt())).thenReturn(NSAndroidClient.ReadResponse(200, 0, emptyList()))
 
-        sut.doWorkAndLog()
+        val result = sut.doWorkAndLog()
 
-        verify(nsAndroidClient, never()).getFoodsModifiedSince(any(), any())
-        verify(preferences).put(NsclientLongKey.FoodLastLoadedSrvModified, 3000)
+        assertIs<ListenableWorker.Result.Success>(result)
+        verify(nsIncomingDataProcessor).processFood(argThat<List<NSFood>> { singleOrNull()?.isValid == false })
+        verify(nsAndroidClient).getFoods(anyInt())
+        // The cursor follows the history, never jumps to the newest server time
+        verify(preferences).put(NsclientLongKey.FoodLastLoadedSrvModified, 2500)
+        verify(preferences, never()).put(NsclientLongKey.FoodLastLoadedSrvModified, 3000)
     }
 
     @Test

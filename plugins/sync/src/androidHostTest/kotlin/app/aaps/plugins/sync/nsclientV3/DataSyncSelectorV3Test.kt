@@ -60,6 +60,19 @@ class DataSyncSelectorV3Test : TestBaseWithProfile() {
         verify(nsClientV3Plugin, Times(0)).nsAdd(any(), any(), any(), anyOrNull())
         verify(nsClientV3Plugin, Times(0)).nsUpdate(any(), any(), any(), anyOrNull())
         verify(preferences, Times(0)).put(eq(NsclientLongKey.FoodLastSyncedId), any<Long>())
+        // Not uploaded, so they must stay protected
+        verify(persistenceLayer, Times(0)).clearUploadedFoodEdits(any())
+    }
+
+    @Test
+    fun `after the uploads, uploaded food edits follow Nightscout again`() = runTest {
+        whenever(preferences.get(BooleanKey.NsClientUploadFood)).thenReturn(true)
+        whenever(persistenceLayer.getLastFoodId()).thenReturn(8)
+        whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(8)
+
+        sut.processChangedFoods()
+
+        verify(persistenceLayer).clearUploadedFoodEdits(8)
     }
 
     @Test
