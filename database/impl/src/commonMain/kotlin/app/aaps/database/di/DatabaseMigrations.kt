@@ -7,6 +7,7 @@ import app.aaps.database.entities.TABLE_APS_RESULTS
 import app.aaps.database.entities.TABLE_BOLUSES
 import app.aaps.database.entities.TABLE_CALIBRATION_ENTRIES
 import app.aaps.database.entities.TABLE_EFFECTIVE_PROFILE_SWITCHES
+import app.aaps.database.entities.TABLE_FOODS
 import app.aaps.database.entities.TABLE_GLUCOSE_VALUES
 import app.aaps.database.entities.TABLE_HEART_RATE
 import app.aaps.database.entities.TABLE_PREFERENCE_CHANGES
@@ -338,6 +339,13 @@ private val migration35to36 = object : Migration(35, 36) {
     }
 }
 
+private val migration36to37 = object : Migration(36, 37) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `$TABLE_FOODS` ADD COLUMN `isLocallyEdited` INTEGER NOT NULL DEFAULT 0")
+        dropCustomIndexes(connection)
+    }
+}
+
 /** Every migration, in order. Passed to the Room builder by each platform. */
 internal val databaseMigrations: Array<Migration> = arrayOf(
     migration22to23,
@@ -354,4 +362,5 @@ internal val databaseMigrations: Array<Migration> = arrayOf(
     migration33to34,
     migration34to35,
     migration35to36,
+    migration36to37,
 )

@@ -2,6 +2,7 @@ package app.aaps.plugins.sync.nsclientV3
 
 import app.aaps.core.data.model.BS
 import app.aaps.core.data.model.CA
+import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.IDs
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.nsclient.NSClientRepository
@@ -25,6 +26,7 @@ import org.mockito.Mock
 import org.mockito.internal.verification.Times
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
@@ -43,6 +45,47 @@ class DataSyncSelectorV3Test : TestBaseWithProfile() {
     fun setUp() {
         storeDataForDb = StoreDataForDbImpl(aapsLogger, persistenceLayer, preferences, config, nsClientRepository, CoroutineScope(SupervisorJob() + Dispatchers.Unconfined))
         sut = DataSyncSelectorV3(preferences, aapsLogger, dateUtil, profileFunction, activePlugin, profileRepository, persistenceLayer, storeDataForDb, config, nsClientRepository) { nsClientV3Plugin }
+    }
+
+    @Test
+    fun `after the uploads, uploaded food edits follow Nightscout again`() = runTest {
+        whenever(persistenceLayer.getLastFoodId()).thenReturn(8)
+        whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(8)
+
+        sut.processChangedFoods()
+
+        verify(persistenceLayer).clearUploadedFoodEdits(8)
+    }
+
+    @Test
+    fun `food edits are uploaded and a failed write leaves the cursor unchanged`() = runTest {
+        val original = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
+        val edited = original.copy(carbs = 30)
+        whenever(persistenceLayer.getLastFoodId()).thenReturn(8)
+        whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(7)
+        whenever(persistenceLayer.getNextSyncElementFood(7)).thenReturn(Pair(edited, original.copy(id = 8)))
+        whenever(nsClientV3Plugin.nsUpdate(eq("food"), any(), any(), anyOrNull())).thenReturn(false)
+        sut.processChangedFoods()
+        verify(preferences, Times(0)).put(NsclientLongKey.FoodLastSyncedId, 8)
+        val sent = argumentCaptor<DataSyncSelector.DataPair>()
+        verify(nsClientV3Plugin).nsUpdate(eq("food"), sent.capture(), any(), anyOrNull())
+        assertThat((sent.firstValue as DataSyncSelector.PairFood).value.carbs).isEqualTo(30)
+        clearInvocations(preferences, nsClientV3Plugin)
+        whenever(persistenceLayer.getNextSyncElementFood(7)).thenReturn(Pair(edited, original.copy(id = 8)), null)
+        whenever(nsClientV3Plugin.nsUpdate(eq("food"), any(), any(), anyOrNull())).thenReturn(true)
+        sut.processChangedFoods()
+        verify(preferences).put(NsclientLongKey.FoodLastSyncedId, 8)
+    }
+
+    @Test
+    fun `foods imported from Nightscout are not uploaded as new foods`() = runTest {
+        val imported = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
+        whenever(persistenceLayer.getLastFoodId()).thenReturn(7)
+        whenever(persistenceLayer.getNextSyncElementFood(any())).thenReturn(Pair(imported, imported), null)
+        sut.processChangedFoods()
+        verify(nsClientV3Plugin, Times(0)).nsAdd(any(), any(), any(), anyOrNull())
+        verify(nsClientV3Plugin, Times(0)).nsUpdate(any(), any(), any(), anyOrNull())
+        verify(preferences).put(NsclientLongKey.FoodLastSyncedId, 7)
     }
 
     @Test
@@ -126,16 +169,13 @@ class DataSyncSelectorV3Test : TestBaseWithProfile() {
         whenever(preferences.get(NsclientLongKey.TemporaryTargetLastSyncedId)).thenReturn(1)
         sut.confirmLastTempTargetsIdIfGreater(2)
         verify(preferences, Times(1)).put(NsclientLongKey.TemporaryTargetLastSyncedId, 2)
-// NSCv3 doesn't support food update
-        /*
-                // Food
-                whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(2)
-                sut.confirmLastFoodIdIfGreater(2)
-                verify(preferences, Times(0)).put(NsclientLongKey.FoodLastSyncedId, 2)
-                whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(1)
-                sut.confirmLastFoodIdIfGreater(2)
-                verify(preferences, Times(1)).put(NsclientLongKey.FoodLastSyncedId, 2)
-         */
+        // Food
+        whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(2)
+        sut.confirmLastFoodIdIfGreater(2)
+        verify(preferences, Times(0)).put(NsclientLongKey.FoodLastSyncedId, 2)
+        whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(1)
+        sut.confirmLastFoodIdIfGreater(2)
+        verify(preferences, Times(1)).put(NsclientLongKey.FoodLastSyncedId, 2)
         // GlucoseValue
         whenever(preferences.get(NsclientLongKey.GlucoseValueLastSyncedId)).thenReturn(2)
         sut.confirmLastGlucoseValueIdIfGreater(2)
@@ -236,8 +276,8 @@ class DataSyncSelectorV3Test : TestBaseWithProfile() {
 
     @Test
     fun queueSizeTest() {
-        // All counters initialized to -1, so total should be -13 (13 fields)
-        assertThat(sut.queueSize()).isEqualTo(-13)
+        // All counters initialized to -1, so total should be -14 (14 fields)
+        assertThat(sut.queueSize()).isEqualTo(-14)
     }
 
     @Test
@@ -491,46 +531,44 @@ class DataSyncSelectorV3Test : TestBaseWithProfile() {
     }
 
     // Tests for processChangedFoods
-    /*
-    // NSCv3 doesn't support food update
-        @Test
-        fun processChangedFoodsWhenPausedTest() = runTest {
-            whenever(preferences.get(NsclientBooleanKey.NsPaused)).thenReturn(true)
-            whenever(persistenceLayer.getLastFoodId()).thenReturn(10L)
-            whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(5L)
+    @Test
+    fun processChangedFoodsWhenPausedTest() = runTest {
+        whenever(preferences.get(NsclientBooleanKey.NsPaused)).thenReturn(true)
+        whenever(persistenceLayer.getLastFoodId()).thenReturn(10L)
+        whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(5L)
 
-            sut.processChangedFoods()
+        sut.processChangedFoods()
 
-            verify(persistenceLayer, Times(0)).getNextSyncElementFood(any())
-            Unit
-        }
+        verify(persistenceLayer, Times(0)).getNextSyncElementFood(any())
+        Unit
+    }
 
-        @Test
-        fun processChangedFoodsAfterDbResetTest() = runTest {
-            whenever(persistenceLayer.getLastFoodId()).thenReturn(0)
-            whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(1)
-            whenever(persistenceLayer.getNextSyncElementFood(0)).thenReturn(null)
+    @Test
+    fun processChangedFoodsAfterDbResetTest() = runTest {
+        whenever(persistenceLayer.getLastFoodId()).thenReturn(0)
+        whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(1)
+        whenever(persistenceLayer.getNextSyncElementFood(0)).thenReturn(null)
 
-            sut.processChangedFoods()
+        sut.processChangedFoods()
 
-            verify(preferences, Times(1)).put(NsclientLongKey.FoodLastSyncedId, 0)
-            verify(nsClientV3Plugin, Times(0)).nsAdd(any(), any(), any(), anyOrNull())
-            Unit
-        }
+        verify(preferences, Times(1)).put(NsclientLongKey.FoodLastSyncedId, 0)
+        verify(nsClientV3Plugin, Times(0)).nsAdd(any(), any(), any(), anyOrNull())
+        Unit
+    }
 
-        // Tests for processChangedGlucoseValues
-        @Test
-        fun processChangedGlucoseValuesWhenPausedTest() = runTest {
-            whenever(preferences.get(NsclientBooleanKey.NsPaused)).thenReturn(true)
-            whenever(persistenceLayer.getLastGlucoseValueId()).thenReturn(10L)
-            whenever(preferences.get(NsclientLongKey.GlucoseValueLastSyncedId)).thenReturn(5L)
+    // Tests for processChangedGlucoseValues
+    @Test
+    fun processChangedGlucoseValuesWhenPausedTest() = runTest {
+        whenever(preferences.get(NsclientBooleanKey.NsPaused)).thenReturn(true)
+        whenever(persistenceLayer.getLastGlucoseValueId()).thenReturn(10L)
+        whenever(preferences.get(NsclientLongKey.GlucoseValueLastSyncedId)).thenReturn(5L)
 
-            sut.processChangedGlucoseValues()
+        sut.processChangedGlucoseValues()
 
-            verify(persistenceLayer, Times(0)).getNextSyncElementGlucoseValue(any())
-            Unit
-        }
-    */
+        verify(persistenceLayer, Times(0)).getNextSyncElementGlucoseValue(any())
+        Unit
+    }
+
     @Test
     fun processChangedGlucoseValuesAfterDbResetTest() = runTest {
         whenever(persistenceLayer.getLastGlucoseValueId()).thenReturn(0)

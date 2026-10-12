@@ -22,6 +22,8 @@ import io.ktor.http.takeFrom
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * The Nightscout API v3 endpoints, on Ktor.
@@ -186,10 +188,18 @@ internal class NightscoutApi(
 
     // ---------------------------------------------------------------- food
 
+    private val foodListSerializer = NSResponse.serializer(ListSerializer(RemoteFood.serializer()))
+
     suspend fun getFoods(limit: Int) =
-        call(HttpMethod.Get, NSResponse.serializer(ListSerializer(RemoteFood.serializer()))) {
+        call(HttpMethod.Get, foodListSerializer) {
             nsUrl("v3", "food") { encodedParameters.append("limit", limit.toString()) }
         }
+
+    suspend fun getFoodsModifiedSince(from: Long, limit: Int) = call(HttpMethod.Get, foodListSerializer) {
+        nsUrl("v3", "food", "history", from.toString()) {
+            encodedParameters.append("limit", limit.toString())
+        }
+    }
 
     suspend fun createFood(remoteFood: RemoteFood) =
         call(HttpMethod.Post, RemoteCreateUpdateResponse.serializer()) {
@@ -197,25 +207,30 @@ internal class NightscoutApi(
         }
 
     /**
-     * Food update and delete **deliberately do not send a request. Do not "fix" these.**
-     *
-     * The Retrofit versions declared an `{identifier}` parameter that was missing from the path, so
-     * Retrofit refused to build them and no request was ever made - the throw is swallowed by the
-     * broad catch in `NSClientV3Plugin`, and food edits have never synced. The matching endpoint is
-     * broken on the Nightscout side, so sending would not help.
-     *
-     * Writing the "obvious" URL here would turn "never sends" into `PATCH /api/v3/food` and
-     * `DELETE /api/v3/food` **with no identifier** - a request against the whole collection on a
-     * live Nightscout. So the local failure is reproduced on purpose, keeping today's behaviour.
-     * When Nightscout supports these, change both sides together.
+     * Only fields a client may change: Nightscout refuses a PATCH of fixed fields like `date`.
+     * A removed value is sent as `null`, because a missing field keeps the old value.
      */
-    @Suppress("UNUSED_PARAMETER")
-    suspend fun updateFood(remoteFood: RemoteFood, identifier: String): NsHttpResponse<RemoteCreateUpdateResponse> =
-        error("v3/food update is not supported by Nightscout - no request is sent, see NightscoutApi.updateFood")
+    suspend fun updateFood(remoteFood: RemoteFood, identifier: String): NsHttpResponse<RemoteCreateUpdateResponse> {
+        val patch = buildJsonObject {
+            put("type", remoteFood.type)
+            put("name", remoteFood.name)
+            put("category", remoteFood.category)
+            put("subcategory", remoteFood.subcategory)
+            put("unit", remoteFood.unit)
+            put("portion", remoteFood.portion)
+            put("carbs", remoteFood.carbs)
+            put("gi", remoteFood.gi)
+            put("energy", remoteFood.energy)
+            put("protein", remoteFood.protein)
+            put("fat", remoteFood.fat)
+        }
+        return call(HttpMethod.Patch, RemoteCreateUpdateResponse.serializer()) {
+            nsUrl("v3", "food", identifier); jsonBody(patch)
+        }
+    }
 
-    @Suppress("UNUSED_PARAMETER")
     suspend fun deleteFood(identifier: String): NsHttpResponse<RemoteCreateUpdateResponse> =
-        error("v3/food delete is not supported by Nightscout - no request is sent, see NightscoutApi.updateFood")
+        call(HttpMethod.Delete, RemoteCreateUpdateResponse.serializer()) { nsUrl("v3", "food", identifier) }
 
     // ---------------------------------------------------------------- profile
 

@@ -2353,6 +2353,11 @@ class PersistenceLayerImpl(
         repository.getLastFoodId()
     }
 
+    override suspend fun clearUploadedFoodEdits(uploadedUpTo: Long): Unit = withContext(aapsIoDispatcher) {
+        val cleared = repository.clearUploadedFoodEdits(uploadedUpTo)
+        if (cleared > 0) aapsLogger.debug(LTag.DATABASE, "Foods uploaded, following Nightscout again: $cleared")
+    }
+
     override suspend fun insertOrUpdateFood(food: FD): PersistenceLayer.TransactionResult<FD> = withContext(aapsIoDispatcher) {
         try {
             val result = repository.runTransactionForResultSuspend(InsertOrUpdateFoodTransaction(food.toDb()))
@@ -2390,9 +2395,9 @@ class PersistenceLayerImpl(
         }
     }
 
-    override suspend fun syncNsFood(foods: List<FD>): PersistenceLayer.TransactionResult<FD> = withContext(aapsIoDispatcher) {
+    override suspend fun syncNsFood(foods: List<FD>, lastUploadedId: Long): PersistenceLayer.TransactionResult<FD> = withContext(aapsIoDispatcher) {
         try {
-            val result = repository.runTransactionForResultSuspend(SyncNsFoodTransaction(foods.asSequence().map { it.toDb() }.toList()))
+            val result = repository.runTransactionForResultSuspend(SyncNsFoodTransaction(foods.asSequence().map { it.toDb() }.toList(), lastUploadedId))
             val transactionResult = PersistenceLayer.TransactionResult<FD>()
             val ueValues = mutableListOf<UE>()
             result.inserted.forEach {

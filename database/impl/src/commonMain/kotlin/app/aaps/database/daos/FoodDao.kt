@@ -33,6 +33,16 @@ internal interface FoodDao : TraceableDao<Food> {
     @Query("SELECT * FROM $TABLE_FOODS WHERE id > :id ORDER BY id ASC limit 1")
     suspend fun getNextModifiedOrNewAfter(id: Long): Food?
 
+    @Query("SELECT MAX(id) FROM $TABLE_FOODS WHERE id = :id OR referenceId = :id")
+    suspend fun getLastChangeId(id: Long): Long?
+
     @Query("SELECT * FROM $TABLE_FOODS WHERE id = :referenceId")
     suspend fun getCurrentFromHistoric(referenceId: Long): Food?
+
+    // Only the flag changes: no history row is made, so nothing is uploaded again
+    @Query(
+        "UPDATE $TABLE_FOODS SET isLocallyEdited = 0 WHERE isLocallyEdited = 1 AND referenceId IS NULL AND id <= :uploadedUpTo " +
+            "AND NOT EXISTS (SELECT 1 FROM $TABLE_FOODS AS newer WHERE newer.referenceId = $TABLE_FOODS.id AND newer.id > :uploadedUpTo)"
+    )
+    suspend fun clearUploadedEdits(uploadedUpTo: Long): Int
 }

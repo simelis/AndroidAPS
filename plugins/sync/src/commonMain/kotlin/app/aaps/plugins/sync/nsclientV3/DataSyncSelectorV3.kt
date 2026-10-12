@@ -44,8 +44,7 @@ class DataSyncSelectorV3(
         var carbsRemaining: Long = -1L,
         var bcrRemaining: Long = -1L,
         var ttsRemaining: Long = -1L,
-// NSCv3 doesn't support food update
-//        var foodsRemaining: Long = -1L,
+        var foodsRemaining: Long = -1L,
         var gvsRemaining: Long = -1L,
         var calsRemaining: Long = -1L,
         var tesRemaining: Long = -1L,
@@ -62,8 +61,7 @@ class DataSyncSelectorV3(
                 carbsRemaining +
                 bcrRemaining +
                 ttsRemaining +
-// NSCv3 doesn't support food update
-//                foodsRemaining +
+                foodsRemaining +
                 gvsRemaining +
                 calsRemaining +
                 tesRemaining +
@@ -89,8 +87,7 @@ class DataSyncSelectorV3(
             queueCounter.carbsRemaining = (persistenceLayer.getLastCarbsId() ?: 0L) - preferences.get(NsclientLongKey.CarbsLastSyncedId)
             queueCounter.bcrRemaining = (persistenceLayer.getLastBolusCalculatorResultId() ?: 0L) - preferences.get(NsclientLongKey.BolusCalculatorLastSyncedId)
             queueCounter.ttsRemaining = (persistenceLayer.getLastTemporaryTargetId() ?: 0L) - preferences.get(NsclientLongKey.TemporaryTargetLastSyncedId)
-// NSCv3 doesn't support food update
-//            queueCounter.foodsRemaining = (persistenceLayer.getLastFoodId() ?: 0L) - preferences.get(NsclientLongKey.FoodLastSyncedId)
+            queueCounter.foodsRemaining = (persistenceLayer.getLastFoodId() ?: 0L) - preferences.get(NsclientLongKey.FoodLastSyncedId)
             queueCounter.gvsRemaining = (persistenceLayer.getLastGlucoseValueId() ?: 0L) - preferences.get(NsclientLongKey.GlucoseValueLastSyncedId)
             queueCounter.calsRemaining = (persistenceLayer.getLastCalibrationEntryId() ?: 0L) - preferences.get(NsclientLongKey.CalibrationEntryLastSyncedId)
             queueCounter.tesRemaining = (persistenceLayer.getLastTherapyEventId() ?: 0L) - preferences.get(NsclientLongKey.TherapyEventLastSyncedId)
@@ -111,8 +108,7 @@ class DataSyncSelectorV3(
             processChangedProfileSwitches()
             processChangedEffectiveProfileSwitches()
             processChangedTempTargets()
-// NSCv3 doesn't support food update
-//            processChangedFoods()
+            processChangedFoods()
             processChangedTherapyEvents()
             processChangedDeviceStatuses()
             processChangedRunningModes()
@@ -388,50 +384,54 @@ class DataSyncSelectorV3(
             aapsLogger.info(LTag.NSCLIENT, "TemporaryTarget: from=$firstId to=$lastId ignored=$ignored added=$added updated=$updated")
     }
 
-    /*
-        @OpenForTesting
-        fun confirmLastFoodIdIfGreater(lastSynced: Long) {
-            if (lastSynced > preferences.get(NsclientLongKey.FoodLastSyncedId)) {
-                preferences.put(NsclientLongKey.FoodLastSyncedId, lastSynced)
-            }
+    @OpenForTesting
+    fun confirmLastFoodIdIfGreater(lastSynced: Long) {
+        if (lastSynced > preferences.get(NsclientLongKey.FoodLastSyncedId)) {
+            preferences.put(NsclientLongKey.FoodLastSyncedId, lastSynced)
         }
+    }
 
-        @OpenForTesting
-        suspend fun processChangedFoods() {
-            var cont = true
-            while (cont) {
-                if (isPaused) return
-                val lastDbId = persistenceLayer.getLastFoodId() ?: 0L
-                var startId = preferences.get(NsclientLongKey.FoodLastSyncedId)
-                if (startId > lastDbId) {
-                    aapsLogger.info(LTag.NSCLIENT, "Resetting startId: $startId lastDbId: $lastDbId")
-                    preferences.put(NsclientLongKey.FoodLastSyncedId, 0)
-                    startId = 0
+    @OpenForTesting
+    suspend fun processChangedFoods() {
+        var cont = true
+        while (cont) {
+            if (isPaused) return
+            val lastDbId = persistenceLayer.getLastFoodId() ?: 0L
+            var startId = preferences.get(NsclientLongKey.FoodLastSyncedId)
+            if (startId > lastDbId) {
+                aapsLogger.info(LTag.NSCLIENT, "Resetting startId: $startId lastDbId: $lastDbId")
+                preferences.put(NsclientLongKey.FoodLastSyncedId, 0)
+                startId = 0
+            }
+            queueCounter.foodsRemaining = lastDbId - startId
+            nsClientRepository.updateQueueSize(queueCounter.size())
+            persistenceLayer.getNextSyncElementFood(startId)?.let { food ->
+                when {
+                    // new record with existing NS id => must be coming from NS => ignore
+                    food.first.id == food.second.id && food.first.ids.nightscoutId != null ->
+                        aapsLogger.info(LTag.NSCLIENT, "Ignoring Food. Loaded from NS: ${food.second.id} ")
+                    // only NsId changed, no need to upload
+                    food.first.onlyNsIdAdded(food.second)                                  ->
+                        aapsLogger.info(LTag.NSCLIENT, "Ignoring Food. Only NS id changed ID: ${food.second.id} ")
+                    // deleted before it was ever uploaded => nothing to send
+                    food.first.ids.nightscoutId == null && !food.first.isValid             ->
+                        aapsLogger.info(LTag.NSCLIENT, "Ignoring Food. Deleted before upload ID: ${food.second.id} ")
+                    // without nsId = create new
+                    food.first.ids.nightscoutId == null                                    ->
+                        cont = nsClientV3Plugin().nsAdd("food", DataSyncSelector.PairFood(food.first, food.second.id), "$startId/$lastDbId") == true
+                    // with nsId = update
+                    food.first.ids.nightscoutId != null                                    ->
+                        cont = nsClientV3Plugin().nsUpdate("food", DataSyncSelector.PairFood(food.first, food.second.id), "$startId/$lastDbId") == true
                 }
-                queueCounter.foodsRemaining = lastDbId - startId
-                nsClientRepository.updateQueueSize(queueCounter.size())
-                persistenceLayer.getNextSyncElementFood(startId)?.let { food ->
-                    when {
-                        // new record with existing NS id => must be coming from NS => ignore
-                        food.first.id == food.second.id && food.first.ids.nightscoutId != null ->
-                            aapsLogger.info(LTag.NSCLIENT, "Ignoring Food. Loaded from NS: ${food.second.id} ")
-                        // only NsId changed, no need to upload
-                        food.first.onlyNsIdAdded(food.second)                                  ->
-                            aapsLogger.info(LTag.NSCLIENT, "Ignoring Food. Only NS id changed ID: ${food.second.id} ")
-                        // without nsId = create new
-                        food.first.ids.nightscoutId == null                                    ->
-                            cont = nsClientV3Plugin().nsAdd("food", DataSyncSelector.PairFood(food.first, food.second.id), "$startId/$lastDbId") == true
-                        // with nsId = update
-                        food.first.ids.nightscoutId != null                                    ->
-                            cont = nsClientV3Plugin().nsUpdate("food", DataSyncSelector.PairFood(food.first, food.second.id), "$startId/$lastDbId") == true
-                    }
-                    if (cont) confirmLastFoodIdIfGreater(food.second.id)
-                } ?: run {
-                    cont = false
-                }
+                if (cont) confirmLastFoodIdIfGreater(food.second.id)
+            } ?: run {
+                cont = false
             }
         }
-    */
+        // Else a full sync (cursor back to 0) would protect uploaded edits again
+        persistenceLayer.clearUploadedFoodEdits(preferences.get(NsclientLongKey.FoodLastSyncedId))
+    }
+
     @OpenForTesting
     fun confirmLastGlucoseValueIdIfGreater(lastSynced: Long) {
         if (lastSynced > preferences.get(NsclientLongKey.GlucoseValueLastSyncedId)) {

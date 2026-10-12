@@ -39,6 +39,7 @@ class InsertOrUpdateFoodTransactionTest {
         assertThat(result.inserted).hasSize(1)
         assertThat(result.inserted[0]).isEqualTo(food)
         assertThat(result.updated).isEmpty()
+        assertThat(food.isLocallyEdited).isTrue()
 
         verify(foodDao).insertNewEntry(food)
         verify(foodDao, never()).updateExistingEntry(any())
@@ -58,6 +59,7 @@ class InsertOrUpdateFoodTransactionTest {
         assertThat(result.updated).hasSize(1)
         assertThat(result.updated[0]).isEqualTo(food)
         assertThat(result.inserted).isEmpty()
+        assertThat(food.isLocallyEdited).isTrue()
 
         verify(foodDao).updateExistingEntry(food)
         verify(foodDao, never()).insertNewEntry(any())
