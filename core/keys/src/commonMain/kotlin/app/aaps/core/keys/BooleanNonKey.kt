@@ -36,6 +36,8 @@ enum class BooleanNonKey(
 
     AllowHardwarePump("allow_hardware_pump", false),
 
+    FoodShowFavouritesOnly("food_show_favourites_only", false, exportable = false),
+
     // Set (committed) right before a startup VACUUM and cleared after it finishes. If it is still
     // set on the next launch, the previous VACUUM died below the JVM (native abort / OOM) — used to
     // break the boot-crash loop. Transient device state, not a user setting → not exportable.

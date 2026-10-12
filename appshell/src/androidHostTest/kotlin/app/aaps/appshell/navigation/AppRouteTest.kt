@@ -118,25 +118,16 @@ class AppRouteTest {
 
     @Test
     fun wizardDialog_noArgs_returnsBareTemplate() {
-        // When both optionals are omitted the helper drops the query string entirely so
+        // Without a food the helper drops the query string entirely so
         // navigation matches the base destination instead of an empty `?` URI.
         assertThat(AppRoute.WizardDialog.createRoute()).isEqualTo("wizard_dialog")
     }
 
     @Test
-    fun wizardDialog_carbsOnly() {
-        assertThat(AppRoute.WizardDialog.createRoute(carbs = 30)).isEqualTo("wizard_dialog?carbs=30")
-    }
-
-    @Test
-    fun wizardDialog_notesOnly() {
-        assertThat(AppRoute.WizardDialog.createRoute(notes = "lunch")).isEqualTo("wizard_dialog?notes=lunch")
-    }
-
-    @Test
-    fun wizardDialog_carbsAndNotes_joinedWithAmpersand() {
-        assertThat(AppRoute.WizardDialog.createRoute(carbs = 45, notes = "snack"))
-            .isEqualTo("wizard_dialog?carbs=45&notes=snack")
+    fun wizardDialog_foodUsesOnlyTheDatabaseId() {
+        // Food names containing &, ?, # or non-ASCII text never become query parameters.
+        assertThat(AppRoute.WizardDialog.createRoute(foodId = 7)).isEqualTo("wizard_dialog?foodId=7")
+        assertThat(AppRoute.WizardDialog.route).contains("foodId={foodId}")
     }
 
     @Test

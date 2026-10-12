@@ -20,7 +20,10 @@ data class FD(
     var protein: Int? = null, // in grams
     var energy: Int? = null, // in kJ
     var unit: String = "g",
-    var gi: Int? = null // not used yet
+    var gi: Int? = null, // not used yet
+    // eCarbsRule and askAmount are not in Nightscout yet, so a download does not change them
+    var eCarbsRule: FoodECarbsRule? = null,
+    var askAmount: Boolean = true // false: the wizard starts at portion, not with an empty amount
 
 ) : HasIDs {
 
@@ -44,5 +47,8 @@ data class FD(
             previous.ids.nightscoutId == null &&
             ids.nightscoutId != null
 
-    companion object
+    companion object {
+
+        fun isWeightUnit(unit: String): Boolean = unit.trim().lowercase() in setOf("g", "gram", "grams", "kg")
+    }
 }
