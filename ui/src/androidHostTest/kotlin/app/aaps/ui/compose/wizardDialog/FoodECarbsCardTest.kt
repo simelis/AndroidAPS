@@ -3,11 +3,13 @@ package app.aaps.ui.compose.wizardDialog
 import android.content.Context
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -194,7 +196,7 @@ class FoodECarbsCardTest {
     @Test
     fun foodEditorShowsThePer100GramFormulaAndCanResetAManualEquivalent() {
         val context = RuntimeEnvironment.getApplication()
-        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGramsPer100g = 9.5)
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGrams = 9.5)
         var updated = rule
         compose.setContent {
             MaterialTheme {
@@ -203,7 +205,7 @@ class FoodECarbsCardTest {
         }
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_per100_calculated, "8.5")).assertExists()
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_use_calculated)).performClick()
-        assertThat(updated.manualGramsPer100g).isNull()
+        assertThat(updated.manualGrams).isNull()
     }
 
     @Test
@@ -217,6 +219,53 @@ class FoodECarbsCardTest {
             }
         }
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_missing_macros)).assertExists()
+    }
+
+    @Test
+    fun aFoodCountedInPortionsAsksForPortionsNotForAWeight() {
+        val context = RuntimeEnvironment.getApplication()
+        val slice = meal.copy(portion = 1.0, unit = "slice", byWeight = false)
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsCard(WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(slice, rule = fpu, enabled = true)),
+                    FoodECarbsCallbacks())
+            }
+        }
+        compose.onNodeWithText(context.getString(UiR.string.food_portions)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_portion_size, "1", "slice")).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_portion_grams)).assertDoesNotExist()
+        compose.onNodeWithText(invalidText(context)).assertDoesNotExist()
+    }
+
+    @Test
+    fun formulaEditorKeepsTheExplanationsBehindInfoButtons() {
+        val context = RuntimeEnvironment.getApplication()
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsRuleEditor(meal.copy(portion = 100.0), true, fpu, {}, {})
+            }
+        }
+        val fpuText = context.getString(UiR.string.food_ecarbs_fpu_description)
+        compose.onNodeWithText(fpuText).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_carbs_now_hint)).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_rule_hint)).assertDoesNotExist()
+        // The switch, the method and carbs counted now each have one
+        val infoButtons = compose.onAllNodesWithContentDescription(context.getString(UiR.string.food_more_info))
+        infoButtons.assertCountEquals(3)
+        infoButtons[1].performClick()
+        compose.onNodeWithText(fpuText).assertExists()
+    }
+
+    @Test
+    fun aFoodCountedInPortionsHasItsFormulaPerPortion() {
+        val context = RuntimeEnvironment.getApplication()
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsRuleEditor(meal.copy(portion = 1.0, unit = "slice", byWeight = false), true, fpu, {}, {})
+            }
+        }
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_portion_amount)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_per100_amount)).assertDoesNotExist()
     }
 
     @Test

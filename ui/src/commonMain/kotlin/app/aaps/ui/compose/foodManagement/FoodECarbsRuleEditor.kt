@@ -34,7 +34,10 @@ import app.aaps.core.ui.compose.NumberInputRow
 import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
 
-/** Reusable rule edited and saved with the food, including a manual equivalent per 100 g. */
+/**
+ * Reusable rule edited and saved with the food, including a fixed amount per 100 g (weighed food) or
+ * per portion. Explanations are behind ⓘ buttons, so the editor shows only the inputs and errors.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun FoodECarbsRuleEditor(
@@ -44,61 +47,73 @@ internal fun FoodECarbsRuleEditor(
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
         // A fixed amount per 100 g or a carbs-only split needs no protein or fat, so the switch is always available
-        FoodECarbsSwitch(UiStrings.food_ecarbs_rule_enable, enabled, true, onEnabledChange)
+        val info = stringResource(UiStrings.food_more_info)
+        FoodECarbsSwitch(UiStrings.food_ecarbs_rule_enable, enabled, true, onEnabledChange) {
+            InfoTooltipButton(info) { Text(stringResource(UiStrings.food_ecarbs_rule_hint)) }
+        }
         if (enabled) {
             var expanded by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                OutlinedTextField(
-                    value = methodLabel(rule.method), onValueChange = {}, readOnly = true,
-                    label = { Text(stringResource(UiStrings.food_ecarbs_method)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                )
-                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    FoodECarbsMethod.entries.forEach { method ->
-                        DropdownMenuItem(text = { Text(methodLabel(method)) }, onClick = {
-                            expanded = false
-                            onRuleChange(rule.copy(method = method, manualGramsPer100g = null))
-                        })
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = methodLabel(rule.method), onValueChange = {}, readOnly = true,
+                        label = { Text(stringResource(UiStrings.food_ecarbs_method)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    )
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        FoodECarbsMethod.entries.forEach { method ->
+                            DropdownMenuItem(text = { Text(methodLabel(method)) }, onClick = {
+                                expanded = false
+                                onRuleChange(rule.copy(method = method, manualGrams = null))
+                            })
+                        }
                     }
                 }
+                InfoTooltipButton(info) {
+                    Text(stringResource(when (rule.method) {
+                        FoodECarbsMethod.CUSTOM       -> UiStrings.food_ecarbs_custom_description
+                        FoodECarbsMethod.FPU          -> UiStrings.food_ecarbs_fpu_description
+                        FoodECarbsMethod.MODIFIED_FPU -> UiStrings.food_ecarbs_modified_description
+                    }))
+                }
             }
-            Text(stringResource(when (rule.method) {
-                FoodECarbsMethod.CUSTOM       -> UiStrings.food_ecarbs_custom_description
-                FoodECarbsMethod.FPU          -> UiStrings.food_ecarbs_fpu_description
-                FoodECarbsMethod.MODIFIED_FPU -> UiStrings.food_ecarbs_modified_description
-            }), style = MaterialTheme.typography.bodySmall)
             if (rule.method == FoodECarbsMethod.CUSTOM) {
                 NumberInputRow(
                     labelRef = UiStrings.food_ecarbs_protein_factor, value = rule.proteinPercent.toDouble(),
-                    onValueChange = { onRuleChange(rule.copy(proteinPercent = it.toInt(), manualGramsPer100g = null)) },
+                    onValueChange = { onRuleChange(rule.copy(proteinPercent = it.toInt(), manualGrams = null)) },
                     valueRange = FoodECarbsRule.FACTOR_PERCENT.toDoubleRange(), step = 1.0, unitLabel = CoreUiStrings.shortpercent
                 )
                 NumberInputRow(
                     labelRef = UiStrings.food_ecarbs_fat_factor, value = rule.fatPercent.toDouble(),
-                    onValueChange = { onRuleChange(rule.copy(fatPercent = it.toInt(), manualGramsPer100g = null)) },
+                    onValueChange = { onRuleChange(rule.copy(fatPercent = it.toInt(), manualGrams = null)) },
                     valueRange = FoodECarbsRule.FACTOR_PERCENT.toDoubleRange(), step = 1.0, unitLabel = CoreUiStrings.shortpercent
                 )
             }
             FoodUnknownNutrients(food, rule)
             val calculated = rule.equivalentGrams((food.protein ?: 0).toDouble(), (food.fat ?: 0).toDouble())
-            Text(stringResource(UiStrings.food_ecarbs_per100_calculated, NumberFormat.DECIMAL_1.format(calculated)))
+            Text(stringResource(
+                if (food.byWeight) UiStrings.food_ecarbs_per100_calculated else UiStrings.food_ecarbs_portion_calculated,
+                NumberFormat.DECIMAL_1.format(calculated)
+            ))
             NumberInputRow(
-                labelRef = UiStrings.food_ecarbs_per100_amount, value = rule.manualGramsPer100g ?: calculated,
-                onValueChange = { onRuleChange(rule.copy(manualGramsPer100g = it)) },
-                valueRange = FoodECarbsRule.MANUAL_GRAMS_PER_100G, step = 0.1, decimalPlaces = 1, unitLabel = CoreUiStrings.shortgramm
+                labelRef = if (food.byWeight) UiStrings.food_ecarbs_per100_amount else UiStrings.food_ecarbs_portion_amount, value = rule.manualGrams ?: calculated,
+                onValueChange = { onRuleChange(rule.copy(manualGrams = it)) },
+                valueRange = FoodECarbsRule.MANUAL_GRAMS, step = 0.1, decimalPlaces = 1, unitLabel = CoreUiStrings.shortgramm
             )
-            if (rule.manualGramsPer100g != null) TextButton(onClick = { onRuleChange(rule.copy(manualGramsPer100g = null)) }) {
+            if (rule.manualGrams != null) TextButton(onClick = { onRuleChange(rule.copy(manualGrams = null)) }) {
                 Text(stringResource(UiStrings.food_ecarbs_use_calculated))
             }
-            NumberInputRow(
-                labelRef = UiStrings.food_ecarbs_carbs_now, value = rule.carbsNowPercent.toDouble(),
-                onValueChange = { onRuleChange(rule.copy(carbsNowPercent = it.toInt())) },
-                valueRange = FoodECarbsRule.CARBS_NOW_PERCENT.toDoubleRange(), step = 5.0, unitLabel = CoreUiStrings.shortpercent
-            )
-            Text(stringResource(UiStrings.food_ecarbs_carbs_now_hint), style = MaterialTheme.typography.bodySmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                NumberInputRow(
+                    labelRef = UiStrings.food_ecarbs_carbs_now, value = rule.carbsNowPercent.toDouble(),
+                    onValueChange = { onRuleChange(rule.copy(carbsNowPercent = it.toInt())) },
+                    valueRange = FoodECarbsRule.CARBS_NOW_PERCENT.toDoubleRange(), step = 5.0, unitLabel = CoreUiStrings.shortpercent,
+                    modifier = Modifier.weight(1f)
+                )
+                InfoTooltipButton(info) { Text(stringResource(UiStrings.food_ecarbs_carbs_now_hint)) }
+            }
             FoodECarbsTiming(rule, onRuleChange)
-            Text(stringResource(UiStrings.food_ecarbs_rule_hint), style = MaterialTheme.typography.bodySmall)
             if (!food.canUse(rule)) Text(stringResource(UiStrings.food_ecarbs_missing_macros), color = MaterialTheme.colorScheme.error)
             if (!rule.isValid) Text(
                 stringResource(UiStrings.food_ecarbs_rule_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last),
@@ -116,11 +131,16 @@ internal fun FoodUnknownNutrients(food: FD, rule: FoodECarbsRule) {
     if (!food.fatKnown) Text(stringResource(UiStrings.food_ecarbs_fat_unknown))
 }
 
+/** A labelled switch. [info] is an optional ⓘ button shown after the label. */
 @Composable
-internal fun FoodECarbsSwitch(label: TextRef, checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun FoodECarbsSwitch(
+    label: TextRef, checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -> Unit,
+    info: (@Composable () -> Unit)? = null
+) {
     val text = stringResource(label)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
         Text(text, modifier = Modifier.weight(1f))
+        info?.invoke()
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled,
             modifier = Modifier.semantics { contentDescription = text })
     }

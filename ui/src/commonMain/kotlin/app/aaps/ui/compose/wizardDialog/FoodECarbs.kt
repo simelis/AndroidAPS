@@ -23,32 +23,44 @@ fun WizardDialogUiState.carbPlan(): WizardCarbPlan {
 val WizardDialogUiState.foodInputsValid: Boolean
     get() = !foodUnavailable && (foodECarbs?.let { it.isValid(maxCarbs) && carbs in 0..maxCarbs && carbPlan().eCarbs in 0..maxCarbs } ?: true)
 
-/** One meal of a gram-based food. Portion weight and the overrides here are never saved. */
+/**
+ * One meal of a food. A weighed food is scaled by [portionGrams], a food counted in portions by
+ * [portions]. The amounts and the overrides here are never saved.
+ */
 data class FoodECarbsState(
     val food: FD,
     val portionGrams: Double = 0.0,
+    val portions: Double = 1.0,
     val enabled: Boolean = false,
     val rule: FoodECarbsRule = FoodECarbsRule(),
     val overrideGrams: Int? = null
 ) {
 
-    private val scale: Double get() = food.portionWeightGrams?.let { portionGrams / it } ?: 0.0
+    /** True when the wizard asks for the weight eaten, false when it asks for the number of portions. */
+    val byWeight: Boolean get() = food.portionWeightGrams != null
+    private val scale: Double get() = food.portionWeightGrams?.let { portionGrams / it } ?: portions
     /** False when the food lacks a nutrient the rule needs. */
     val canUseRule: Boolean get() = food.canUse(rule)
     val proteinGrams: Double get() = (food.protein ?: 0) * scale
     val fatGrams: Double get() = (food.fat ?: 0) * scale
     val carbsGrams: Int get() = (food.carbs * scale).takeIf { it.isFinite() }?.roundToInt() ?: 0
-    val calculatedGrams: Int get() = (rule.manualGramsPer100g?.let { it * portionGrams / 100.0 }
+    /** A fixed amount is per 100 g of a weighed food, or per portion. */
+    val calculatedGrams: Int get() = (rule.manualGrams?.let { it * (if (byWeight) portionGrams / 100.0 else portions) }
         ?: rule.equivalentGrams(proteinGrams, fatGrams)).roundToInt()
     val eCarbsGrams: Int get() = if (enabled) overrideGrams ?: calculatedGrams else 0
+    /** Weight or number of portions entered. */
+    val hasAmount: Boolean get() = if (byWeight) portionGrams > 0.0 else portions > 0.0
 
     fun isValid(maxCarbs: Int): Boolean =
-        food.portionWeightGrams != null && portionGrams.isFinite() && portionGrams > 0.0 && portionGrams <= MAX_PORTION_GRAMS &&
+        (if (byWeight) portionGrams.isFinite() && portionGrams > 0.0 && portionGrams <= MAX_PORTION_GRAMS
+        else portions.isFinite() && portions > 0.0 && portions <= MAX_PORTIONS) &&
             food.carbs >= 0 && scale.isFinite() && (food.carbs * scale).isFinite() && proteinGrams.isFinite() && fatGrams.isFinite() &&
             (!enabled || (canUseRule && rule.isValid && eCarbsGrams in 0..maxCarbs))
 
     companion object {
 
         const val MAX_PORTION_GRAMS = 10000.0
+        const val MAX_PORTIONS = 20.0
+        const val PORTIONS_STEP = 0.5
     }
 }

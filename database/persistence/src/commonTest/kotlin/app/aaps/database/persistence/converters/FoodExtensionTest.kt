@@ -40,7 +40,7 @@ internal class FoodExtensionTest {
             energy = 600,
             unit = "ml",
             gi = 40,
-            eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGramsPer100g = 7.5)
+            eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGrams = 7.5)
         )
 
     private fun sampleEntity(): Food =
@@ -95,7 +95,7 @@ internal class FoodExtensionTest {
         assertEquals(600, back.energy)
         assertEquals("ml", back.unit)
         assertEquals(40, back.gi)
-        assertEquals(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGramsPer100g = 7.5), back.eCarbsRule)
+        assertEquals(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGrams = 7.5), back.eCarbsRule)
 
         // Nested IDs round-trips too.
         assertEquals("nsSys", back.ids.nightscoutSystemId)
@@ -159,6 +159,14 @@ internal class FoodExtensionTest {
         assertNull(back.eCarbsRule)
         assertNull(back.referenceId)
         assertEquals("g", back.unit)
+    }
+
+    @Test
+    fun howAFoodIsCountedIsStored() {
+        val slice = FD(name = "Slice", portion = 30.0, unit = "g", carbs = 15, byWeight = false)
+        assertEquals(false, slice.toDb().byWeight)
+        assertEquals(false, slice.toDb().fromDb().byWeight)
+        assertEquals(true, slice.copy(byWeight = true).toDb().fromDb().byWeight)
     }
 
     @Test

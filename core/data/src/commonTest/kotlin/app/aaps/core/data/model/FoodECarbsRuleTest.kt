@@ -37,9 +37,9 @@ class FoodECarbsRuleTest {
         assertFalse(rule.copy(delayMinutes = -1).isValid)
         assertFalse(rule.copy(delayMinutes = 721).isValid)
         assertFalse(rule.copy(proteinPercent = 101).isValid)
-        assertFalse(rule.copy(manualGramsPer100g = Double.NaN).isValid)
-        assertFalse(rule.copy(manualGramsPer100g = 100.1).isValid)
-        assertTrue(rule.copy(manualGramsPer100g = 7.5).isValid)
+        assertFalse(rule.copy(manualGrams = Double.NaN).isValid)
+        assertFalse(rule.copy(manualGrams = 100.1).isValid)
+        assertTrue(rule.copy(manualGrams = 7.5).isValid)
         assertFalse(rule.copy(carbsNowPercent = 49).isValid)
         assertFalse(rule.copy(carbsNowPercent = 101).isValid)
         assertTrue(rule.copy(carbsNowPercent = 50).isValid)
@@ -48,7 +48,7 @@ class FoodECarbsRuleTest {
     @Test
     fun aRuleNeedsOnlyTheNutrientsItUses() {
         // A fixed amount needs neither
-        assertTrue(rule.copy(manualGramsPer100g = 5.0).canUse(proteinKnown = false, fatKnown = false))
+        assertTrue(rule.copy(manualGrams = 5.0).canUse(proteinKnown = false, fatKnown = false))
         // FPU needs at least one; the unknown one counts as 0 g
         assertTrue(rule.canUse(proteinKnown = true, fatKnown = false))
         assertTrue(rule.canUse(proteinKnown = false, fatKnown = true))
@@ -70,7 +70,7 @@ class FoodECarbsRuleTest {
 
     @Test
     fun jsonRoundTripKeepsTheRule() {
-        val manual = rule.copy(manualGramsPer100g = 7.5)
+        val manual = rule.copy(manualGrams = 7.5)
         assertEquals(manual, FoodECarbsRule.fromJson(manual.toJson()))
         assertEquals(manual, FoodECarbsRule.fromJsonString(manual.toJsonString()))
     }

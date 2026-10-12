@@ -1,5 +1,6 @@
 package app.aaps.database
 
+import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import app.aaps.database.di.JvmAppDatabaseBuilder
@@ -14,11 +15,10 @@ import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 
 class FoodMigrationTest {
-    @Test
-    fun `upgrading a real version 36 database keeps foods and stores the new local fields`() = runTest {
-        val directory = createTempDirectory("aaps-food-migration")
-        val fileName = "$directory/aaps.db"
-        val schema = Json.parseToJsonElement(File("src/androidDeviceTest/assets/app.aaps.database.AppDatabase/36.json").readText())
+
+    /** Creates a database file with the exported schema of [version], then runs [fill] on it. */
+    private fun createDatabase(fileName: String, version: Int, fill: (SQLiteConnection) -> Unit) {
+        val schema = Json.parseToJsonElement(File("src/androidDeviceTest/assets/app.aaps.database.AppDatabase/$version.json").readText())
             .jsonObject.getValue("database").jsonObject
         BundledSQLiteDriver().open(fileName).use { connection ->
             schema.getValue("entities").jsonArray.forEach { entry ->
@@ -30,7 +30,39 @@ class FoodMigrationTest {
                 }
             }
             schema.getValue("setupQueries").jsonArray.forEach { connection.execSQL(it.jsonPrimitive.content) }
-            connection.execSQL("PRAGMA user_version = 36")
+            connection.execSQL("PRAGMA user_version = $version")
+            fill(connection)
+        }
+    }
+
+    @Test
+    fun `upgrading a version 36 database marks foods in grams or kg as weighed and the others as portions`() = runTest {
+        val directory = createTempDirectory("aaps-food-migration-units")
+        val fileName = "$directory/aaps.db"
+        createDatabase(fileName, 36) { connection ->
+            listOf(1 to "g", 2 to " Grams ", 3 to "kg", 4 to "piece", 5 to "ml").forEach { (id, unit) ->
+                connection.execSQL(
+                    "INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, unit) " +
+                        "VALUES ($id, 0, 1000, 1, 'Food $id', 100, 25, '$unit')"
+                )
+            }
+        }
+        try {
+            val database = JvmAppDatabaseBuilder().provideAppDatabase(fileName)
+            try {
+                val byWeight = database.foodDao.getFoodData().associate { it.id to it.byWeight }
+                assertThat(byWeight).containsExactly(1L, true, 2L, true, 3L, true, 4L, false, 5L, false)
+            } finally { database.close() }
+        } finally {
+            directory.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `upgrading a real version 36 database keeps foods and stores the new local fields`() = runTest {
+        val directory = createTempDirectory("aaps-food-migration")
+        val fileName = "$directory/aaps.db"
+        createDatabase(fileName, 36) { connection ->
             connection.execSQL("INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, fat, protein, unit) VALUES (7, 0, 1000, 1, 'Meal', 100, 25, 5, 10, 'g')")
         }
         val builder = JvmAppDatabaseBuilder()

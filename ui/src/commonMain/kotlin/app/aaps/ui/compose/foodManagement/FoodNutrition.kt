@@ -3,17 +3,18 @@ package app.aaps.ui.compose.foodManagement
 import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsRule
 
-/** Units that mean grams. Only these foods can be weighed and carry an eCarbs rule. */
-internal fun isGramUnit(unit: String): Boolean = unit.trim().lowercase() in setOf("g", "gram", "grams")
-
-/** Existing portion-based foods are converted for display/calculation without rewriting the database. */
+/**
+ * Weight of the stored portion of a weighed food, or null for a food counted in portions. A weighed
+ * food stored with another portion (like 30 g from Nightscout) is converted for display and
+ * calculation without rewriting the database.
+ */
 val FD.portionWeightGrams: Double?
     get() {
-        if (!portion.isFinite() || portion <= 0.0) return null
-        return when {
-            isGramUnit(unit)                -> portion
-            unit.trim().lowercase() == "kg" -> (portion * 1000.0).takeIf { it.isFinite() }
-            else                            -> null // Never assume a density or the weight of a piece/cup.
+        if (!byWeight || !portion.isFinite() || portion <= 0.0) return null
+        return when (unit.trim().lowercase()) {
+            "g", "gram", "grams" -> portion
+            "kg"                 -> (portion * 1000.0).takeIf { it.isFinite() }
+            else                 -> null // Never assume a density or the weight of a piece/cup.
         }
     }
 

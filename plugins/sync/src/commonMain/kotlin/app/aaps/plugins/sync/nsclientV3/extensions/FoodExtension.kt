@@ -20,6 +20,7 @@ fun NSFood.toFood(): FD =
         unit = unit,
         gi = gi,
         eCarbsRule = FoodECarbsRule.fromJson(aapsECarbsRule),
+        byWeight = aapsByWeight ?: FD.isWeightUnit(unit),
         ids = IDs(nightscoutId = identifier)
     )
 
@@ -38,5 +39,6 @@ fun FD.toNSFood(): NSFood =
         unit = unit,
         gi = gi,
         aapsECarbsRule = eCarbsRule?.toJson(),
+        aapsByWeight = byWeight,
         identifier = ids.nightscoutId,
     )

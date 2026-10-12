@@ -28,12 +28,15 @@ class FoodNutritionTest {
         assertThat(portion.fatGrams).isEqualTo(7.5)
         assertThat(portion.eCarbsGrams).isEqualTo(13)
         assertThat(portion.copy(portionGrams = 0.0).isValid(100)).isFalse()
-        assertThat(portion.copy(food = meal.copy(unit = "ml")).isValid(100)).isFalse()
+        // A food in ml cannot be weighed: it is counted in portions, so the weight is not used
+        val inMl = portion.copy(food = meal.copy(unit = "ml"))
+        assertThat(inMl.byWeight).isFalse()
+        assertThat(inMl.carbsGrams).isEqualTo(50)
     }
 
     @Test
     fun `a manual equivalent scales by weight independently of the original database portion`() {
-        val portion = FoodECarbsState(meal, portionGrams = 150.0, enabled = true, rule = rule.copy(manualGramsPer100g = 10.5))
+        val portion = FoodECarbsState(meal, portionGrams = 150.0, enabled = true, rule = rule.copy(manualGrams = 10.5))
         assertThat(portion.eCarbsGrams).isEqualTo(16)
         assertThat(portion.copy(portionGrams = 300.0).eCarbsGrams).isEqualTo(32)
     }
@@ -48,9 +51,12 @@ class FoodNutritionTest {
     }
 
     @Test
-    fun `gram units are recognised and protein and fat must both be known`() {
-        listOf("g", " Grams ", "gram").forEach { assertThat(isGramUnit(it)).isTrue() }
-        listOf("kg", "ml", "pieces").forEach { assertThat(isGramUnit(it)).isFalse() }
+    fun `weight units are recognised, a food in grams can be counted in portions, and nutrients can be unknown`() {
+        listOf("g", " Grams ", "gram", "kg").forEach { assertThat(FD.isWeightUnit(it)).isTrue() }
+        listOf("ml", "pieces").forEach { assertThat(FD.isWeightUnit(it)).isFalse() }
+        assertThat(meal.portionWeightGrams).isEqualTo(meal.portion)
+        assertThat(meal.copy(byWeight = false).portionWeightGrams).isNull()
+        assertThat(meal.copy(byWeight = false).nutrientsPer100g()).isNull()
         assertThat(meal.proteinKnown && meal.fatKnown).isTrue()
         assertThat(meal.copy(fat = null).fatKnown).isFalse()
         assertThat(meal.copy(protein = -1).proteinKnown).isFalse()
