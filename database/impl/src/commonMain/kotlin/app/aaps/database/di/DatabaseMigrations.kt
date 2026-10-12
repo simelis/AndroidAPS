@@ -341,7 +341,7 @@ private val migration35to36 = object : Migration(35, 36) {
 
 /**
  * Back down from the food eCarbs build (simelis/AndroidAPS, branch v4.0-beta1), which is version
- * 37: it added food columns (two in early test versions, three now) and changed nothing else.
+ * 37: it added columns to the food table (different ones over time) and changed nothing else.
  *
  * Not part of official AAPS. This fallback build exists so a phone can go back from that build
  * without losing its database. Without this step Room finds no path from 37 and, because of
@@ -352,15 +352,17 @@ private val migration35to36 = object : Migration(35, 36) {
  */
 private val migration37to36 = object : Migration(37, 36) {
     override fun migrate(connection: SQLiteConnection) {
-        // Test versions of the food build had different food columns at the same version 37, so drop
-        // the ones that exist. A column left behind would fail Room's check of the version 36 tables.
-        val columns = mutableSetOf<String>()
-        connection.prepare("PRAGMA table_info(`$TABLE_FOODS`)").use { statement ->
-            while (statement.step()) columns.add(statement.getText(1))
-        }
-        listOf("eCarbsRuleJson", "isLocallyEdited", "byWeight").filter { it in columns }.forEach {
-            connection.execSQL("ALTER TABLE `$TABLE_FOODS` DROP COLUMN `$it`")
-        }
+        // Rebuild the food table with only the version 36 columns, like migration32to33 does for
+        // boluses. Whatever columns the food build added (it had different ones at the same version
+        // 37 over time) are left behind, so this does not need to know them.
+        val columns = "id, version, dateCreated, isValid, referenceId, name, category, subCategory, portion, carbs, fat, protein, energy, unit, gi, " +
+            "nightscoutSystemId, nightscoutId, pumpType, pumpSerial, temporaryId, pumpId, startId, endId"
+        connection.execSQL("CREATE TABLE IF NOT EXISTS new_foods (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `version` INTEGER NOT NULL, `dateCreated` INTEGER NOT NULL, `isValid` INTEGER NOT NULL, `referenceId` INTEGER, `name` TEXT NOT NULL, `category` TEXT, `subCategory` TEXT, `portion` REAL NOT NULL, `carbs` INTEGER NOT NULL, `fat` INTEGER, `protein` INTEGER, `energy` INTEGER, `unit` TEXT NOT NULL, `gi` INTEGER, `nightscoutSystemId` TEXT, `nightscoutId` TEXT, `pumpType` TEXT, `pumpSerial` TEXT, `temporaryId` INTEGER, `pumpId` INTEGER, `startId` INTEGER, `endId` INTEGER, FOREIGN KEY(`referenceId`) REFERENCES `foods`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )")
+        connection.execSQL("INSERT INTO new_foods ($columns) SELECT $columns FROM `$TABLE_FOODS` ORDER BY id")
+        connection.execSQL("DROP TABLE `$TABLE_FOODS`")
+        connection.execSQL("ALTER TABLE new_foods RENAME TO `$TABLE_FOODS`")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS `index_foods_nightscoutId` ON `$TABLE_FOODS` (`nightscoutId`)")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS `index_foods_referenceId` ON `$TABLE_FOODS` (`referenceId`)")
         dropCustomIndexes(connection)
     }
 }
