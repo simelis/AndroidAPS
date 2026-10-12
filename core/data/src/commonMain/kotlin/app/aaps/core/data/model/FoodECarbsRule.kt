@@ -37,7 +37,7 @@ data class FoodECarbsRule(
     val isValid: Boolean
         get() = proteinPercent in FACTOR_PERCENT && fatPercent in FACTOR_PERCENT &&
             delayMinutes in DELAY_MINUTES && durationHours in DURATION_HOURS && carbsNowPercent in CARBS_NOW_PERCENT &&
-            (manualGrams == null || (manualGrams.isFinite() && manualGrams in MANUAL_GRAMS))
+            (manualGrams == null || (manualGrams.isFinite() && manualGrams >= 0.0))
 
     /**
      * True when a food with these known nutrients can use this rule. A fixed amount needs neither and a
@@ -77,7 +77,6 @@ data class FoodECarbsRule(
         val FACTOR_PERCENT = 0..100
         val DELAY_MINUTES = 0..720
         val DURATION_HOURS = 1..10
-        val MANUAL_GRAMS = 0.0..100.0
         val CARBS_NOW_PERCENT = 50..100
 
         private val json = Json {

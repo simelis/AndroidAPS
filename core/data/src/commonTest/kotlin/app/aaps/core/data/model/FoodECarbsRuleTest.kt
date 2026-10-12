@@ -38,7 +38,9 @@ class FoodECarbsRuleTest {
         assertFalse(rule.copy(delayMinutes = 721).isValid)
         assertFalse(rule.copy(proteinPercent = 101).isValid)
         assertFalse(rule.copy(manualGrams = Double.NaN).isValid)
-        assertFalse(rule.copy(manualGrams = 100.1).isValid)
+        assertFalse(rule.copy(manualGrams = -0.1).isValid)
+        // For a saved amount like 1 kg, more than 100 g is fine; the wizard checks the meal against the carb limit
+        assertTrue(rule.copy(manualGrams = 150.0).isValid)
         assertTrue(rule.copy(manualGrams = 7.5).isValid)
         assertFalse(rule.copy(carbsNowPercent = 49).isValid)
         assertFalse(rule.copy(carbsNowPercent = 101).isValid)

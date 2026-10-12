@@ -99,7 +99,7 @@ internal fun FoodECarbsRuleEditor(
             NumberInputRow(
                 labelRef = UiStrings.food_ecarbs_amount_fixed.withArgs(amount, food.unit), value = rule.manualGrams ?: calculated,
                 onValueChange = { onRuleChange(rule.copy(manualGrams = it)) },
-                valueRange = FoodECarbsRule.MANUAL_GRAMS, step = 0.1, decimalPlaces = 1, unitLabel = CoreUiStrings.shortgramm
+                valueRange = 0.0..MANUAL_GRAMS_INPUT_MAX, step = 0.1, decimalPlaces = 1, unitLabel = CoreUiStrings.shortgramm
             )
             if (rule.manualGrams != null) TextButton(onClick = { onRuleChange(rule.copy(manualGrams = null)) }) {
                 Text(stringResource(UiStrings.food_ecarbs_use_calculated))
@@ -167,5 +167,8 @@ internal fun methodLabel(method: FoodECarbsMethod): String = stringResource(when
     FoodECarbsMethod.FPU          -> UiStrings.food_ecarbs_fpu
     FoodECarbsMethod.MODIFIED_FPU -> UiStrings.food_ecarbs_modified_fpu
 })
+
+/** Only a bound for the input field. The wizard checks each meal against the carb limit. */
+private const val MANUAL_GRAMS_INPUT_MAX = 1000.0
 
 private fun IntRange.toDoubleRange(): ClosedFloatingPointRange<Double> = first.toDouble()..last.toDouble()
