@@ -34,7 +34,8 @@ internal data class RemoteFood(
     @SerialName("protein") val protein: Int? = null,
     @SerialName("fat") val fat: Int? = null,
     @SerialName("aapsECarbsRule") val aapsECarbsRule: JsonElement? = null, // AAPS food eCarbs rule, read by AAPS only
-    @SerialName("aapsByWeight") val aapsByWeight: Boolean? = null, // AAPS: nutrients per 100 g, weighed in the wizard
+    @SerialName("aapsAskAmount") val aapsAskAmount: Boolean? = null, // AAPS: the wizard asks for the amount every time
+    @SerialName("aapsByWeight") val aapsByWeight: Boolean? = null, // Read only: earlier test versions wrote aapsAskAmount under this name
     @SerialName("identifier")
     val identifier: String?,       // string Main addressing, required field that identifies document in the collection. The client should not create the identifier, the server automatically assigns it when the document is inserted.
     @SerialName("isValid")

@@ -28,7 +28,7 @@ internal fun FoodECarbsCardWithWeightPreview() {
         FoodECarbsCard(
             state = WizardDialogUiState(
                 carbs = 75, maxCarbs = 100,
-                foodECarbs = FoodECarbsState(previewFood, portionGrams = 250.0, enabled = true, rule = previewRule)
+                foodECarbs = FoodECarbsState(previewFood, amount = 250.0, enabled = true, rule = previewRule)
             ),
             actions = FoodECarbsCallbacks()
         )
@@ -40,7 +40,7 @@ internal fun FoodECarbsCardWithWeightPreview() {
 internal fun FoodECarbsCardNoFormulaPreview() {
     MaterialTheme {
         FoodECarbsCard(
-            state = WizardDialogUiState(carbs = 30, maxCarbs = 100, foodECarbs = FoodECarbsState(previewFood.copy(eCarbsRule = null), portionGrams = 100.0)),
+            state = WizardDialogUiState(carbs = 30, maxCarbs = 100, foodECarbs = FoodECarbsState(previewFood.copy(eCarbsRule = null), amount = 100.0)),
             actions = FoodECarbsCallbacks()
         )
     }
@@ -53,7 +53,7 @@ internal fun FoodECarbsRowPreview() {
         FoodECarbsRow(
             state = WizardDialogUiState(
                 carbs = 75, maxCarbs = 100,
-                foodECarbs = FoodECarbsState(previewFood, portionGrams = 250.0, enabled = true, rule = previewRule)
+                foodECarbs = FoodECarbsState(previewFood, amount = 250.0, enabled = true, rule = previewRule)
             ),
             actions = FoodECarbsCallbacks()
         )
@@ -68,7 +68,7 @@ internal fun FoodECarbsCardAmountPreview() {
             state = WizardDialogUiState(
                 carbs = 30, maxCarbs = 100,
                 foodECarbs = FoodECarbsState(
-                    previewFood.copy(name = "Pizza", portion = 3.0, unit = "slices", byWeight = false),
+                    previewFood.copy(name = "Pizza", portion = 3.0, unit = "slices", askAmount = false),
                     enabled = true, rule = previewRule
                 )
             ),

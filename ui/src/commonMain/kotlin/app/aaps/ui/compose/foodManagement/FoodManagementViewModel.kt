@@ -32,7 +32,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 // Registers itself: @ViewModelKey infers the key from the class. No graph entry, and deliberately
 // unscoped so each screen gets its own.
@@ -135,21 +134,20 @@ class FoodManagementViewModel(
         _uiState.update { it.copy(filterSubCategory = subCategory) }
     }
 
+    /** A new food starts as 100 g, the usual label basis, asked for every time in the wizard. */
     fun openEditor(food: FD? = null) {
-        val nutrition = food?.nutrientsPer100g()
-        val byWeight = food == null || nutrition != null
         val rule = food?.eCarbsRule
         _uiState.update {
             it.copy(
-                editorByWeight = byWeight, editorBasisChanged = false,
+                editorAskAmount = food?.askAmount ?: true,
                 editorFood = food, editorName = food?.name ?: "",
                 editorCategory = food?.category ?: "", editorSubCategory = food?.subCategory ?: "",
-                editorCarbs = nutrition?.carbs?.roundToInt()?.toString() ?: food?.carbs?.toString() ?: "",
-                editorFat = nutrition?.fat?.roundToInt()?.toString() ?: food?.fat?.toString() ?: "",
-                editorProtein = nutrition?.protein?.roundToInt()?.toString() ?: food?.protein?.toString() ?: "",
-                editorEnergy = nutrition?.energy?.roundToInt()?.toString() ?: food?.energy?.toString() ?: "",
-                editorPortion = if (byWeight) "100" else food?.portion?.toString() ?: "1",
-                editorUnit = if (byWeight) "g" else food?.unit ?: "",
+                editorCarbs = food?.carbs?.toString() ?: "",
+                editorFat = food?.fat?.toString() ?: "",
+                editorProtein = food?.protein?.toString() ?: "",
+                editorEnergy = food?.energy?.toString() ?: "",
+                editorPortion = food?.portion?.formatAmount() ?: "100",
+                editorUnit = food?.unit ?: "g",
                 editorECarbsRule = rule ?: lastSavedRule() ?: FoodECarbsRule(), editorUseECarbs = rule != null,
                 editorFavourite = food != null && food.id in it.favouriteIds,
                 editorSaveAttempted = false, editorSaving = false, editorSaveFailed = false, showEditor = true
@@ -171,25 +169,10 @@ class FoodManagementViewModel(
     fun updateEditorFat(v: String) = _uiState.update { it.copy(editorFat = v, editorECarbsRule = it.editorECarbsRule.copy(manualGrams = null)) }
     fun updateEditorProtein(v: String) = _uiState.update { it.copy(editorProtein = v, editorECarbsRule = it.editorECarbsRule.copy(manualGrams = null)) }
     fun updateEditorEnergy(v: String) = _uiState.update { it.copy(editorEnergy = v) }
-    fun updateEditorPortion(v: String) = _uiState.update { it.copy(editorPortion = v) }
-    fun updateEditorUnit(v: String) = _uiState.update { it.copy(editorUnit = v) }
-
-    /**
-     * The entered nutrients are kept, so a wrong tap loses nothing, and the editor asks to check them.
-     * Only a fixed eCarbs amount is cleared, because it was per the old basis.
-     */
-    fun updateEditorByWeight(v: Boolean) = _uiState.update { state ->
-        if (v == state.editorByWeight) state
-        else {
-            val portionFood = state.editorFood?.takeIf { it.portionWeightGrams == null }
-            state.copy(
-                editorByWeight = v, editorBasisChanged = true,
-                editorPortion = if (v) "100" else portionFood?.portion?.toString() ?: "1",
-                editorUnit = if (v) "g" else portionFood?.unit ?: "",
-                editorECarbsRule = state.editorECarbsRule.copy(manualGrams = null)
-            )
-        }
-    }
+    // A fixed eCarbs amount is per saved amount, so a new amount or unit clears it, like new nutrients do
+    fun updateEditorPortion(v: String) = _uiState.update { it.copy(editorPortion = v, editorECarbsRule = it.editorECarbsRule.copy(manualGrams = null)) }
+    fun updateEditorUnit(v: String) = _uiState.update { it.copy(editorUnit = v, editorECarbsRule = it.editorECarbsRule.copy(manualGrams = null)) }
+    fun updateEditorAskAmount(v: Boolean) = _uiState.update { it.copy(editorAskAmount = v) }
     fun updateEditorFavourite(v: Boolean) = _uiState.update { it.copy(editorFavourite = v) }
     fun updateEditorECarbsEnabled(v: Boolean) = _uiState.update { it.copy(editorUseECarbs = v) }
     fun updateEditorECarbsRule(v: FoodECarbsRule) = _uiState.update { it.copy(editorECarbsRule = v) }
@@ -210,9 +193,9 @@ class FoodManagementViewModel(
             name = name,
             category = state.editorCategory.trim().ifBlank { null },
             subCategory = state.editorSubCategory.trim().ifBlank { null },
-            portion = if (state.editorByWeight) 100.0 else state.editorPortion.toDouble(),
-            unit = if (state.editorByWeight) "g" else state.editorUnit.trim(),
-            byWeight = state.editorByWeight,
+            portion = state.editorPortion.toDouble(),
+            unit = state.editorUnit.trim(),
+            askAmount = state.editorAskAmount,
             carbs = state.editorCarbs.toInt(),
             fat = state.editorFat.toIntOrNull(),
             protein = state.editorProtein.toIntOrNull(),
@@ -301,10 +284,8 @@ data class FoodManagementUiState(
     val editorSubCategory: String = "",
     val editorPortion: String = "100",
     val editorUnit: String = "g",
-    /** Nutrients per 100 g and weighed in the wizard; false means per portion. */
-    val editorByWeight: Boolean = true,
-    /** The basis was switched in this editor, so the nutrients may need to be entered again. */
-    val editorBasisChanged: Boolean = false,
+    /** The wizard starts with an empty amount; false means it starts at [editorPortion]. */
+    val editorAskAmount: Boolean = true,
     val editorCarbs: String = "",
     val editorFat: String = "",
     val editorProtein: String = "",
@@ -319,15 +300,18 @@ data class FoodManagementUiState(
     val undoFood: FD? = null,
 ) {
     val editorPreview: FD get() = FD(
-        name = editorName, portion = if (editorByWeight) 100.0 else editorPortion.toDoubleOrNull() ?: 0.0,
-        unit = if (editorByWeight) "g" else editorUnit, byWeight = editorByWeight,
+        name = editorName, portion = editorPortion.toDoubleOrNull() ?: 0.0, unit = editorUnit, askAmount = editorAskAmount,
         carbs = editorCarbs.toIntOrNull() ?: 0, fat = editorFat.toIntOrNull(), protein = editorProtein.toIntOrNull()
     )
 
+    /** Weight of the saved amount, when its unit is a weight. No nutrient can weigh more than the food. */
+    val editorWeightGrams: Double? get() = editorPortion.toDoubleOrNull()?.let { weightInGrams(it, editorUnit) }
+
     val editorCanSave: Boolean get() {
+        val maxNutrient = editorWeightGrams
         fun nutrient(value: String, required: Boolean = false): Boolean =
-            (!required && value.isBlank()) || value.toIntOrNull()?.let { it >= 0 && (!editorByWeight || it <= 100) } == true
-        val portionValid = editorByWeight || editorPortion.toDoubleOrNull()?.let { it.isFinite() && it > 0 } == true
+            (!required && value.isBlank()) || value.toIntOrNull()?.let { it >= 0 && (maxNutrient == null || it <= maxNutrient) } == true
+        val portionValid = editorPortion.toDoubleOrNull()?.let { it.isFinite() && it > 0 } == true
         return editorName.isNotBlank() && editorUnit.isNotBlank() && portionValid && nutrient(editorCarbs, required = true) &&
             nutrient(editorFat) && nutrient(editorProtein) &&
             (editorEnergy.isBlank() || editorEnergy.toIntOrNull()?.let { it >= 0 } == true) &&

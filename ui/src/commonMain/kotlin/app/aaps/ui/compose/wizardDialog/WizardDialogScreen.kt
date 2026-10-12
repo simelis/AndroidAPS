@@ -208,7 +208,6 @@ fun WizardDialogScreen(
         onConfirmClick = { showConfirmation = true },
         onSettingsClick = { showSettings = true },
         foodActions = FoodECarbsCallbacks(
-            portionGrams = viewModel::updateFoodPortionGrams,
             amount = viewModel::updateFoodAmount,
             enabled = viewModel::toggleFoodECarbs,
             rule = viewModel::updateFoodECarbsRule,

@@ -49,13 +49,15 @@ internal class FoodExtensionKtTest {
     }
 
     @Test
-    fun `how a food is counted is synced, and a food that does not say is weighed when its unit is a weight`() {
-        val slice = FD(name = "Slice", portion = 30.0, unit = "g", carbs = 15, byWeight = false, ids = IDs(nightscoutId = "id"))
+    fun `asking for the amount is synced, and a food that does not say is asked every time when its unit is a weight`() {
+        val slice = FD(name = "Slice", portion = 30.0, unit = "g", carbs = 15, askAmount = false, ids = IDs(nightscoutId = "id"))
         val back = (slice.toNSFood().convertToRemoteAndBack() as NSFood).toFood()
-        assertThat(back.byWeight).isFalse()
+        assertThat(back.askAmount).isFalse()
         assertThat(back.contentEqualsTo(slice)).isTrue()
         // Like a food from the Nightscout web editor
-        assertThat(slice.toNSFood().copy(aapsByWeight = null).toFood().byWeight).isTrue()
-        assertThat(slice.copy(unit = "piece").toNSFood().copy(aapsByWeight = null).toFood().byWeight).isFalse()
+        assertThat(slice.toNSFood().copy(aapsAskAmount = null).toFood().askAmount).isTrue()
+        assertThat(slice.copy(unit = "piece").toNSFood().copy(aapsAskAmount = null).toFood().askAmount).isFalse()
+        // Uploaded by an earlier test version of this build
+        assertThat(slice.toNSFood().copy(aapsAskAmount = null, aapsByWeight = false).toFood().askAmount).isFalse()
     }
 }

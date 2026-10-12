@@ -28,6 +28,7 @@ import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.keys.interfaces.TextRef
+import app.aaps.core.keys.interfaces.TextRef.Companion.withArgs
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.AapsSpacing
 import app.aaps.core.ui.compose.NumberInputRow
@@ -35,8 +36,8 @@ import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
 
 /**
- * Reusable rule edited and saved with the food, including a fixed amount per 100 g (weighed food) or
- * per portion. Explanations are behind ⓘ buttons, so the editor shows only the inputs and errors.
+ * Reusable rule edited and saved with the food, including a fixed amount for the saved amount of the
+ * food (for example 100 g). Explanations are behind ⓘ buttons, so the editor shows only the inputs and errors.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +47,7 @@ internal fun FoodECarbsRuleEditor(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
-        // A fixed amount per 100 g or a carbs-only split needs no protein or fat, so the switch is always available
+        // A fixed amount or a carbs-only split needs no protein or fat, so the switch is always available
         val info = stringResource(UiStrings.food_more_info)
         FoodECarbsSwitch(UiStrings.food_ecarbs_rule_enable, enabled, true, onEnabledChange) {
             InfoTooltipButton(info) { Text(stringResource(UiStrings.food_ecarbs_rule_hint)) }
@@ -92,12 +93,11 @@ internal fun FoodECarbsRuleEditor(
             }
             FoodUnknownNutrients(food, rule)
             val calculated = rule.equivalentGrams((food.protein ?: 0).toDouble(), (food.fat ?: 0).toDouble())
-            Text(stringResource(
-                if (food.byWeight) UiStrings.food_ecarbs_per100_calculated else UiStrings.food_ecarbs_portion_calculated,
-                NumberFormat.DECIMAL_1.format(calculated)
-            ))
+            // For the saved amount of the food, like its nutrients
+            val amount = food.portion.formatAmount()
+            Text(stringResource(UiStrings.food_ecarbs_amount_calculated, amount, food.unit, NumberFormat.DECIMAL_1.format(calculated)))
             NumberInputRow(
-                labelRef = if (food.byWeight) UiStrings.food_ecarbs_per100_amount else UiStrings.food_ecarbs_portion_amount, value = rule.manualGrams ?: calculated,
+                labelRef = UiStrings.food_ecarbs_amount_fixed.withArgs(amount, food.unit), value = rule.manualGrams ?: calculated,
                 onValueChange = { onRuleChange(rule.copy(manualGrams = it)) },
                 valueRange = FoodECarbsRule.MANUAL_GRAMS, step = 0.1, decimalPlaces = 1, unitLabel = CoreUiStrings.shortgramm
             )

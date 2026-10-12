@@ -118,7 +118,7 @@ class WizardDialogContentTest {
 
     private fun mealState(rule: FoodECarbsRule = fpu, enabled: Boolean = true) =
         WizardDialogUiState(isLoaded = true, hasBgData = true, bgAgeMinutes = 2, carbs = 50, maxCarbs = 100,
-            foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = rule), portionGrams = 200.0, enabled = enabled, rule = rule))
+            foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = rule), amount = 200.0, enabled = enabled, rule = rule))
 
     @Test
     fun theFoodECarbsAreARowOfTheInputsWithTheirValue() {

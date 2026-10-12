@@ -340,8 +340,9 @@ private val migration35to36 = object : Migration(35, 36) {
 }
 
 /**
- * Food eCarbs formula, local edit protection, and whether a food is weighed. Existing foods keep the
- * old rule for the last one: a food in grams or kg is weighed, any other is counted in portions.
+ * Food eCarbs formula, local edit protection, and whether the wizard asks for the amount every time.
+ * For existing foods that is the old behaviour: a food in grams or kg is weighed every time, the
+ * others start at their portion.
  */
 private val migration36to37 = object : Migration(36, 37) {
     override fun migrate(connection: SQLiteConnection) {

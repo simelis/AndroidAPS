@@ -164,18 +164,17 @@ internal class WizardDialogViewModelTest {
         assertThat(state.foodECarbs!!.enabled).isTrue()
         assertThat(state.eCarbs).isEqualTo(0)
         assertThat(state.foodInputsValid).isFalse()
-        sut.updateFoodPortionGrams(300.0)
+        sut.updateFoodAmount(300.0)
         assertThat(sut.uiState.value.carbs).isEqualTo(75)
         assertThat(sut.uiState.value.eCarbs).isEqualTo(26)
     }
 
     @Test
-    fun `foods that are not weighed start at their saved amount and scale carbs and eCarbs by the amount eaten`() = runTest(mainDispatcher.scheduler) {
+    fun `a usual amount starts at the saved amount and scales carbs and eCarbs by the amount eaten`() = runTest(mainDispatcher.scheduler) {
         val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
-        stubFoodInitialization(FD(id = 7, name = "Two slices", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10), rule)
+        stubFoodInitialization(FD(id = 7, name = "Two slices", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10, askAmount = false), rule)
         advanceUntilIdle()
         val food = sut.uiState.value.foodECarbs!!
-        assertThat(food.byWeight).isFalse()
         assertThat(food.amount).isEqualTo(2.0)
         assertThat(food.enabled).isTrue()
         assertThat(sut.uiState.value.carbs).isEqualTo(50)
@@ -194,10 +193,10 @@ internal class WizardDialogViewModelTest {
         advanceUntilIdle()
         sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
         sut.toggleFoodECarbs(true)
-        sut.updateFoodPortionGrams(200.0)
+        sut.updateFoodAmount(200.0)
         sut.updateFoodECarbsGrams(5)
         assertThat(sut.uiState.value.eCarbs).isEqualTo(5)
-        sut.updateFoodPortionGrams(300.0)
+        sut.updateFoodAmount(300.0)
         assertThat(sut.uiState.value.carbs).isEqualTo(75)
         assertThat(sut.uiState.value.foodECarbs!!.proteinGrams).isEqualTo(30.0)
         assertThat(sut.uiState.value.foodECarbs!!.fatGrams).isEqualTo(15.0)
@@ -216,7 +215,7 @@ internal class WizardDialogViewModelTest {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 60, protein = 20, fat = 10))
         advanceUntilIdle()
         sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
-        sut.updateFoodPortionGrams(200.0)
+        sut.updateFoodAmount(200.0)
         sut.updateCarbsType(CarbsType.PIZZA)
         assertThat(sut.uiState.value.effectiveCarbs).isEqualTo(48)
         assertThat(sut.uiState.value.eCarbs).isEqualTo(21)
@@ -254,7 +253,7 @@ internal class WizardDialogViewModelTest {
         whenever(wizardExecutor.prepare(any(), any())).thenReturn(ActionProgress.Sending)
         advanceUntilIdle()
         sut.updateCarbsType(CarbsType.PIZZA)
-        sut.updateFoodPortionGrams(300.0)
+        sut.updateFoodAmount(300.0)
         sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3))
         sut.toggleFoodECarbs(true)
         sut.updateCarbTime(15)
@@ -279,7 +278,7 @@ internal class WizardDialogViewModelTest {
         val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
         sut.updateFoodECarbsRule(rule)
         sut.toggleFoodECarbs(true)
-        sut.updateFoodPortionGrams(300.0)
+        sut.updateFoodAmount(300.0)
         sut.updateFoodECarbsGrams(5)
         verify(persistenceLayer, never()).insertOrUpdateFood(any())
     }

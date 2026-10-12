@@ -39,6 +39,7 @@ internal fun RemoteFood.toNSFood(): NSFood? {
                 energy = energy,
                 gi = gi,
                 aapsECarbsRule = aapsECarbsRule,
+                aapsAskAmount = aapsAskAmount,
                 aapsByWeight = aapsByWeight
             )
 
@@ -68,5 +69,5 @@ internal fun NSFood.toRemoteFood(): RemoteFood =
         energy = energy,
         gi = gi,
         aapsECarbsRule = aapsECarbsRule,
-        aapsByWeight = aapsByWeight
+        aapsAskAmount = aapsAskAmount
     )

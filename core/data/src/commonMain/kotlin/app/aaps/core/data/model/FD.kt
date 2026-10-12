@@ -23,9 +23,9 @@ data class FD(
     var gi: Int? = null, // not used yet
     // Synced to Nightscout as the aapsECarbsRule field
     var eCarbsRule: FoodECarbsRule? = null,
-    // Nutrients are per 100 g and the wizard asks for the weight eaten. When false, nutrients are per
-    // portion (any unit, grams too) and the wizard asks for the number of portions. Synced as aapsByWeight.
-    var byWeight: Boolean = true
+    // The wizard starts with an empty amount, so it is weighed or counted every time. When false it
+    // starts at [portion], the usual amount. Synced to Nightscout as the aapsAskAmount field.
+    var askAmount: Boolean = true
 
 ) : HasIDs {
 
@@ -41,7 +41,7 @@ data class FD(
         if (category != other.category) return false
         if (subCategory != other.subCategory) return false
         if (eCarbsRule != other.eCarbsRule) return false
-        if (byWeight != other.byWeight) return false
+        if (askAmount != other.askAmount) return false
         return unit == other.unit
     }
 
@@ -53,7 +53,7 @@ data class FD(
 
     companion object {
 
-        /** Units that can be weighed. Used for foods that do not say how they are counted, like the Nightscout web editor's. */
+        /** Units that are a weight. A food from Nightscout that does not say [askAmount] is asked every time when its unit is one. */
         fun isWeightUnit(unit: String): Boolean = unit.trim().lowercase() in setOf("g", "gram", "grams", "kg")
     }
 }
