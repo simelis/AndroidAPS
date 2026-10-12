@@ -21,8 +21,8 @@ import kotlinx.coroutines.CancellationException
  * Loads foods in two ways, because Nightscout has two kinds of food:
  *
  * - Changes made through API v3 (AAPS and AAPSClient) are read from the food history every time,
- *   from [NsclientLongKey.FoodLastLoadedSrvModified]. Only the history has deleted foods; the plain
- *   list hides them.
+ *   from [NsclientLongKey.FoodLastLoadedSrvModified] (0 the first time, so all of it). Only the
+ *   history has deleted foods; the plain list hides them.
  * - Foods made or edited in the Nightscout web editor (API v1) have no change time and are not in
  *   the history. The full list is read every 5th time to find them.
  */
@@ -46,8 +46,9 @@ class LoadFoodsRunner(
         // A failed history read must not also skip the full list below, so it has its own error handling
         var historyError: Exception? = null
         try {
-            // The history needs a starting point, so it begins after the first full read
-            if (loadedUpTo != 0L && (nsClientV3Plugin.newestDataOnServer?.collections?.food ?: Long.MAX_VALUE) > loadedUpTo)
+            // The first time (and after a full sync) it is read from the start: the full list hides
+            // deleted foods, so a delete made before that would never be seen
+            if ((nsClientV3Plugin.newestDataOnServer?.collections?.food ?: Long.MAX_VALUE) > loadedUpTo)
                 loadChanges(nsAndroidClient, loadedUpTo)
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -64,9 +65,6 @@ class LoadFoodsRunner(
                 // Schedule processing of fetched data
                 nsIncomingDataProcessor.processFood(foods)
                 storeDataForDb.storeFoodsToDb()
-                // Start the history from the server's own time, not this phone's clock
-                val newestOnServer = nsClientV3Plugin.newestDataOnServer?.collections?.food ?: 0L
-                if (loadedUpTo == 0L && newestOnServer > 0L) preferences.put(NsclientLongKey.FoodLastLoadedSrvModified, newestOnServer)
             } else {
                 nsClientRepository.addLog("● RCV FOOD", "full list skipped")
             }

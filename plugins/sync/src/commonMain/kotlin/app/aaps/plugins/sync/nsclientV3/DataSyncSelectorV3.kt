@@ -395,6 +395,7 @@ class DataSyncSelectorV3(
     /**
      * Only with [BooleanKey.NsClientUploadFood] on. When off, the cursor does not move, so foods
      * edited here stay protected from Nightscout downloads, and turning it on later uploads them.
+     * After the uploads, foods whose newest change is uploaded follow Nightscout again.
      */
     @OpenForTesting
     suspend fun processChangedFoods() {
@@ -427,6 +428,8 @@ class DataSyncSelectorV3(
                 if (cont) confirmLastFoodIdIfGreater(food.second.id)
             } ?: run { cont = false }
         }
+        // Uploaded edits must not stay protected, or a later cursor reset (full sync) protects them again
+        persistenceLayer.clearUploadedFoodEdits(preferences.get(NsclientLongKey.FoodLastSyncedId))
     }
 
     @OpenForTesting
