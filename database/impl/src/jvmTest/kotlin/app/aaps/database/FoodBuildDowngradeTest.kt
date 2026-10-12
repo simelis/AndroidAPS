@@ -17,15 +17,26 @@ import kotlin.test.Test
  * Going back from the food eCarbs build (database version 37) to this fallback (36).
  *
  * The database is made from that build's own Room schema export, so it is the real version 37 file
- * and not a guess of it.
+ * and not a guess of it. There are two: early test versions had two food columns, the current one
+ * also has `byWeight`, at the same version number.
  */
 class FoodBuildDowngradeTest {
 
     @Test
-    fun `a version 37 database from the food build keeps all foods when opened here`() = runTest {
+    fun `a version 37 database from an early food build keeps all foods when opened here`() =
+        downgradeKeepsFoods("food-ecarbs-build-schema-37.json", byWeight = false)
+
+    @Test
+    fun `a version 37 database from the current food build keeps all foods when opened here`() =
+        downgradeKeepsFoods("food-ecarbs-build-schema-37-by-weight.json", byWeight = true)
+
+    private fun downgradeKeepsFoods(schemaFile: String, byWeight: Boolean) = runTest {
         val directory = createTempDirectory("aaps-food-downgrade")
         val fileName = "$directory/aaps.db"
-        val schema = Json.parseToJsonElement(File("src/jvmTest/resources/food-ecarbs-build-schema-37.json").readText())
+        // The current schema has byWeight, NOT NULL and without a default
+        val extraColumn = if (byWeight) ", byWeight" else ""
+        fun extraValue(value: Int) = if (byWeight) ", $value" else ""
+        val schema = Json.parseToJsonElement(File("src/jvmTest/resources/$schemaFile").readText())
             .jsonObject.getValue("database").jsonObject
         BundledSQLiteDriver().open(fileName).use { connection ->
             schema.getValue("entities").jsonArray.forEach { entry ->
@@ -39,12 +50,12 @@ class FoodBuildDowngradeTest {
             schema.getValue("setupQueries").jsonArray.forEach { connection.execSQL(it.jsonPrimitive.content) }
             connection.execSQL("PRAGMA user_version = 37")
             connection.execSQL(
-                "INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, fat, protein, unit, eCarbsRuleJson, isLocallyEdited) " +
-                    "VALUES (7, 1, 1000, 1, 'Pizza', 100, 30, 10, 12, 'g', '{\"method\":\"FPU\",\"durationHours\":3}', 1)"
+                "INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, fat, protein, unit, eCarbsRuleJson, isLocallyEdited$extraColumn) " +
+                    "VALUES (7, 1, 1000, 1, 'Pizza', 100, 30, 10, 12, 'g', '{\"method\":\"FPU\",\"durationHours\":3}', 1${extraValue(1)})"
             )
             connection.execSQL(
-                "INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, unit, isLocallyEdited) " +
-                    "VALUES (8, 0, 1000, 1, 'Apple', 100, 12, 'g', 0)"
+                "INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, unit, isLocallyEdited$extraColumn) " +
+                    "VALUES (8, 0, 1000, 1, 'Apple', 1, 12, 'piece', 0${extraValue(0)})"
             )
         }
 

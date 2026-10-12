@@ -341,7 +341,7 @@ private val migration35to36 = object : Migration(35, 36) {
 
 /**
  * Back down from the food eCarbs build (simelis/AndroidAPS, branch v4.0-beta1), which is version
- * 37: it added these two columns to the food table and changed nothing else.
+ * 37: it added food columns (two in early test versions, three now) and changed nothing else.
  *
  * Not part of official AAPS. This fallback build exists so a phone can go back from that build
  * without losing its database. Without this step Room finds no path from 37 and, because of
@@ -352,8 +352,15 @@ private val migration35to36 = object : Migration(35, 36) {
  */
 private val migration37to36 = object : Migration(37, 36) {
     override fun migrate(connection: SQLiteConnection) {
-        connection.execSQL("ALTER TABLE `$TABLE_FOODS` DROP COLUMN `eCarbsRuleJson`")
-        connection.execSQL("ALTER TABLE `$TABLE_FOODS` DROP COLUMN `isLocallyEdited`")
+        // Test versions of the food build had different food columns at the same version 37, so drop
+        // the ones that exist. A column left behind would fail Room's check of the version 36 tables.
+        val columns = mutableSetOf<String>()
+        connection.prepare("PRAGMA table_info(`$TABLE_FOODS`)").use { statement ->
+            while (statement.step()) columns.add(statement.getText(1))
+        }
+        listOf("eCarbsRuleJson", "isLocallyEdited", "byWeight").filter { it in columns }.forEach {
+            connection.execSQL("ALTER TABLE `$TABLE_FOODS` DROP COLUMN `$it`")
+        }
         dropCustomIndexes(connection)
     }
 }
