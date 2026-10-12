@@ -140,12 +140,25 @@ class WizardDialogContentTest {
     }
 
     @Test
-    fun carbsHeldBackFromTheBolusAreShownUnderTheRow() {
+    fun theSplitOfTheMealIsShownUnderTheCarbsField() {
         setWizard(state = { mealState(rule = fpu.copy(carbsNowPercent = 80)) })
 
         // 80 % of 50 g is 40 g now; the other 10 g join the 17 g from protein and fat
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_row_value, 27, 60, 3)).assertExists()
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_moved, 40, 10)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.wizard_carbs_split, 40, 27)).assertExists()
+    }
+
+    @Test
+    fun pizzaShowsItsSplitToo() {
+        setWizard(state = { WizardDialogUiState(isLoaded = true, carbs = 50, maxCarbs = 100, carbsType = CarbsType.PIZZA) })
+        // Pizza: 80 % now, 35 % added as eCarbs
+        compose.onNodeWithText(context.getString(UiR.string.wizard_carbs_split, 40, 17)).assertExists()
+    }
+
+    @Test
+    fun breadShowsNoSplit() {
+        setWizard(state = { WizardDialogUiState(isLoaded = true, carbs = 50, maxCarbs = 100) })
+        compose.onNodeWithText(context.getString(UiR.string.wizard_carbs_split, 50, 0)).assertDoesNotExist()
     }
 
     @Test

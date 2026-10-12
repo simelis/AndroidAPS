@@ -47,7 +47,6 @@ import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TooltipAnchorPosition
@@ -88,9 +87,6 @@ import app.aaps.core.ui.compose.bottomBarSafeArea
 import app.aaps.core.ui.compose.clearFocusOnTap
 import app.aaps.core.ui.compose.consumeOverscroll
 import app.aaps.core.ui.compose.dialogs.ElementConfirmationDialog
-import app.aaps.core.ui.compose.icons.IcBread
-import app.aaps.core.ui.compose.icons.IcCake
-import app.aaps.core.ui.compose.icons.IcPizza
 import app.aaps.core.ui.compose.icons.IcTtManual
 import app.aaps.core.ui.compose.metroViewModel
 import app.aaps.core.ui.compose.navigation.color
@@ -641,6 +637,8 @@ internal fun WizardDialogContent(
                             step = 1.0,
                             unitLabel = TextRef.Literal("g")
                         )
+                        // The field is the whole meal; this says what counts now and what comes later
+                        CarbsSplitLine(uiState)
                         QuickAddButtons(
                             increment1 = uiState.carbsButtonIncrement1,
                             increment2 = uiState.carbsButtonIncrement2,
@@ -648,73 +646,12 @@ internal fun WizardDialogContent(
                             onAddCarbs = onAddCarbs
                         )
 
-                        // Carbs type selector
-                        if (uiState.foodECarbs?.enabled != true) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                SingleChoiceSegmentedButtonRow(
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    CarbsType.entries.forEachIndexed { index, type ->
-                                        SegmentedButton(
-                                            selected = uiState.carbsType == type,
-                                            onClick = { onCarbsTypeChange(type) },
-                                            shape = SegmentedButtonDefaults.itemShape(index, CarbsType.entries.size),
-                                            icon = {}
-                                        ) {
-                                            Icon(
-                                                imageVector = when (type) {
-                                                    CarbsType.BREAD -> IcBread
-                                                    CarbsType.CAKE  -> IcCake
-                                                    CarbsType.PIZZA -> IcPizza
-                                                },
-                                                // Was the enum name ("BREAD"), untranslated and saying
-                                                // nothing about what the choice does to the carbs.
-                                                contentDescription = carbsTypeEffect(type),
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                val tooltipState = rememberTooltipState()
-                                val scope = rememberCoroutineScope()
-                                TooltipBox(
-                                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                                    tooltip = {
-                                        PlainTooltip {
-                                            Column {
-                                                Text(
-                                                    text = when (uiState.carbsType) {
-                                                        CarbsType.BREAD -> stringResource(CoreUiStrings.carbs_type_bread)
-                                                        CarbsType.CAKE  -> stringResource(CoreUiStrings.carbs_type_cake)
-                                                        CarbsType.PIZZA -> stringResource(CoreUiStrings.carbs_type_pizza)
-                                                    }
-                                                )
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text(
-                                                    text = carbsTypeEffect(uiState.carbsType),
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    },
-                                    state = tooltipState
-                                ) {
-                                    IconButton(onClick = { scope.launch { tooltipState.show() } }) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Info,
-                                            contentDescription = stringResource(CoreUiStrings.carousel_show_card),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        // Bread, dumplings, pizza or the food's own formula: one choice
+                        CarbsTypeSelector(
+                            state = uiState,
+                            onCarbsTypeChange = onCarbsTypeChange,
+                            onFoodFormulaSelect = { foodActions.enabled(true) }
+                        )
                     }
 
                     // Direct Correction input
@@ -1002,15 +939,3 @@ private fun ProfileDropdown(
         }
     }
 }
-
-/** What a carbs type does to the entered carbs, said on its button and shown in the info tooltip. */
-@Composable
-private fun carbsTypeEffect(type: CarbsType): String =
-    if (type == CarbsType.BREAD) stringResource(UiStrings.wizard_carbs_type_bread_desc)
-    else stringResource(
-        UiStrings.wizard_carbs_type_desc,
-        100 - type.carbsPercent,
-        type.eCarbsPercent,
-        type.eCarbsDelayMinutes,
-        type.eCarbsDurationHours
-    )

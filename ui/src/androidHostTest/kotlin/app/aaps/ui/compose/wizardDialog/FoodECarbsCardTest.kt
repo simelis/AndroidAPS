@@ -1,11 +1,13 @@
 package app.aaps.ui.compose.wizardDialog
 
 import android.content.Context
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -46,18 +48,16 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun foodModeStartsOffAndCanBeExplicitlyEnabled() {
+    fun theFoodFormulaIsAFourthChoiceNextToBreadDumplingsAndPizza() {
         val context = RuntimeEnvironment.getApplication()
-        var enabled = false
+        var selected = false
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal, rule = fpu)),
-                    FoodECarbsCallbacks(enabled = { enabled = it }))
+                CarbsTypeSelector(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal, rule = fpu)), {}, { selected = true })
             }
         }
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_method)).assertDoesNotExist()
-        compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).assertIsOff().performClick()
-        assertThat(enabled).isTrue()
+        compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).assertIsNotSelected().performClick()
+        assertThat(selected).isTrue()
     }
 
     @Test
@@ -95,10 +95,13 @@ class FoodECarbsCardTest {
     @Test
     fun missingMacrosDisableTheSwitchAndExplainWhatToEnter() {
         val context = RuntimeEnvironment.getApplication()
+        val state = WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null, protein = null), rule = fpu))
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null, protein = null), rule = fpu)),
-                    FoodECarbsCallbacks())
+                Column {
+                    FoodECarbsCard(state, FoodECarbsCallbacks())
+                    CarbsTypeSelector(state, {}, {})
+                }
             }
         }
         compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).assertIsNotEnabled()
@@ -108,9 +111,13 @@ class FoodECarbsCardTest {
     @Test
     fun aFoodWithoutASavedFormulaShowsNoSwitch() {
         val context = RuntimeEnvironment.getApplication()
+        val state = WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = null)))
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = null))), FoodECarbsCallbacks())
+                Column {
+                    FoodECarbsCard(state, FoodECarbsCallbacks())
+                    CarbsTypeSelector(state, {}, {})
+                }
             }
         }
         compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).assertDoesNotExist()
@@ -121,16 +128,19 @@ class FoodECarbsCardTest {
     @Test
     fun fpuWithOneUnknownNutrientCanBeUsedAndSaysItCountsAsZero() {
         val context = RuntimeEnvironment.getApplication()
-        var enabled = false
+        var selected = false
+        val state = WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null), rule = fpu))
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null), rule = fpu)),
-                    FoodECarbsCallbacks(enabled = { enabled = it }))
+                Column {
+                    FoodECarbsCard(state, FoodECarbsCallbacks())
+                    CarbsTypeSelector(state, {}, { selected = true })
+                }
             }
         }
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_missing_macros)).assertDoesNotExist()
         compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).performClick()
-        assertThat(enabled).isTrue()
+        assertThat(selected).isTrue()
     }
 
     @Test
@@ -181,16 +191,16 @@ class FoodECarbsCardTest {
     @Test
     fun enabledFoodModeCanBeTurnedOffWhileTimingIsInvalid() {
         val context = RuntimeEnvironment.getApplication()
-        var enabled = true
+        var chosen: CarbsType? = null
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal,
-                    enabled = true, rule = FoodECarbsRule(durationHours = 0))),
-                    FoodECarbsCallbacks(enabled = { enabled = it }))
+                CarbsTypeSelector(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal,
+                    enabled = true, rule = FoodECarbsRule(durationHours = 0))), { chosen = it }, {})
             }
         }
-        compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).performClick()
-        assertThat(enabled).isFalse()
+        compose.onNodeWithContentDescription(context.getString(UiR.string.food_ecarbs_enable)).assertIsSelected()
+        compose.onNodeWithContentDescription(context.getString(UiR.string.wizard_carbs_type_bread_desc)).assertIsNotSelected().performClick()
+        assertThat(chosen).isEqualTo(CarbsType.BREAD)
     }
 
     @Test

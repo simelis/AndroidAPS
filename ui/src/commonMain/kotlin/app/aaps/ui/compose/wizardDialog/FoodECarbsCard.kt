@@ -35,7 +35,6 @@ import app.aaps.core.ui.compose.NumberInputRow
 import app.aaps.core.ui.compose.rememberBringIntoViewOnExpand
 import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
-import app.aaps.ui.compose.foodManagement.FoodECarbsSwitch
 import app.aaps.ui.compose.foodManagement.FoodECarbsTiming
 import app.aaps.ui.compose.foodManagement.FoodUnknownNutrients
 import app.aaps.ui.compose.foodManagement.InfoTooltipButton
@@ -55,7 +54,9 @@ internal data class FoodECarbsCallbacks(
 /**
  * Apply the stored food formula, with portion and overrides for this meal only.
  *
- * Kept short on purpose: the weight (or the amount in the food's unit), one nutrient line and the switch.
+ * Kept short on purpose: the weight (or the amount in the food's unit) and one nutrient line. The formula
+ * itself is chosen next to bread, dumplings and pizza ([CarbsTypeSelector]), and the split is shown under
+ * the carbs field ([CarbsSplitLine]).
  * Background text is in the info tooltip, and the eCarbs amount and timing are a row of the wizard
  * inputs ([FoodECarbsRow]).
  */
@@ -104,13 +105,9 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                     if (food.food.proteinKnown) food.proteinGrams.roundToInt().toString() else unknown,
                     if (food.food.fatKnown) food.fatGrams.roundToInt().toString() else unknown))
             }
-            // Without a saved formula there is nothing to switch on, so the switch is not shown
-            if (food.food.eCarbsRule == null) {
-                Text(stringResource(UiStrings.food_ecarbs_no_rule), style = MaterialTheme.typography.bodySmall)
-            } else {
-                FoodECarbsSwitch(UiStrings.food_ecarbs_enable, food.enabled, food.enabled || (food.canUseRule && food.rule.isValid), actions.enabled)
-                if (!food.canUseRule) Text(stringResource(UiStrings.food_ecarbs_missing_macros), style = MaterialTheme.typography.bodySmall)
-            }
+            // The formula is chosen next to bread, dumplings and pizza (CarbsTypeSelector); this says why it cannot be
+            if (food.food.eCarbsRule == null) Text(stringResource(UiStrings.food_ecarbs_no_rule), style = MaterialTheme.typography.bodySmall)
+            else if (!food.canUseRule) Text(stringResource(UiStrings.food_ecarbs_missing_macros), style = MaterialTheme.typography.bodySmall)
             // The eCarbs amount and timing are a row of the wizard inputs, next to carb time (FoodECarbsRow)
             if (food.enabled && hasWeight) FoodUnknownNutrients(food.food, food.rule)
             if (!state.foodInputsValid && (portionEntered || hasWeight)) Text(
@@ -130,7 +127,6 @@ internal fun FoodECarbsRow(state: WizardDialogUiState, actions: FoodECarbsCallba
     val food = state.foodECarbs?.takeIf { it.enabled } ?: return
     var expanded by rememberSaveable { mutableStateOf(false) }
     val plan = state.carbPlan()
-    val moved = state.carbs - plan.carbs
     Column(modifier = modifier.bringIntoViewRequester(rememberBringIntoViewOnExpand(expanded))) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Row(
@@ -153,11 +149,6 @@ internal fun FoodECarbsRow(state: WizardDialogUiState, actions: FoodECarbsCallba
                 Text(stringResource(CoreUiStrings.change))
             }
         }
-        if (moved > 0) Text(
-            stringResource(UiStrings.food_ecarbs_moved, plan.carbs, moved),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
             Column(verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
                 NumberInputRow(
