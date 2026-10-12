@@ -123,6 +123,6 @@ class NsConnectHandler(
          * One list, because the two copies of it were the reason `settings` reached Android and not
          * the other platforms. Adding a name here adds it everywhere, which is the point.
          */
-        val COLLECTIONS = listOf("devicestatus", "entries", "profile", "treatments", "foods", "settings")
+        val COLLECTIONS = listOf("devicestatus", "entries", "profile", "treatments", "food", "settings")
     }
 }
