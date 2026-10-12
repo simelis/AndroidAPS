@@ -73,9 +73,10 @@ class NsConnectHandlerTest : TestBaseWithProfile() {
         sut.onConnectStorage(socket) {}
 
         assertThat(socket.emittedEvent).isEqualTo("subscribe")
-        listOf("devicestatus", "entries", "profile", "treatments", "foods", "settings").forEach {
-            assertThat(socket.emittedPayload).contains(it)
+        listOf("devicestatus", "entries", "profile", "treatments", "food", "settings").forEach {
+            assertThat(socket.emittedPayload).contains("\"$it\"")
         }
+        assertThat(socket.emittedPayload).doesNotContain("\"foods\"")
     }
 
     @Test

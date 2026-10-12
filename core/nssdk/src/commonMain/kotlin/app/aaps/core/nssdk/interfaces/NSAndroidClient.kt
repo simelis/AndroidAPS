@@ -50,7 +50,8 @@ interface NSAndroidClient {
     suspend fun updateTreatment(nsTreatment: NSTreatment): CreateUpdateResponse
     suspend fun getFoods(limit: Int): ReadResponse<List<NSFood>>
 
-    //suspend fun getFoodsModifiedSince(from: Long, limit: Int): ReadResponse<List<NSFood>>
+    /** Foods changed through API v3 since [from], deleted ones included. */
+    suspend fun getFoodsModifiedSince(from: Long, limit: Int): ReadResponse<List<NSFood>>
     suspend fun createFood(nsFood: NSFood): CreateUpdateResponse
     suspend fun updateFood(nsFood: NSFood): CreateUpdateResponse
 
