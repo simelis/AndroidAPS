@@ -61,14 +61,14 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun aNewMealFocusesTheWeightAndShowsNoProblemYet() {
+    fun aFoodAskedEveryTimeFocusesTheAmountAndShowsNoProblemYet() {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {
                 FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal)), FoodECarbsCallbacks())
             }
         }
-        compose.onNode(isFocused()).assert(hasText(context.getString(UiR.string.food_portion_grams)))
+        compose.onNode(isFocused()).assert(hasText(context.getString(UiR.string.food_amount_eaten)))
         compose.onNodeWithText(invalidText(context)).assertDoesNotExist()
     }
 
@@ -79,7 +79,7 @@ class FoodECarbsCardTest {
         compose.setContent {
             MaterialTheme {
                 FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal)),
-                    FoodECarbsCallbacks(portionGrams = { portion = it }))
+                    FoodECarbsCallbacks(amount = { portion = it }))
             }
         }
         compose.onNode(isFocused()).performTextReplacement("0")
@@ -149,7 +149,7 @@ class FoodECarbsCardTest {
         compose.setContent {
             MaterialTheme {
                 FoodECarbsCard(WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null),
-                    portionGrams = 200.0, enabled = true, rule = fpu)), FoodECarbsCallbacks())
+                    amount = 200.0, enabled = true, rule = fpu)), FoodECarbsCallbacks())
             }
         }
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_fat_unknown)).assertExists()
@@ -163,7 +163,7 @@ class FoodECarbsCardTest {
             MaterialTheme {
                 FoodECarbsCard(
                     WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(
-                        meal, portionGrams = 200.0, enabled = true, rule = fpu
+                        meal, amount = 200.0, enabled = true, rule = fpu
                     )),
                     FoodECarbsCallbacks()
                 )
@@ -204,7 +204,7 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun foodEditorShowsThePer100GramFormulaAndCanResetAManualEquivalent() {
+    fun foodEditorShowsTheFormulaForTheSavedAmountAndCanResetAFixedAmount() {
         val context = RuntimeEnvironment.getApplication()
         val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGrams = 9.5)
         var updated = rule
@@ -213,7 +213,8 @@ class FoodECarbsCardTest {
                 FoodECarbsRuleEditor(meal.copy(portion = 100.0, carbs = 25, protein = 10, fat = 5), true, rule, {}, { updated = it })
             }
         }
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_per100_calculated, "8.5")).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_amount_calculated, "100", "g", "8.5")).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_amount_fixed, "100", "g")).assertExists()
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_use_calculated)).performClick()
         assertThat(updated.manualGrams).isNull()
     }
@@ -232,9 +233,9 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun aFoodNotWeighedAsksForTheAmountInItsOwnUnitNotForAWeight() {
+    fun aUsualAmountStartsFilledInAndInTheFoodsOwnUnit() {
         val context = RuntimeEnvironment.getApplication()
-        val slice = meal.copy(portion = 3.0, unit = "slices", byWeight = false)
+        val slice = meal.copy(portion = 3.0, unit = "slices", askAmount = false)
         compose.setContent {
             MaterialTheme {
                 FoodECarbsCard(WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(slice, rule = fpu, enabled = true)),
@@ -243,7 +244,7 @@ class FoodECarbsCardTest {
         }
         compose.onNodeWithText(context.getString(UiR.string.food_amount_eaten)).assertExists()
         compose.onNodeWithText("slices").assertExists()
-        compose.onNodeWithText(context.getString(UiR.string.food_portion_grams)).assertDoesNotExist()
+        compose.onNode(isFocused()).assertDoesNotExist()
         compose.onNodeWithText(invalidText(context)).assertDoesNotExist()
     }
 
@@ -267,15 +268,14 @@ class FoodECarbsCardTest {
     }
 
     @Test
-    fun aFoodCountedInPortionsHasItsFormulaPerPortion() {
+    fun aFixedAmountIsForTheSavedAmountInAnyUnit() {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {
-                FoodECarbsRuleEditor(meal.copy(portion = 1.0, unit = "slice", byWeight = false), true, fpu, {}, {})
+                FoodECarbsRuleEditor(meal.copy(portion = 3.0, unit = "slices"), true, fpu, {}, {})
             }
         }
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_portion_amount)).assertExists()
-        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_per100_amount)).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_amount_fixed, "3", "slices")).assertExists()
     }
 
     @Test

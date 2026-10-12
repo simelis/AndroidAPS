@@ -36,7 +36,7 @@ class FoodMigrationTest {
     }
 
     @Test
-    fun `upgrading a version 36 database marks foods in grams or kg as weighed and the others as portions`() = runTest {
+    fun `upgrading a version 36 database asks for the amount of foods in grams or kg every time, not of the others`() = runTest {
         val directory = createTempDirectory("aaps-food-migration-units")
         val fileName = "$directory/aaps.db"
         createDatabase(fileName, 36) { connection ->
@@ -50,8 +50,8 @@ class FoodMigrationTest {
         try {
             val database = JvmAppDatabaseBuilder().provideAppDatabase(fileName)
             try {
-                val byWeight = database.foodDao.getFoodData().associate { it.id to it.byWeight }
-                assertThat(byWeight).containsExactly(1L, true, 2L, true, 3L, true, 4L, false, 5L, false)
+                val askAmount = database.foodDao.getFoodData().associate { it.id to it.askAmount }
+                assertThat(askAmount).containsExactly(1L, true, 2L, true, 3L, true, 4L, false, 5L, false)
             } finally { database.close() }
         } finally {
             directory.toFile().deleteRecursively()

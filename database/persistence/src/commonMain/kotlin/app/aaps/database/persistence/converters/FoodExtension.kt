@@ -22,7 +22,7 @@ fun Food.fromDb(): FD =
         unit = this.unit,
         gi = this.gi,
         eCarbsRule = FoodECarbsRule.fromJsonString(this.eCarbsRuleJson),
-        byWeight = this.byWeight,
+        askAmount = this.askAmount,
         ids = this.interfaceIDs.fromDb()
     )
 
@@ -44,6 +44,6 @@ fun FD.toDb(): Food =
         unit = this.unit,
         gi = this.gi,
         eCarbsRuleJson = this.eCarbsRule?.toJsonString(),
-        byWeight = this.byWeight,
+        askAmount = this.askAmount,
         interfaceIDs_backing = this.ids.toDb()
     )

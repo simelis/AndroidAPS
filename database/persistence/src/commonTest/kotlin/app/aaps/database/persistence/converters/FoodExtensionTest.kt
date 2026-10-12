@@ -163,10 +163,10 @@ internal class FoodExtensionTest {
 
     @Test
     fun howAFoodIsCountedIsStored() {
-        val slice = FD(name = "Slice", portion = 30.0, unit = "g", carbs = 15, byWeight = false)
-        assertEquals(false, slice.toDb().byWeight)
-        assertEquals(false, slice.toDb().fromDb().byWeight)
-        assertEquals(true, slice.copy(byWeight = true).toDb().fromDb().byWeight)
+        val slice = FD(name = "Slice", portion = 30.0, unit = "g", carbs = 15, askAmount = false)
+        assertEquals(false, slice.toDb().askAmount)
+        assertEquals(false, slice.toDb().fromDb().askAmount)
+        assertEquals(true, slice.copy(askAmount = true).toDb().fromDb().askAmount)
     }
 
     @Test

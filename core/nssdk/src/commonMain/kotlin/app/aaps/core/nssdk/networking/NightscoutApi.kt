@@ -239,7 +239,7 @@ internal class NightscoutApi(
             put("protein", remoteFood.protein)
             put("fat", remoteFood.fat)
             put("aapsECarbsRule", remoteFood.aapsECarbsRule ?: JsonNull)
-            put("aapsByWeight", remoteFood.aapsByWeight)
+            put("aapsAskAmount", remoteFood.aapsAskAmount)
         }
         return call(HttpMethod.Patch, RemoteCreateUpdateResponse.serializer()) {
             nsUrl("v3", "food", identifier); jsonBody(patch)

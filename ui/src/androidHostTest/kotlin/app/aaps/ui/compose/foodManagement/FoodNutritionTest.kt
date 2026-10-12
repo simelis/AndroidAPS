@@ -12,53 +12,49 @@ class FoodNutritionTest {
     private val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
 
     @Test
-    fun `known mass portions display on a 100 gram basis without modifying the food`() {
-        assertThat(meal.nutrientsPer100g()).isEqualTo(FoodNutrition(25.0, 5.0, 10.0, null))
-        assertThat(meal.copy(portion = 0.2, unit = "kg").nutrientsPer100g()).isEqualTo(meal.nutrientsPer100g())
-        assertThat(meal.portion).isEqualTo(200.0)
-        listOf("pieces", "cups", "ml").forEach { assertThat(meal.copy(unit = it).nutrientsPer100g()).isNull() }
-        assertThat(meal.copy(portion = 0.0).nutrientsPer100g()).isNull()
+    fun `the weight of an amount is known only for weight units`() {
+        assertThat(weightInGrams(200.0, "g")).isEqualTo(200.0)
+        assertThat(weightInGrams(0.2, " KG ")).isEqualTo(200.0)
+        listOf("pieces", "cups", "ml").forEach { assertThat(weightInGrams(2.0, it)).isNull() }
+        assertThat(weightInGrams(Double.MAX_VALUE, "kg")).isNull()
     }
 
     @Test
-    fun `gram portions scale original precision and round only the final amounts`() {
-        val portion = FoodECarbsState(meal, portionGrams = 150.0, enabled = true, rule = rule)
+    fun `amounts scale original precision and round only the final amounts`() {
+        val portion = FoodECarbsState(meal, amount = 150.0, enabled = true, rule = rule)
         assertThat(portion.carbsGrams).isEqualTo(38)
         assertThat(portion.proteinGrams).isEqualTo(15.0)
         assertThat(portion.fatGrams).isEqualTo(7.5)
         assertThat(portion.eCarbsGrams).isEqualTo(13)
-        assertThat(portion.copy(portionGrams = 0.0).isValid(100)).isFalse()
-        // A food in ml cannot be weighed: it is counted in portions, so the weight is not used
-        val inMl = portion.copy(food = meal.copy(unit = "ml"))
-        assertThat(inMl.byWeight).isFalse()
-        assertThat(inMl.carbsGrams).isEqualTo(50)
+        assertThat(portion.copy(amount = 0.0).isValid(100)).isFalse()
+        // Any unit works the same way: the amount eaten against the saved amount
+        assertThat(portion.copy(food = meal.copy(unit = "ml")).carbsGrams).isEqualTo(38)
     }
 
     @Test
-    fun `a manual equivalent scales by weight independently of the original database portion`() {
-        val portion = FoodECarbsState(meal, portionGrams = 150.0, enabled = true, rule = rule.copy(manualGrams = 10.5))
-        assertThat(portion.eCarbsGrams).isEqualTo(16)
-        assertThat(portion.copy(portionGrams = 300.0).eCarbsGrams).isEqualTo(32)
+    fun `a fixed amount is for the saved amount and scales like the nutrients`() {
+        val portion = FoodECarbsState(meal, amount = 150.0, enabled = true, rule = rule.copy(manualGrams = 10.5))
+        // 10.5 g for 200 g, so 150 g gives 7.875 g
+        assertThat(portion.eCarbsGrams).isEqualTo(8)
+        assertThat(portion.copy(amount = 400.0).eCarbsGrams).isEqualTo(21)
     }
 
     @Test
-    fun `unrepresentable imported weights cannot produce a valid meal or crash carbohydrate rounding`() {
+    fun `unrepresentable imported amounts cannot produce a valid meal or crash carbohydrate rounding`() {
         val imported = meal.copy(portion = Double.MIN_VALUE, carbs = 0)
-        assertThat(imported.nutrientsPer100g()).isNull()
-        val portion = FoodECarbsState(imported, portionGrams = 100.0, enabled = true, rule = rule)
+        val portion = FoodECarbsState(imported, amount = 100.0, enabled = true, rule = rule)
         assertThat(portion.carbsGrams).isEqualTo(0)
         assertThat(portion.isValid(100)).isFalse()
     }
 
     @Test
-    fun `weight units are recognised, a food in grams can be counted in portions, and nutrients can be unknown`() {
+    fun `weight units are recognised and nutrients can be unknown`() {
         listOf("g", " Grams ", "gram", "kg").forEach { assertThat(FD.isWeightUnit(it)).isTrue() }
         listOf("ml", "pieces").forEach { assertThat(FD.isWeightUnit(it)).isFalse() }
-        assertThat(meal.portionWeightGrams).isEqualTo(meal.portion)
-        assertThat(meal.copy(byWeight = false).portionWeightGrams).isNull()
-        assertThat(meal.copy(byWeight = false).nutrientsPer100g()).isNull()
         assertThat(meal.proteinKnown && meal.fatKnown).isTrue()
         assertThat(meal.copy(fat = null).fatKnown).isFalse()
         assertThat(meal.copy(protein = -1).proteinKnown).isFalse()
+        assertThat(100.0.formatAmount()).isEqualTo("100")
+        assertThat(0.5.formatAmount()).isEqualTo("0.5")
     }
 }

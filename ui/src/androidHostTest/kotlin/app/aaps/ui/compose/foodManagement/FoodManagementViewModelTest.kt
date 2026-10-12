@@ -140,22 +140,28 @@ internal class FoodManagementViewModelTest {
     }
 
     @Test
-    fun `editing an existing gram portion converts all nutrients to a 100 gram basis`() {
-        val food = FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10, energy = 1000)
-        sut.openEditor(food)
-        assertThat(sut.uiState.value.editorCarbs).isEqualTo("25")
-        assertThat(sut.uiState.value.editorProtein).isEqualTo("10")
-        assertThat(sut.uiState.value.editorFat).isEqualTo("5")
-        assertThat(sut.uiState.value.editorEnergy).isEqualTo("500")
+    fun `a food is edited as saved, with its own amount and nutrients`() {
+        sut.openEditor(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10, energy = 1000, askAmount = false))
+        assertThat(sut.uiState.value.editorPortion).isEqualTo("200")
+        assertThat(sut.uiState.value.editorUnit).isEqualTo("g")
+        assertThat(sut.uiState.value.editorCarbs).isEqualTo("50")
+        assertThat(sut.uiState.value.editorEnergy).isEqualTo("1000")
+        assertThat(sut.uiState.value.editorAskAmount).isFalse()
         assertThat(sut.uiState.value.editorCanSave).isTrue()
-        assertThat(food.portion).isEqualTo(200.0)
+    }
+
+    @Test
+    fun `a new food starts as 100 g, asked for every time`() {
+        sut.openEditor()
+        assertThat(sut.uiState.value.editorPortion).isEqualTo("100")
+        assertThat(sut.uiState.value.editorUnit).isEqualTo("g")
+        assertThat(sut.uiState.value.editorAskAmount).isTrue()
     }
 
     @Test
     fun `non gram foods keep their portion units and nutrients without requiring a gram weight`() {
         sut.openEditor(FD(id = 7, name = "Meal", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10))
-        assertThat(sut.uiState.value.editorByWeight).isFalse()
-        assertThat(sut.uiState.value.editorPortion).isEqualTo("2.0")
+        assertThat(sut.uiState.value.editorPortion).isEqualTo("2")
         assertThat(sut.uiState.value.editorUnit).isEqualTo("pieces")
         assertThat(sut.uiState.value.editorCarbs).isEqualTo("50")
         assertThat(sut.uiState.value.editorProtein).isEqualTo("20")
@@ -165,50 +171,53 @@ internal class FoodManagementViewModelTest {
     }
 
     @Test
-    fun `switching the basis keeps the nutrients, asks to check them and clears only a fixed eCarbs amount`() {
+    fun `a new amount or unit keeps the nutrients and clears only a fixed eCarbs amount`() {
         val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3, manualGrams = 5.0)
         sut.openEditor(FD(id = 7, name = "Meal", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10, eCarbsRule = rule))
-        assertThat(sut.uiState.value.editorBasisChanged).isFalse()
-        // Typing a unit no longer changes the basis
-        sut.updateEditorUnit("g")
-        assertThat(sut.uiState.value.editorByWeight).isFalse()
 
-        sut.updateEditorByWeight(true)
-        assertThat(sut.uiState.value.editorByWeight).isTrue()
-        assertThat(sut.uiState.value.editorPortion).isEqualTo("100")
-        assertThat(sut.uiState.value.editorUnit).isEqualTo("g")
+        sut.updateEditorPortion("3")
         assertThat(sut.uiState.value.editorCarbs).isEqualTo("50")
-        assertThat(sut.uiState.value.editorProtein).isEqualTo("20")
-        assertThat(sut.uiState.value.editorBasisChanged).isTrue()
         assertThat(sut.uiState.value.editorECarbsRule.manualGrams).isNull()
         assertThat(sut.uiState.value.editorECarbsRule.method).isEqualTo(FoodECarbsMethod.FPU)
 
-        // Back to portions: the food's own portion comes back
-        sut.updateEditorByWeight(false)
-        assertThat(sut.uiState.value.editorPortion).isEqualTo("2.0")
-        assertThat(sut.uiState.value.editorUnit).isEqualTo("pieces")
+        sut.updateEditorECarbsRule(rule)
+        sut.updateEditorUnit("slices")
+        assertThat(sut.uiState.value.editorECarbsRule.manualGrams).isNull()
     }
 
     @Test
-    fun `a food in grams can be counted in portions and keep a formula`() = runTest {
+    fun `no nutrient may weigh more than a food in grams or kg`() {
+        sut.openEditor(FD(id = 7, name = "Slice", portion = 25.0, carbs = 20, protein = 2, fat = 1))
+        assertThat(sut.uiState.value.editorCanSave).isTrue()
+        sut.updateEditorCarbs("30")
+        assertThat(sut.uiState.value.editorCanSave).isFalse()
+        sut.updateEditorUnit("kg")
+        assertThat(sut.uiState.value.editorCanSave).isTrue()
+        // Pieces have no weight, so nothing to compare
+        sut.updateEditorUnit("pieces")
+        sut.updateEditorCarbs("300")
+        assertThat(sut.uiState.value.editorCanSave).isTrue()
+    }
+
+    @Test
+    fun `a usual amount in grams is saved as entered, with the amount not asked every time`() = runTest {
         whenever(persistenceLayer.insertOrUpdateFood(any())).thenReturn(PersistenceLayer.TransactionResult())
         sut.openEditor()
-        sut.updateEditorByWeight(false)
+        sut.updateEditorAskAmount(false)
         sut.updateEditorName("Slice")
         sut.updateEditorPortion("30")
         sut.updateEditorUnit("g")
         sut.updateEditorCarbs("15")
-        sut.updateEditorProtein("120")
+        sut.updateEditorProtein("12")
         sut.updateEditorFat("5")
         sut.updateEditorECarbsEnabled(true)
         sut.updateEditorECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
-        // Per portion, so a nutrient above 100 g is allowed
         assertThat(sut.uiState.value.editorCanSave).isTrue()
         sut.saveFood()
         advanceUntilIdle()
         val saved = argumentCaptor<FD>()
         verify(persistenceLayer).insertOrUpdateFood(saved.capture())
-        assertThat(saved.firstValue.byWeight).isFalse()
+        assertThat(saved.firstValue.askAmount).isFalse()
         assertThat(saved.firstValue.portion).isEqualTo(30.0)
         assertThat(saved.firstValue.unit).isEqualTo("g")
         assertThat(saved.firstValue.eCarbsRule?.method).isEqualTo(FoodECarbsMethod.FPU)

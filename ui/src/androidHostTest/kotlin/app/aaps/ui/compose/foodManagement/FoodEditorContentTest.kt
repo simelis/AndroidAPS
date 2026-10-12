@@ -71,28 +71,29 @@ class FoodEditorContentTest {
     }
 
     @Test
-    fun perHundredGramsIsASwitchAndPortionFieldsShowOnlyWhenItIsOff() {
+    fun theAmountAndUnitAreAlwaysThereAndAskingEveryTimeIsASwitch() {
         val ctx: Context = RuntimeEnvironment.getApplication()
         var state by mutableStateOf(FoodManagementUiState())
-        var byWeight: Boolean? = null
+        var askAmount: Boolean? = null
         compose.setContent {
             MaterialTheme {
                 FoodEditorContent(
                     state = state, onNameChange = {}, onCategoryChange = {}, onSubCategoryChange = {}, onCarbsChange = {},
                     onFatChange = {}, onProteinChange = {}, onEnergyChange = {}, onSave = {}, onCancel = {}, onDelete = null,
-                    isEditing = false, onByWeightChange = { byWeight = it }
+                    isEditing = false, onAskAmountChange = { askAmount = it }
                 )
             }
         }
-        val portionLabel = ctx.getString(CoreUiR.string.portion)
-        compose.onNodeWithText(portionLabel).assertDoesNotExist()
-        compose.onNodeWithText(ctx.getString(UiR.string.food_by_weight_info)).assertDoesNotExist()
-        compose.onNodeWithContentDescription(ctx.getString(UiR.string.food_by_weight)).assertIsOn().performClick()
-        assertThat(byWeight).isFalse()
-
-        state = FoodManagementUiState(editorByWeight = false, editorBasisChanged = true, editorPortion = "1", editorUnit = "")
-        compose.onNodeWithText(portionLabel).assertExists()
+        compose.onNodeWithText(ctx.getString(UiR.string.food_amount)).assertExists()
         compose.onNodeWithText(ctx.getString(CoreUiR.string.unit_label)).assertExists()
-        compose.onNodeWithText(ctx.getString(UiR.string.food_basis_changed_portion)).assertExists()
+        compose.onNodeWithText(ctx.getString(UiR.string.food_ask_amount_info)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(ctx.getString(UiR.string.food_ask_amount)).assertIsOn().performClick()
+        assertThat(askAmount).isFalse()
+
+        // 30 g carbs in a 25 g slice is a typo
+        val tooHeavy = ctx.getString(UiR.string.food_nutrient_more_than_food, "25", "g")
+        compose.onNodeWithText(tooHeavy).assertDoesNotExist()
+        state = FoodManagementUiState(editorPortion = "25", editorUnit = "g", editorCarbs = "30")
+        compose.onNodeWithText(tooHeavy).assertExists()
     }
 }

@@ -133,7 +133,7 @@ class WizardDialogContentTest {
     private val meal = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, protein = 10, fat = 5, eCarbsRule = fpu)
 
     private fun mealState(rule: FoodECarbsRule = fpu, enabled: Boolean = true) =
-        loaded().copy(carbs = 50, foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = rule), portionGrams = 200.0, enabled = enabled, rule = rule))
+        loaded().copy(carbs = 50, foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = rule), amount = 200.0, enabled = enabled, rule = rule))
 
     @Test
     fun theFoodECarbsAreARowOfTheInputsWithTheirValue() {

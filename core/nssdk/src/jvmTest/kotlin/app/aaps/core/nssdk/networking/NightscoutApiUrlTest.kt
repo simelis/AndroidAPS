@@ -144,7 +144,7 @@ class NightscoutApiUrlTest {
     fun `food patches address exactly one encoded identifier and omit immutable fields`() = runTest {
         val rule = Json.parseToJsonElement("""{"method":"FPU","durationHours":3,"manualGramsPer100g":7.5}""")
         val food = RemoteFood(name = "Apple", portion = 100.0, carbs = 12, identifier = "x", isValid = true, isReadOnly = false,
-            date = 123456789L, app = "AAPS", aapsECarbsRule = rule, aapsByWeight = false)
+            date = 123456789L, app = "AAPS", aapsECarbsRule = rule, aapsAskAmount = false)
         server.enqueue(MockResponse.Builder().code(200).body("{}").build())
         assertThat(api.updateFood(food, "a/b c").isSuccessful).isTrue()
         val request = server.takeRequest()
@@ -152,7 +152,7 @@ class NightscoutApiUrlTest {
         assertThat(request.target).isEqualTo("/api/v3/food/a%2Fb%20c")
         val body = Json.parseToJsonElement(request.body!!.utf8()).jsonObject
         assertThat(body["aapsECarbsRule"]).isEqualTo(rule)
-        assertThat(body["aapsByWeight"]).isEqualTo(JsonPrimitive(false))
+        assertThat(body["aapsAskAmount"]).isEqualTo(JsonPrimitive(false))
         assertThat(body["fat"]).isEqualTo(JsonNull)
         listOf("date", "identifier", "app", "device", "isValid", "srvModified").forEach { assertThat(body).doesNotContainKey(it) }
     }

@@ -297,15 +297,6 @@ class WizardDialogViewModel(
         recalculate()
     }
 
-    fun updateFoodPortionGrams(value: Double) {
-        if (!value.isFinite() || value !in 0.0..FoodECarbsState.MAX_PORTION_GRAMS) return
-        _uiState.update { state ->
-            val food = state.foodECarbs?.copy(portionGrams = value, overrideGrams = null) ?: return@update state
-            state.copy(carbs = food.carbsGrams, foodECarbs = food)
-        }
-        recalculate()
-    }
-
     fun updateFoodAmount(value: Double) {
         val max = uiState.value.foodECarbs?.maxAmount ?: return
         if (!value.isFinite() || value !in 0.0..max) return

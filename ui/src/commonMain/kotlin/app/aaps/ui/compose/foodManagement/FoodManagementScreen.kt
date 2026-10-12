@@ -70,7 +70,6 @@ import app.aaps.core.ui.compose.consumeOverscroll
 import app.aaps.core.ui.compose.icons.IcCalculator
 import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -229,7 +228,7 @@ fun FoodManagementScreen(
                     isEditing = state.editorFood != null,
                     onPortionChange = viewModel::updateEditorPortion,
                     onUnitChange = viewModel::updateEditorUnit,
-                    onByWeightChange = viewModel::updateEditorByWeight,
+                    onAskAmountChange = viewModel::updateEditorAskAmount,
                     onECarbsEnabledChange = viewModel::updateEditorECarbsEnabled,
                     onECarbsRuleChange = viewModel::updateEditorECarbsRule,
                     onFavouriteChange = viewModel::updateEditorFavourite
@@ -247,9 +246,7 @@ private fun FoodItem(
     onEdit: () -> Unit,
     onCalculate: () -> Unit,
 ) {
-    val nutrition = food.nutrientsPer100g()
-    val basis = if (nutrition != null) stringResource(UiStrings.food_nutrients_basis)
-    else stringResource(UiStrings.food_portion_amount, NumberFormat.UP_TO_1_DECIMAL.format(food.portion), food.unit)
+    val basis = stringResource(UiStrings.food_portion_amount, food.portion.formatAmount(), food.unit)
     val rule = food.eCarbsRule
     ElevatedCard(
         onClick = onEdit,
@@ -286,28 +283,23 @@ private fun FoodItem(
             }
             Column(horizontalAlignment = Alignment.End) {
                 val unknown = stringResource(UiStrings.food_value_unknown)
-                // Whole grams are enough for a list; only older foods converted to 100 g have a fraction at all
-                fun grams(value: Double?): String = value?.roundToInt()?.toString() ?: unknown
+                fun grams(value: Int?): String = value?.toString() ?: unknown
                 Text(
-                    text = stringResource(InterfacesStrings.format_carbs, nutrition?.carbs?.roundToInt() ?: food.carbs),
+                    text = stringResource(InterfacesStrings.format_carbs, food.carbs),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
-                val fat = grams(nutrition?.fat ?: food.fat?.toDouble())
-                val protein = grams(nutrition?.protein ?: food.protein?.toDouble())
-                val energy = (nutrition?.energy ?: food.energy?.toDouble())?.takeIf { it > 0 }
+                val fat = grams(food.fat)
+                val protein = grams(food.protein)
+                val energy = food.energy?.takeIf { it > 0 }
                 if (rule != null && food.canUse(rule)) {
-                    // Per 100 g for a weighed food, per portion for the others, like the nutrients
-                    val eCarbs = rule.manualGrams ?: rule.equivalentGrams(
-                        nutrition?.protein ?: food.protein?.toDouble() ?: 0.0, nutrition?.fat ?: food.fat?.toDouble() ?: 0.0
-                    )
-                    Text(stringResource(if (nutrition != null) UiStrings.food_ecarbs_list else UiStrings.food_ecarbs_list_portion,
-                        NumberFormat.UP_TO_1_DECIMAL.format(eCarbs)),
-                        style = MaterialTheme.typography.labelSmall)
+                    // For the saved amount shown on the left, like the nutrients
+                    val eCarbs = rule.manualGrams ?: rule.equivalentGrams((food.protein ?: 0).toDouble(), (food.fat ?: 0).toDouble())
+                    Text(stringResource(UiStrings.food_ecarbs_list, NumberFormat.UP_TO_1_DECIMAL.format(eCarbs)), style = MaterialTheme.typography.labelSmall)
                 }
                 Text(
                     text = if (energy == null) stringResource(UiStrings.food_fat_protein, fat, protein)
-                    else stringResource(UiStrings.food_fat_protein_energy, fat, protein, energy.roundToInt().toString()),
+                    else stringResource(UiStrings.food_fat_protein_energy, fat, protein, energy.toString()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -363,7 +355,7 @@ internal fun FoodEditorContent(
     isEditing: Boolean,
     onPortionChange: (String) -> Unit = {},
     onUnitChange: (String) -> Unit = {},
-    onByWeightChange: (Boolean) -> Unit = {},
+    onAskAmountChange: (Boolean) -> Unit = {},
     onECarbsEnabledChange: (Boolean) -> Unit = {},
     onECarbsRuleChange: (FoodECarbsRule) -> Unit = {},
     onFavouriteChange: (Boolean) -> Unit = {},
@@ -423,14 +415,11 @@ internal fun FoodEditorContent(
             )
         }
 
-        // An explicit choice: nutrients per 100 g (weighed in the wizard) or per portion (counted in portions)
-        FoodECarbsSwitch(UiStrings.food_by_weight, state.editorByWeight, true, onByWeightChange) {
-            InfoTooltipButton(stringResource(UiStrings.food_more_info)) { Text(stringResource(UiStrings.food_by_weight_info)) }
-        }
-        if (!state.editorByWeight) Row(horizontalArrangement = Arrangement.spacedBy(AapsSpacing.large)) {
+        // The nutrients below are for this amount: 100 g from a label, 3 pieces, 250 ml, ...
+        Row(horizontalArrangement = Arrangement.spacedBy(AapsSpacing.large)) {
             OutlinedTextField(
                 value = state.editorPortion, onValueChange = onPortionChange,
-                label = { Text(stringResource(CoreUiStrings.portion)) }, modifier = Modifier.weight(1f), singleLine = true,
+                label = { Text(stringResource(UiStrings.food_amount)) }, modifier = Modifier.weight(1f), singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
             )
             OutlinedTextField(
@@ -438,13 +427,8 @@ internal fun FoodEditorContent(
                 label = { Text(stringResource(CoreUiStrings.unit_label)) }, modifier = Modifier.weight(1f), singleLine = true
             )
         }
-        // The entered values are kept when the basis changes, so they must be checked
-        if (state.editorBasisChanged) Text(
-            stringResource(if (state.editorByWeight) UiStrings.food_basis_changed_weight else UiStrings.food_basis_changed_portion),
-            color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall
-        )
-        else if (state.editorByWeight && state.editorFood?.portionWeightGrams != null && (state.editorFood.portion != 100.0 || state.editorFood.unit != "g")) {
-            Text(stringResource(UiStrings.food_nutrients_conversion), style = MaterialTheme.typography.bodySmall)
+        FoodECarbsSwitch(UiStrings.food_ask_amount, state.editorAskAmount, true, onAskAmountChange) {
+            InfoTooltipButton(stringResource(UiStrings.food_more_info)) { Text(stringResource(UiStrings.food_ask_amount_info)) }
         }
 
         OutlinedTextField(
@@ -483,6 +467,12 @@ internal fun FoodEditorContent(
             )
         }
 
+        // A typo like 30 g carbs in a 25 g slice: no nutrient can weigh more than the food
+        val weight = state.editorWeightGrams
+        if (weight != null && listOf(state.editorCarbs, state.editorFat, state.editorProtein).any { (it.toIntOrNull() ?: 0) > weight }) Text(
+            stringResource(UiStrings.food_nutrient_more_than_food, state.editorPortion, state.editorUnit),
+            color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall
+        )
         FoodECarbsRuleEditor(state.editorPreview, state.editorUseECarbs, state.editorECarbsRule, onECarbsEnabledChange, onECarbsRuleChange)
         if (state.editorSaveAttempted && !state.editorCanSave) {
             Text(stringResource(UiStrings.food_editor_invalid), color = MaterialTheme.colorScheme.error)
