@@ -86,6 +86,7 @@ import app.aaps.core.ui.compose.CarbTimeRow
 import app.aaps.core.ui.compose.ExpandableRowHeader
 import app.aaps.core.ui.compose.NumberInputRow
 import app.aaps.core.ui.compose.QuickAddButtons
+import app.aaps.core.ui.compose.banner.WarningBanner
 import app.aaps.core.ui.compose.bottomBarSafeArea
 import app.aaps.core.ui.compose.clearFocusOnTap
 import app.aaps.core.ui.compose.consumeOverscroll
@@ -626,8 +627,7 @@ internal fun WizardDialogContent(
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
 
-            // Before loading, the state has no BG yet. Expanding then would also scroll the screen down to the BG row.
-            val bgIsOld = uiState.isLoaded && (!uiState.hasBgData || uiState.bgAgeMinutes > 9)
+            val bgIsOld = !uiState.hasBgData || uiState.bgAgeMinutes > 9
             var bgExpanded by rememberSaveable { mutableStateOf(false) }
             // Wait for the real values. The first frames show the default state, which has no BG, so
             // without this check the BG input opened every time and stayed open for a fresh BG too.

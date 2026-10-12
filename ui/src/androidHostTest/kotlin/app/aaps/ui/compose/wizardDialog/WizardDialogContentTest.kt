@@ -8,13 +8,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.interfaces.resources.TextRefIdRegistry
 import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.ui.UiStringIds
@@ -122,6 +128,62 @@ class WizardDialogContentTest {
         compose.onNode(hasScrollAction()).performTouchInput { swipeUp() }
         compose.onNode(recordOnlyBanner).assertIsDisplayed()
     }
+
+    private val fpu = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
+    private val meal = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, protein = 10, fat = 5, eCarbsRule = fpu)
+
+    private fun mealState(rule: FoodECarbsRule = fpu, enabled: Boolean = true) =
+        loaded().copy(carbs = 50, foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = rule), portionGrams = 200.0, enabled = enabled, rule = rule))
+
+    @Test
+    fun theFoodECarbsAreARowOfTheInputsWithTheirValue() {
+        setWizard(uiState = { mealState() })
+
+        // 200 g: (4 x 20 + 9 x 10) / 10 = 17 g
+        compose.onNodeWithText(string(UiR.string.food_ecarbs_row_value, 17, 60, 3)).assertExists()
+        compose.onNodeWithText(string(UiR.string.food_ecarbs_delay)).assertDoesNotExist()
+    }
+
+    @Test
+    fun changeOpensTheECarbsAmountAndTiming() {
+        setWizard(uiState = { mealState() })
+
+        compose.onNodeWithText(string(UiR.string.food_ecarbs_row_value, 17, 60, 3)).performScrollTo()
+        compose.onNode(hasText(string(CoreUiR.string.change)) and hasAnySibling(hasText(string(UiR.string.food_ecarbs_label)))).performClick()
+
+        compose.onNodeWithText(string(UiR.string.food_ecarbs_delay)).assertExists()
+    }
+
+    @Test
+    fun theSplitOfTheMealIsShownUnderTheCarbsField() {
+        setWizard(uiState = { mealState(rule = fpu.copy(carbsNowPercent = 80)) })
+
+        // 80 % of 50 g is 40 g now; the other 10 g join the 17 g from protein and fat
+        compose.onNodeWithText(string(UiR.string.food_ecarbs_row_value, 27, 60, 3)).assertExists()
+        compose.onNodeWithText(string(UiR.string.wizard_carbs_split, 40, 27)).assertExists()
+    }
+
+    @Test
+    fun pizzaShowsItsSplitToo() {
+        setWizard(uiState = { loaded().copy(carbs = 50, carbsType = CarbsType.PIZZA) })
+        // Pizza: 80 % now, 35 % added as eCarbs
+        compose.onNodeWithText(string(UiR.string.wizard_carbs_split, 40, 17)).assertExists()
+    }
+
+    @Test
+    fun breadShowsNoSplit() {
+        setWizard(uiState = { loaded().copy(carbs = 50) })
+        compose.onNodeWithText(string(UiR.string.wizard_carbs_split, 50, 0)).assertDoesNotExist()
+    }
+
+    @Test
+    fun withTheFormulaOffThereIsNoECarbsRow() {
+        setWizard(uiState = { mealState(enabled = false) })
+
+        compose.onNodeWithText(string(UiR.string.food_ecarbs_label)).assertDoesNotExist()
+    }
+
+    private fun string(id: Int, vararg args: Any): String = RuntimeEnvironment.getApplication().getString(id, *args)
 
     private fun loaded(hasBgData: Boolean = true, bgAgeMinutes: Int = 0, forcedRecordOnly: Boolean = false) =
         WizardDialogUiState(
