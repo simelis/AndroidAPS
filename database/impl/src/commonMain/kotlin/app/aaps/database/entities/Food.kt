@@ -43,10 +43,13 @@ data class Food(
     var energy: Int? = null, // in kJ
     var unit: String = "g",
     var gi: Int? = null, // not used yet
-    var isLocallyEdited: Boolean = false // changed in AAPS: NS must not overwrite it until uploaded
+    var isLocallyEdited: Boolean = false, // changed in AAPS: NS must not overwrite it until uploaded
+    var eCarbsRuleJson: String? = null, // FoodECarbsRule as JSON
+    var askAmount: Boolean = true // false: the wizard starts at the portion, not with an empty amount
 
 ) : TraceableDBEntry {
 
+    /** Leaves out [eCarbsRuleJson] and [askAmount]: they are not in Nightscout yet, so a download must not change them. */
     fun contentEqualsTo(other: Food): Boolean {
         if (isValid != other.isValid) return false
         if (portion != other.portion) return false

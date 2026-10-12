@@ -382,12 +382,7 @@ fun NavGraphBuilder.appNavGraph(
     composable(
         route = AppRoute.WizardDialog.route,
         arguments = listOf(
-            navArgument("carbs") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            },
-            navArgument("notes") {
+            navArgument("foodId") {
                 type = NavType.StringType
                 nullable = true
                 defaultValue = null
@@ -769,9 +764,9 @@ fun NavGraphBuilder.appNavGraph(
         app.aaps.ui.compose.foodManagement.FoodManagementScreen(
             viewModel = foodManagementViewModel,
             onNavigateBack = { navController.safePopBackStack() },
-            onNavigateToWizard = { carbs, name ->
+            onNavigateToWizard = { foodId ->
                 withProtection(ProtectionCheck.Protection.BOLUS) {
-                    navController.navigate(AppRoute.WizardDialog.createRoute(carbs = carbs, notes = name))
+                    navController.navigate(AppRoute.WizardDialog.createRoute(foodId = foodId))
                 }
             }
         )

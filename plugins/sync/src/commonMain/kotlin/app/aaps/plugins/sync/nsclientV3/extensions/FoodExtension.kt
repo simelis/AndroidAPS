@@ -18,6 +18,8 @@ fun NSFood.toFood(): FD =
         energy = energy,
         unit = unit,
         gi = gi,
+        // Not in Nightscout yet: only a food in g or kg asks for the amount every time
+        askAmount = FD.isWeightUnit(unit),
         ids = IDs(nightscoutId = identifier)
     )
 
