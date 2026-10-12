@@ -1,8 +1,8 @@
 # Food-based eCarbs
 
-Open **Manage → Food**, or add **Food** to the QuickLaunch toolbar (Configure QuickLaunch → Treatment). The add button is on the right, and the list has space at the bottom so the button does not cover the last row.
+Open **Manage → Food**, or add **Food** to the QuickLaunch toolbar (Configure QuickLaunch → Treatment).
 
-**Favourites.** Tap the star on a food, or the star in its editor (applied on Save), to mark it, and tap the **Favourites** chip to see only those. The chip stays on until you turn it off. Favourites are kept on this phone only, as food IDs, and are not exported, because after a reinstall the same IDs would point at other foods. Dragging inside the editor only scrolls it; drag the handle at the top (or use Cancel, Back or a tap outside) to close it.
+**Favourites.** Tap the star on a food, or the star in its editor (applied on Save), to mark it, and tap the **Favourites** chip to see only those. The chip stays on until you turn it off. Favourites are kept on this phone only, as food IDs, and are not exported, because after a reinstall the same IDs would point at other foods.
 
 ## Using it
 

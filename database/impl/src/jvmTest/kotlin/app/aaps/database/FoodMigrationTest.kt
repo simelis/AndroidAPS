@@ -3,8 +3,10 @@ package app.aaps.database
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
-import app.aaps.database.di.JvmAppDatabaseBuilder
+import androidx.room.Room
+import app.aaps.database.di.databaseMigrations
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -15,6 +17,17 @@ import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 
 class FoodMigrationTest {
+
+    /**
+     * Opens [fileName] with the shared migrations. The desktop builder has none on purpose (there is no
+     * older desktop database yet), so the test adds them itself, like the Android builder does.
+     */
+    private fun openMigrated(fileName: String): AppDatabase =
+        Room.databaseBuilder<AppDatabase>(name = fileName)
+            .setDriver(BundledSQLiteDriver())
+            .setQueryCoroutineContext(Dispatchers.IO)
+            .addMigrations(*databaseMigrations)
+            .build()
 
     /** Creates a database file with the exported schema of [version], then runs [fill] on it. */
     private fun createDatabase(fileName: String, version: Int, fill: (SQLiteConnection) -> Unit) {
@@ -48,7 +61,7 @@ class FoodMigrationTest {
             }
         }
         try {
-            val database = JvmAppDatabaseBuilder().provideAppDatabase(fileName)
+            val database = openMigrated(fileName)
             try {
                 val askAmount = database.foodDao.getFoodData().associate { it.id to it.askAmount }
                 assertThat(askAmount).containsExactly(1L, true, 2L, true, 3L, true, 4L, false, 5L, false)
@@ -65,10 +78,9 @@ class FoodMigrationTest {
         createDatabase(fileName, 36) { connection ->
             connection.execSQL("INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, fat, protein, unit) VALUES (7, 0, 1000, 1, 'Meal', 100, 25, 5, 10, 'g')")
         }
-        val builder = JvmAppDatabaseBuilder()
         val rule = """{"method":"FPU","durationHours":3}"""
         try {
-            val database = builder.provideAppDatabase(fileName)
+            val database = openMigrated(fileName)
             try {
                 val food = database.foodDao.getFoodData().single()
                 assertThat(food.id).isEqualTo(7)
@@ -78,7 +90,7 @@ class FoodMigrationTest {
                 assertThat(food.isLocallyEdited).isFalse()
                 database.foodDao.updateExistingEntry(food.copy(eCarbsRuleJson = rule, isLocallyEdited = true))
             } finally { database.close() }
-            val reopened = builder.provideAppDatabase(fileName)
+            val reopened = openMigrated(fileName)
             try {
                 val food = reopened.foodDao.getFoodData().single()
                 assertThat(food.eCarbsRuleJson).isEqualTo(rule)
