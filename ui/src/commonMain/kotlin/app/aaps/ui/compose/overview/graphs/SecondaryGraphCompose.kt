@@ -5,6 +5,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,9 +40,12 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.Axis
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerDrawingModelInterpolator
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.compose.cartesian.data.LineCartesianLayerDrawingModel
 import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
+import com.patrykandpatrick.vico.compose.cartesian.decoration.Decoration
 import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
@@ -55,7 +59,9 @@ import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlin.concurrent.Volatile
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * CartesianChartModelProducer.update() skips notifying receivers (and thus skips recomputing axis
@@ -65,6 +71,12 @@ import kotlin.math.abs
  * transaction instead of silently dropping it.
  */
 private val VISIBLE_RANGE_KEY = ExtraStore.Key<Pair<Double?, Double?>>()
+
+/** Marks the settle pass, so Vico does not skip it as a repeat of the update before it. */
+private val SETTLE_PASS_KEY = ExtraStore.Key<Boolean>()
+
+/** Wait before the settle pass: Vico's change animation (500 ms) plus a margin. */
+private const val SETTLE_DELAY_MS = 700L
 
 /**
  * Secondary graphs are much shorter than the BG graph, so Vico's ItemPlacer thins out a denser
@@ -433,6 +445,16 @@ fun SecondaryGraphCompose(
     val visibleMinX = visibleRange?.first
     val visibleMaxX = visibleRange?.second
 
+    // TEMPORARY diagnostics for deviation bars that are sometimes drawn at a wrong height (full
+    // height on the COB + DEV graph) after a scroll. Written to the AAPS log with the UI tag; the
+    // DEV-only graph logs too, for comparison. Remove together with BarHeightProbe and
+    // DrawnScaleProbe when the cause is found.
+    val debugEnabled = SeriesType.DEVIATIONS in orderedTypes
+    val debugLabel = remember(orderedTypes) { orderedTypes.joinToString("+") { it.name } }
+    val debugWindow = remember { DebugWindowHolder() }
+    SideEffect { debugWindow.value = visibleRange }
+    val debugLog: (String) -> Unit = remember(viewModel, debugLabel) { { message -> viewModel.logGraphDebug("Graph debug $debugLabel $message") } }
+
     // Single source of truth for the primary layer: build the (x, y, slot) specs synchronously,
     // in the exact order they are emitted to the model below. Deriving the line styles,
     // hasPrimaryData and the Y-range from this list (instead of from slot state set asynchronously
@@ -509,50 +531,65 @@ fun SecondaryGraphCompose(
         // (axes, grid, now-line) renders the empty-state normalizer series instead of staying blank.
         // (Matches TreatmentBeltGraphCompose.) When data is absent the processed* lists are empty,
         // so only the normalizer is emitted; the primary range provider anchors an empty 0..1 axis.
-        modelProducer.runTransaction {
-            // Primary line layer — emit in the exact order of `primarySeries` so the line styles
-            // (built from the same list) map 1:1 to the series.
-            lineModel {
-                primarySeries.forEach { spec -> series(x = spec.x, y = spec.y) }
-                // Normalizer — ensures identical maxPointSize across all charts
-                series(x = normalizerX(maxX), y = NORMALIZER_Y)
-            }
-
-            // Block 2 → Basal layer (end axis, flipped) OR secondary series layer (end axis)
-            if (hasBasalLayer) {
+        suspend fun pushModel(settlePass: Boolean) {
+            if (debugEnabled) debugLog("update${if (settlePass) " (settle)" else ""}: window=${visibleMinX.debugText()}..${visibleMaxX.debugText()}")
+            modelProducer.runTransaction {
+                // Primary line layer — emit in the exact order of `primarySeries` so the line styles
+                // (built from the same list) map 1:1 to the series.
                 lineModel {
-                    if (processedBasalActual.size >= 2) {
-                        series(x = processedBasalActual.map { it.first }, y = processedBasalActual.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                    if (processedBasalProfile.size >= 2) {
-                        series(x = processedBasalProfile.map { it.first }, y = processedBasalProfile.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                }
-            } else if (isDualAxis) {
-                lineModel {
-                    if (processedSecondary.isNotEmpty()) {
-                        series(x = processedSecondary.map { it.first }, y = processedSecondary.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                    // Carb markers when COB is the right-axis series; secondaryAxisLines has a style for them
-                    if (secondaryCarbs.isNotEmpty())
-                        series(x = secondaryCarbs.map { it.first }, y = secondaryCarbs.map { it.second })
-                    // Normalizer for end axis layer
+                    primarySeries.forEach { spec -> series(x = spec.x, y = spec.y) }
+                    // Normalizer — ensures identical maxPointSize across all charts
                     series(x = normalizerX(maxX), y = NORMALIZER_Y)
                 }
-            }
 
-            // Forces Vico to reprocess this transaction even when the series data above is
-            // identical to last time (see VISIBLE_RANGE_KEY doc) — otherwise scrolling/zooming
-            // would re-submit the same partials and get silently skipped, never picking up the
-            // updated primaryRangeProvider.
-            extras { it[VISIBLE_RANGE_KEY] = visibleMinX to visibleMaxX }
+                // Block 2 → Basal layer (end axis, flipped) OR secondary series layer (end axis)
+                if (hasBasalLayer) {
+                    lineModel {
+                        if (processedBasalActual.size >= 2) {
+                            series(x = processedBasalActual.map { it.first }, y = processedBasalActual.map { it.second })
+                        } else {
+                            series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                        }
+                        if (processedBasalProfile.size >= 2) {
+                            series(x = processedBasalProfile.map { it.first }, y = processedBasalProfile.map { it.second })
+                        } else {
+                            series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                        }
+                    }
+                } else if (isDualAxis) {
+                    lineModel {
+                        if (processedSecondary.isNotEmpty()) {
+                            series(x = processedSecondary.map { it.first }, y = processedSecondary.map { it.second })
+                        } else {
+                            series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                        }
+                        // Carb markers when COB is the right-axis series; secondaryAxisLines has a style for them
+                        if (secondaryCarbs.isNotEmpty())
+                            series(x = secondaryCarbs.map { it.first }, y = secondaryCarbs.map { it.second })
+                        // Normalizer for end axis layer
+                        series(x = normalizerX(maxX), y = NORMALIZER_Y)
+                    }
+                }
+
+                // Forces Vico to reprocess this transaction even when the series data above is
+                // identical to last time (see VISIBLE_RANGE_KEY doc) — otherwise scrolling/zooming
+                // would re-submit the same partials and get silently skipped, never picking up the
+                // updated primaryRangeProvider.
+                extras {
+                    it[VISIBLE_RANGE_KEY] = visibleMinX to visibleMaxX
+                    it[SETTLE_PASS_KEY] = settlePass
+                }
+            }
         }
+
+        pushModel(settlePass = false)
+        // Settle pass: the same data once more, after the change animation has ended. Sometimes the
+        // bars were left drawn at a wrong height after a scroll (on the COB + DEV graph, full height
+        // with correct axis numbers) until the next update. Vico recalculates every point here and
+        // animates from what is drawn to the right place; when nothing was wrong, nothing moves.
+        // Every new scroll position cancels this effect, so it runs once, after scrolling stops.
+        delay(SETTLE_DELAY_MS)
+        pushModel(settlePass = true)
     }
 
     // =========================================================================
@@ -624,7 +661,10 @@ fun SecondaryGraphCompose(
     val bottomAxisItemPlacer = rememberBottomAxisItemPlacer(minTimestamp)
     val nowLineColor = MaterialTheme.colorScheme.onSurface
     val nowLine = rememberNowLine(minTimestamp, nowTimestamp, nowLineColor)
-    val decorations = remember(nowLine, visibleRangeReporter) { listOf(nowLine, visibleRangeReporter) }
+    val drawnScaleProbe = remember(debugLog) { DrawnScaleProbe(debugLog) }
+    val decorations = remember(nowLine, visibleRangeReporter, debugEnabled, drawnScaleProbe) {
+        if (debugEnabled) listOf(nowLine, visibleRangeReporter, drawnScaleProbe) else listOf(nowLine, visibleRangeReporter)
+    }
 
     // Union of Y values across all primary-layer series (IOB, COB, simple series, DevSlope-min,
     // deviation lines), windowed to the visible scroll/zoom range — computed once here since the
@@ -838,10 +878,18 @@ fun SecondaryGraphCompose(
     }
 
     // Build chart layers
+    // TEMPORARY diagnostics: log the scale each time it is computed
+    LaunchedEffect(primaryRangeProvider, secondaryRangeProvider) {
+        if (debugEnabled) debugLog("scale: left=$primaryRangeProvider right=${if (isDualAxis) secondaryRangeProvider.toString() else "none"}")
+    }
+    val primaryInterpolator = remember(debugEnabled, debugWindow, debugLog) {
+        if (debugEnabled) BarHeightProbe(debugWindow, debugLog) else CartesianLayerDrawingModelInterpolator.line()
+    }
     val primaryLayer = rememberLineCartesianLayer(
         lineProvider = LineCartesianLayer.LineProvider.series(lines),
         rangeProvider = primaryRangeProvider,
-        verticalAxisPosition = Axis.Position.Vertical.Start
+        verticalAxisPosition = Axis.Position.Vertical.Start,
+        drawingModelInterpolator = primaryInterpolator
     )
 
     // Common axis components
@@ -1571,3 +1619,64 @@ internal fun zeroFloorDualRanges(primaryY: List<Double>, secondaryY: List<Double
     return AlignedRanges(aMin, aMax, bMin, bMax, primaryLabelFloor = primaryNice.min)
 }
 
+
+// =========================================================================
+// TEMPORARY diagnostics: deviation bars drawn at a wrong height. Remove when the cause is found.
+// =========================================================================
+
+/** The visible x-window of the graph, read from Vico's worker thread. */
+private class DebugWindowHolder {
+    @Volatile
+    var value: Pair<Double, Double>? = null
+}
+
+/**
+ * Wraps Vico's line interpolator and logs the stored bar heights of the visible part, as a fraction
+ * of the graph height (0 = bottom, 1 = top). A highest bar above 1 means a bar is drawn past the top
+ * of the graph; "none" for the old heights means Vico grows every bar from the bottom.
+ */
+private class BarHeightProbe(
+    private val window: DebugWindowHolder,
+    private val log: (String) -> Unit
+) : CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel> {
+
+    private val delegate = CartesianLayerDrawingModelInterpolator.line()
+
+    override fun setModels(old: LineCartesianLayerDrawingModel?, new: LineCartesianLayerDrawingModel?) {
+        log("heights from ${describe(old)} to ${describe(new)}")
+        delegate.setModels(old, new)
+    }
+
+    override suspend fun transform(fraction: Float): LineCartesianLayerDrawingModel? {
+        val result = delegate.transform(fraction)
+        if (fraction >= 1f) log("heights drawn ${describe(result)}")
+        return result
+    }
+
+    private fun describe(model: LineCartesianLayerDrawingModel?): String {
+        if (model == null) return "none"
+        val visible = window.value
+        val heights = model.flatMap { series ->
+            series.filterKeys { x -> visible == null || x in visible.first..visible.second }.values.map { it.y.toDouble() }
+        }
+        if (heights.isEmpty()) return "empty"
+        return "[n=${heights.size} lowest=${heights.min().debugText()} highest=${heights.max().debugText()}]"
+    }
+}
+
+/** Logs the left-axis scale Vico really draws with, each time it changes. */
+private class DrawnScaleProbe(private val log: (String) -> Unit) : Decoration {
+
+    private var last: Pair<Double, Double>? = null
+
+    override fun drawOverLayers(context: CartesianDrawingContext) {
+        val range = context.ranges.getYRange(Axis.Position.Vertical.Start)
+        val current = range.minY to range.maxY
+        if (current != last) {
+            last = current
+            log("drawn left scale ${current.first.debugText()}..${current.second.debugText()}")
+        }
+    }
+}
+
+private fun Double?.debugText(): String = if (this == null) "null" else ((this * 100).roundToInt() / 100.0).toString()
