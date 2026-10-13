@@ -1,5 +1,7 @@
 package app.aaps.ui.compose.overview.graphs
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -360,11 +367,25 @@ fun GraphsSection(
             }
     }
 
+    // A belt tooltip is bigger than the belt and covers it, while Vico only closes it on a tap in the
+    // belt. So a tap anywhere else in the graphs closes it too: the belt chart is rebuilt with a new
+    // dismiss key. The tap still does its own job (scrolling, opening a graph's settings).
+    val beltTooltip = remember { BeltTooltipTracker() }
+    var beltTooltipDismissKey by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .pointerInput(beltTooltip) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    if (beltTooltip.shown && !beltTooltip.bounds.contains(down.position)) {
+                        beltTooltip.shown = false
+                        beltTooltipDismissKey++
+                    }
+                }
+            }
     ) {
         // Treatment Belt Graph - running mode background + therapy events
         TreatmentBeltGraphCompose(
@@ -374,7 +395,11 @@ fun GraphsSection(
             derivedTimeRange = derivedTimeRange,
             nowTimestamp = nowTimestamp,
             showMeals = SeriesType.TREATMENTS in graphConfig.bgOverlays,
-            modifier = Modifier.fillMaxWidth()
+            tooltipDismissKey = beltTooltipDismissKey,
+            onTooltipShownChange = { shown -> beltTooltip.shown = shown },
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { beltTooltip.bounds = it.boundsInParent() }
         )
         // BG Graph - primary interactive graph
         var editingBgOverlays by remember { mutableStateOf(false) }
@@ -782,4 +807,13 @@ private fun GraphSeriesBottomSheet(
             }
         }
     }
+}
+
+/**
+ * Whether a belt tooltip is open, and where the belt is in the graphs column. Plain fields, not
+ * Compose state: Vico reports the tooltip while drawing, and the tap handler only reads them.
+ */
+private class BeltTooltipTracker {
+    var shown = false
+    var bounds = Rect.Zero
 }
