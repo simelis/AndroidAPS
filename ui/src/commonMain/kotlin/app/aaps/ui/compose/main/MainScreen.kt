@@ -251,6 +251,7 @@ fun MainScreen(
                     // Main content
                     OverviewScreen(
                         profileName = uiState.profileName,
+                        profileRemaining = uiState.profileRemaining,
                         profilePsId = uiState.profilePsId,
                         isProfileModified = uiState.isProfileModified,
                         profileProgress = uiState.profileProgress,

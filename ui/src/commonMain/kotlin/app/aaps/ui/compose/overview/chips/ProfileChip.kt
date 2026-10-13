@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.style.TextOverflow
 import app.aaps.core.interfaces.navigation.ElementType
 import app.aaps.core.ui.compose.AapsSpacing
 import app.aaps.core.ui.compose.AapsTheme
@@ -27,6 +28,10 @@ import app.aaps.core.ui.compose.navigation.label
 import app.aaps.core.ui.compose.stringResourceOrNull
 
 /**
+ * [profileName] includes the percentage and time shift, e.g. "Weekday (90%)". [remaining] is the time
+ * left of a temporary switch, e.g. "(1h 56')". When they do not fit on one line, the name is shortened
+ * in the middle, so its start, the percentage at its end and the time left stay visible.
+ *
  * @see ProfileChipPreview
  * @see ProfileChipModifiedPreview
  */
@@ -37,6 +42,7 @@ fun ProfileChip(
     progress: Float,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    remaining: String = "",
     sceneManaged: Boolean = false,
     isNoProfile: Boolean = false,
     enabled: Boolean = true
@@ -79,8 +85,22 @@ fun ProfileChip(
                     text = profileName,
                     style = MaterialTheme.typography.bodyMedium,
                     color = contentColor,
-                    modifier = Modifier.padding(start = AapsSpacing.medium)
+                    maxLines = 1,
+                    overflow = TextOverflow.MiddleEllipsis,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .padding(start = AapsSpacing.medium)
                 )
+                if (remaining.isNotEmpty()) {
+                    Text(
+                        text = remaining,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(start = AapsSpacing.small)
+                    )
+                }
                 if (sceneManaged) {
                     SceneBadge(modifier = Modifier.padding(start = AapsSpacing.small))
                 }

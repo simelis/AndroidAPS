@@ -1,13 +1,16 @@
 package app.aaps.ui.compose.overview.chips
 
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
@@ -33,6 +36,29 @@ class ProfileChipTest {
         }
 
         compose.onNodeWithText("Default 5.6").assertIsDisplayed()
+    }
+
+    @Test
+    fun longName_onNarrowChip_keepsTimeLeftInsideTheChip() {
+        compose.setContent {
+            MaterialTheme {
+                ProfileChip(
+                    profileName = "Darbadienis su ilgu pavadinimu (90%)",
+                    remaining = "(1h 56')",
+                    isModified = true,
+                    progress = 0.5f,
+                    onClick = {},
+                    modifier = Modifier
+                        .width(180.dp)
+                        .testTag("profileChip")
+                )
+            }
+        }
+
+        val chip = compose.onNodeWithTag("profileChip").getUnclippedBoundsInRoot()
+        val remaining = compose.onNodeWithText("(1h 56')").assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertThat(remaining.right).isAtMost(chip.right)
+        assertThat(remaining.bottom).isAtMost(chip.bottom)
     }
 
     @Test

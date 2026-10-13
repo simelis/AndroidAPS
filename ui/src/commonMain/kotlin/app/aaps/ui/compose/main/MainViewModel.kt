@@ -231,6 +231,7 @@ class MainViewModel(
             showAuthFailedDialog = ev.showAuthFailedDialog,
             isProfileLoaded = chip.isProfileLoaded,
             profileName = chip.profileName,
+            profileRemaining = chip.profileRemaining,
             profilePsId = chip.profilePsId,
             isProfileModified = chip.isProfileModified,
             profileProgress = chip.profileProgress,
@@ -312,12 +313,11 @@ class MainViewModel(
             (elapsed.toFloat() / profileData.duration.toFloat()).coerceIn(0f, 1f)
         } else 0f
 
-        val profileText = if (profileData != null && profileData.profileName.isNotEmpty()) {
-            if (profileData.duration > 0 && !profileExpired) {
-                "${profileData.profileName} ${dateUtil.untilString(profileData.timestamp + profileData.duration, rh)}"
-            } else {
-                profileData.profileName
-            }
+        // Name and time left are kept apart, so the chip can shorten a long name and still show both
+        // the percentage (part of the name) and the time left in full.
+        val profileText = profileData?.profileName.orEmpty()
+        val profileRemaining = if (profileText.isNotEmpty() && profileData != null && profileData.duration > 0 && !profileExpired) {
+            dateUtil.untilString(profileData.timestamp + profileData.duration, rh)
         } else ""
 
         // Running mode progress and display text
@@ -345,6 +345,7 @@ class MainViewModel(
         return ChipState(
             isProfileLoaded = profileData?.isLoaded ?: false,
             profileName = profileText,
+            profileRemaining = profileRemaining,
             profilePsId = profileData?.originalPsId ?: 0,
             isProfileModified = profileData?.isModified ?: false,
             profileProgress = profileProgress,
@@ -934,6 +935,7 @@ private data class EventState(
 private data class ChipState(
     val isProfileLoaded: Boolean = false,
     val profileName: String = "",
+    val profileRemaining: String = "",
     val profilePsId: Long = 0,
     val isProfileModified: Boolean = false,
     val profileProgress: Float = 0f,

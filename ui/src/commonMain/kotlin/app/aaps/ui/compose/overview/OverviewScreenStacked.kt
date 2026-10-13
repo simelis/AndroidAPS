@@ -37,6 +37,7 @@ import app.aaps.ui.compose.scenes.ActiveSceneBanner
 @Composable
 fun OverviewScreenStacked(
     profileName: String,
+    profileRemaining: String = "",
     isProfileModified: Boolean,
     profileProgress: Float,
     profileSceneManaged: Boolean = false,
@@ -119,6 +120,7 @@ fun OverviewScreenStacked(
                 runningModeSceneManaged = runningModeSceneManaged,
                 smbEnabled = smbEnabled,
                 profileName = profileName,
+                profileRemaining = profileRemaining,
                 isProfileModified = isProfileModified,
                 profileProgress = profileProgress,
                 profileSceneManaged = profileSceneManaged,
