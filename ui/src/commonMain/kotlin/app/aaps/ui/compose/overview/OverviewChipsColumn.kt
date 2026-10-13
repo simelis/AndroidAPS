@@ -167,20 +167,6 @@ private fun NarrowChips(
     onTbrChipClick: () -> Unit,
     commandsAllowed: Boolean
 ) {
-    // Profile on its own full-width row, so it lines up with the IOB / COB row and its name has room
-    ProfileChip(
-        profileName = profileName.ifEmpty { stringResource(CoreUiStrings.no_profile_set) },
-        suffix = profileSuffix,
-        remaining = profileRemaining,
-        isModified = isProfileModified,
-        progress = profileProgress,
-        onClick = { onNavigate(NavigationRequest.Element(ElementType.PROFILE_MANAGEMENT)) },
-        sceneManaged = profileSceneManaged,
-        isNoProfile = profileName.isEmpty(),
-        // Stays clickable even on an unpaired client: profile management opens read-only there,
-        // so this is a view affordance, not a command one (unlike the running-mode / TT chips).
-        modifier = Modifier.fillMaxWidth()
-    )
     // The small status chips together: running mode, temp target, temp basal
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -215,5 +201,19 @@ private fun NarrowChips(
             onClick = onTbrChipClick
         )
     }
+    // Profile on its own full-width row, so it lines up with the IOB / COB row and its name has room
+    ProfileChip(
+        profileName = profileName.ifEmpty { stringResource(CoreUiStrings.no_profile_set) },
+        suffix = profileSuffix,
+        remaining = profileRemaining,
+        isModified = isProfileModified,
+        progress = profileProgress,
+        onClick = { onNavigate(NavigationRequest.Element(ElementType.PROFILE_MANAGEMENT)) },
+        sceneManaged = profileSceneManaged,
+        isNoProfile = profileName.isEmpty(),
+        // Stays clickable even on an unpaired client: profile management opens read-only there,
+        // so this is a view affordance, not a command one (unlike the running-mode / TT chips).
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
