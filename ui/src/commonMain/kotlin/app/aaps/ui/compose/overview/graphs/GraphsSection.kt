@@ -74,6 +74,7 @@ import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.debounce
 import kotlin.math.abs
 
@@ -88,7 +89,7 @@ import kotlin.math.abs
  *
  * Synchronization Implementation:
  * - snapshotFlow observes scroll/zoom values from BG graph
- * - debounce(30) waits for gesture to settle
+ * - conflate() takes the newest position on every frame, so the other graphs follow while scrolling
  * - zoomState.zoom() and scrollState.scroll() copy state to secondary graphs
  *
  * Secondary graphs are config-driven via [GraphConfig.secondaryGraphs].
@@ -269,8 +270,14 @@ fun GraphsSection(
         sec4scroll, sec4zoom
     ) {
         var initialValue = true
+        var syncedZoom: Float? = null
+        var syncedCount = -1
+        // The newest position on every frame. This was debounce(30), which only passed a value once
+        // the position had not changed for 30 ms. A phone that draws at 120 fps changes it every
+        // 8 ms while the finger moves, so the other graphs only followed after a pause; a slower
+        // phone that dropped frames followed in jumps.
         snapshotFlow { bgScrollState.value to bgZoomState.value }
-            .debounce(30) // Wait for gesture to settle
+            .conflate()
             .collect { (scroll, zoom) ->
                 if (initialValue) {
                     initialValue = false
@@ -278,11 +285,16 @@ fun GraphsSection(
                     graphViewModel.onGraphInteraction()
                 }
                 val count = activeCount
-                // Sync zoom first, then scroll (order matters for proper positioning)
-                beltZoomState.zoom(Zoom.fixed(zoom))
-                iobZoomState.zoom(Zoom.fixed(zoom))
-                for (i in 0 until count) secZoomStates[i].zoom(Zoom.fixed(zoom))
-                delay(10)
+                // Sync zoom first, then scroll (order matters for proper positioning). A plain
+                // scroll skips the zoom and its wait, so the other graphs move in the same frame.
+                if (zoom != syncedZoom || count != syncedCount) {
+                    beltZoomState.zoom(Zoom.fixed(zoom))
+                    iobZoomState.zoom(Zoom.fixed(zoom))
+                    for (i in 0 until count) secZoomStates[i].zoom(Zoom.fixed(zoom))
+                    delay(10)
+                    syncedZoom = zoom
+                    syncedCount = count
+                }
                 beltScrollState.scroll(Scroll.Absolute.pixels(scroll))
                 iobScrollState.scroll(Scroll.Absolute.pixels(scroll))
                 for (i in 0 until count) secScrollStates[i].scroll(Scroll.Absolute.pixels(scroll))
