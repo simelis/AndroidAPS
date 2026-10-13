@@ -907,7 +907,13 @@ class OverviewDataCacheImpl(
                     te.duration > 0                          -> TherapyEventType.GENERAL_WITH_DURATION
                     else                                     -> TherapyEventType.GENERAL
                 }
-                val teLabel = if (!te.note.isNullOrBlank()) te.note!! else translator.translate(te.type)
+                // The belt has no height for a BG check value, so the value goes into the text
+                val glucose = te.checkedGlucoseMgdl()?.let { profileUtil.fromMgdlToStringWithUnits(it) }
+                val teLabel = when {
+                    glucose == null          -> if (!te.note.isNullOrBlank()) te.note!! else translator.translate(te.type)
+                    te.note.isNullOrBlank()  -> rh.gs(InterfacesStrings.confirmation_line, translator.translate(te.type), glucose)
+                    else                     -> rh.gs(InterfacesStrings.confirmation_line, glucose, te.note!!)
+                }
                 TherapyEventGraphPoint(
                     timestamp = te.timestamp,
                     eventType = teType,
@@ -1322,4 +1328,17 @@ internal fun mergeRunningModeSegments(samples: List<Pair<Long, RM.Mode>>, endTim
         else segments.add(RunningModeSegment(mode, start, end))
     }
     return segments
+}
+
+/**
+ * The glucose value of a BG check or a Nightscout meter value in mg/dl, or null for any other event or
+ * an event without a value. A BG check stores the unit it was entered in; a meter value is in mg/dl.
+ */
+internal fun TE.checkedGlucoseMgdl(): Double? {
+    val value = glucose?.takeIf { it > 0.0 } ?: return null
+    return when (type) {
+        TE.Type.NS_MBG                -> value
+        TE.Type.FINGER_STICK_BG_VALUE -> if (glucoseUnit == GlucoseUnit.MMOL) value * Constants.MMOLL_TO_MGDL else value
+        else                          -> null
+    }
 }
