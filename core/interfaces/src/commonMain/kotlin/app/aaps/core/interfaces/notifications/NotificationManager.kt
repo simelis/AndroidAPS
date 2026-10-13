@@ -58,11 +58,12 @@ interface NotificationManager {
     fun dismiss(handle: NotificationHandle)
 
     /**
-     * Silence and dismiss every currently audible alarm. Used by the global "mute all" entry
-     * points (Wear snooze/mute gesture, full-screen acknowledge, app onTerminate). Stops both the
+     * Silence every currently audible alarm. Used by the global "mute all" entry points (Wear
+     * snooze/mute gesture, full-screen acknowledge, app onTerminate). Stops both the
      * internal-notification (`AlarmSoundPlayer.OWNER_INTERNAL`) and full-screen
-     * (`AlarmSoundPlayer.OWNER_FULLSCREEN`) audio, cancels their system notifications, and removes
-     * the audible alarms from the registry so the in-app cards clear. Non-audible notifications are
+     * (`AlarmSoundPlayer.OWNER_FULLSCREEN`) audio and cancels their system notifications. The alarms
+     * stay in the registry, marked [AapsNotification.muted], so a repeat post of the same alarm
+     * stays quiet until the user dismisses it (the 3.4 behaviour). Non-audible notifications are
      * left untouched.
      */
     fun muteAllAlarms()

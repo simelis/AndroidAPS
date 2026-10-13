@@ -11,5 +11,7 @@ data class AapsNotification(
     val validTo: Long = 0L,
     val sound: AlarmSound? = null,
     val actions: List<NotificationAction> = emptyList(),
-    val validityCheck: (() -> Boolean)? = null
+    val validityCheck: (() -> Boolean)? = null,
+    /** An alarm silenced by "mute all". It stays in the list, quiet, until it is dismissed or expires. */
+    val muted: Boolean = false
 )

@@ -302,16 +302,65 @@ class CommonNotificationManagerTest {
     }
 
     @Test
-    fun `mute all clears audible alarms but leaves quiet notifications`() = runTest {
+    fun `mute all silences audible alarms and keeps them listed`() = runTest {
         val sut = createSut()
-        sut.post(NotificationId.TOAST_ALARM, "loud", sound = AlarmSound.ERROR)
+        val loud = sut.post(NotificationId.TOAST_ALARM, "loud", sound = AlarmSound.ERROR)
         sut.post(NotificationId.SCENE_ENDED, "quiet", level = NotificationLevel.INFO)
 
         sut.muteAllAlarms()
 
-        assertEquals(listOf("quiet"), texts(sut))
+        assertEquals(listOf("loud", "quiet"), texts(sut))
+        assertTrue(sut.notifications.value.first { it.text == "loud" }.muted)
         assertNull(platform.audibleKey)
+        assertContains(platform.calls, "cancel:${loud.instanceKey}")
         assertContains(platform.calls, "cancelAll")
+    }
+
+    /**
+     * Missed readings, pump unreachable and Nightscout alarms are posted again while the problem
+     * lasts. Muted from the watch, they must not ring again with the next repeat.
+     */
+    @Test
+    fun `a repeat of a muted alarm stays quiet`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.TOAST_ALARM, "missed readings", sound = AlarmSound.ERROR)
+        sut.muteAllAlarms()
+        platform.calls.clear()
+
+        sut.post(NotificationId.TOAST_ALARM, "missed readings", sound = AlarmSound.ERROR)
+
+        assertNull(platform.audibleKey)
+        assertTrue(platform.calls.none { it.startsWith("show:") || it.startsWith("audible:") })
+        assertTrue(sut.notifications.value.single().muted)
+    }
+
+    /** A repeat of an alarm that is still ringing does not post a new system notification. */
+    @Test
+    fun `a repeat of a listed alarm updates it without a new notification`() = runTest {
+        val sut = createSut()
+        val first = sut.post(NotificationId.TOAST_ALARM, "low", sound = AlarmSound.ERROR)
+        platform.calls.clear()
+
+        val again = sut.post(NotificationId.TOAST_ALARM, "lower", sound = AlarmSound.ERROR)
+
+        assertEquals(first.instanceKey, again.instanceKey)
+        assertEquals(listOf("lower"), texts(sut))
+        assertEquals(first.instanceKey, platform.audibleKey)
+        assertTrue(platform.calls.none { it.startsWith("show:") || it.startsWith("cancel:") || it.startsWith("audible:") })
+    }
+
+    /** Once the user has dismissed a muted alarm, the problem coming back is a new alarm and rings. */
+    @Test
+    fun `after a muted alarm is dismissed the next one rings`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.TOAST_ALARM, "missed readings", sound = AlarmSound.ERROR)
+        sut.muteAllAlarms()
+        sut.dismiss(NotificationId.TOAST_ALARM)
+
+        val next = sut.post(NotificationId.TOAST_ALARM, "missed readings", sound = AlarmSound.ERROR)
+
+        assertEquals(next.instanceKey, platform.audibleKey)
+        assertTrue(!sut.notifications.value.single().muted)
     }
 
     // ---------------------------------------------------------------------------------------------
