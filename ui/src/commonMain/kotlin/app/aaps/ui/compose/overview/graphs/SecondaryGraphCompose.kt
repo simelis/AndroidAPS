@@ -15,6 +15,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -600,13 +602,15 @@ fun SecondaryGraphCompose(
     val iobLineStyle = rememberIobLineStyles()
     val cobLineStyle = rememberCobLineStyles()
     val normalizerLine = remember { createNormalizerLine() }
+    // Where zero is drawn in the current animation frame, for the deviation bars' fill
+    val animatedZero = remember { AnimatedZero() }
 
-    val lines = remember(primarySeries, seriesColors, iobLineStyle, cobLineStyle, normalizerLine) {
+    val lines = remember(primarySeries, seriesColors, iobLineStyle, cobLineStyle, normalizerLine, animatedZero) {
         buildList {
             for (spec in primarySeries) {
                 add(
                     when (val slot = spec.slot) {
-                        is SeriesSlot.DeviationLine -> createDeviationLine(slot.type)
+                        is SeriesSlot.DeviationLine -> createDeviationLine(slot.type, animatedZero)
                         SeriesSlot.IobLine          -> iobLineStyle.iobLine
                         SeriesSlot.SmallSmb         -> iobLineStyle.smallSmbLine
                         SeriesSlot.MediumSmb        -> iobLineStyle.mediumSmbLine
@@ -882,8 +886,9 @@ fun SecondaryGraphCompose(
     LaunchedEffect(primaryRangeProvider, secondaryRangeProvider) {
         if (debugEnabled) debugLog("scale: left=$primaryRangeProvider right=${if (isDualAxis) secondaryRangeProvider.toString() else "none"}")
     }
-    val primaryInterpolator = remember(debugEnabled, debugWindow, debugLog) {
-        if (debugEnabled) BarHeightProbe(debugWindow, debugLog) else CartesianLayerDrawingModelInterpolator.line()
+    val primaryInterpolator = remember(animatedZero, debugEnabled, debugWindow, debugLog) {
+        val zeroTracking = ZeroTrackingInterpolator(animatedZero)
+        if (debugEnabled) BarHeightProbe(zeroTracking, debugWindow, debugLog) else zeroTracking
     }
     val primaryLayer = rememberLineCartesianLayer(
         lineProvider = LineCartesianLayer.LineProvider.series(lines),
@@ -1448,14 +1453,80 @@ private fun deviationColor(type: DeviationType): Color = when (type) {
 }
 
 /** Step line with solid area fill and thin stroke, per-deviation-type color */
-private fun createDeviationLine(type: DeviationType): LineCartesianLayer.Line {
+private fun createDeviationLine(type: DeviationType, zero: AnimatedZero): LineCartesianLayer.Line {
     val color = deviationColor(type)
     return LineCartesianLayer.Line(
         fill = LineCartesianLayer.LineFill.single(Fill(color)),
         stroke = LineCartesianLayer.LineStroke.Continuous(thickness = 0.dp),
-        areaFill = LineCartesianLayer.AreaFill.single(Fill(color.copy(alpha = 0.5f))),
+        areaFill = ZeroFollowingAreaFill(color.copy(alpha = 0.5f), zero),
         interpolator = Square
     )
+}
+
+/**
+ * Where zero is drawn in the current animation frame, as a fraction of the graph height from the
+ * bottom. Null when Vico has no stored heights (then zero comes from the scale). Written on Vico's
+ * worker thread, read while drawing.
+ */
+private class AnimatedZero {
+    @Volatile
+    var fraction: Float? = null
+}
+
+/**
+ * Vico's line interpolator, also noting where zero is in each frame. The normalizer series is the
+ * last series of the primary layer and lies at zero, so its height in a frame is zero's height.
+ */
+private class ZeroTrackingInterpolator(
+    private val zero: AnimatedZero
+) : CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel> {
+
+    private val delegate = CartesianLayerDrawingModelInterpolator.line()
+
+    override fun setModels(old: LineCartesianLayerDrawingModel?, new: LineCartesianLayerDrawingModel?) = delegate.setModels(old, new)
+
+    override suspend fun transform(fraction: Float): LineCartesianLayerDrawingModel? =
+        delegate.transform(fraction).also { model -> zero.fraction = model?.lastOrNull()?.values?.firstOrNull()?.y }
+}
+
+/**
+ * Fills between the line and zero, like Vico's single area fill, but at zero as drawn in the current
+ * animation frame. Vico's own fill moves to the new zero at once while the bars still glide there,
+ * so for half a second it painted a band below (or above) zero that was then trimmed away.
+ */
+private class ZeroFollowingAreaFill(
+    color: Color,
+    private val zero: AnimatedZero
+) : LineCartesianLayer.AreaFill {
+
+    private val paint = Paint().apply { this.color = color }
+    private val areaPath = Path()
+
+    override fun draw(
+        context: CartesianDrawingContext,
+        linePath: Path,
+        halfLineThickness: Float,
+        verticalAxisPosition: Axis.Position.Vertical?
+    ) {
+        if (linePath.isEmpty) return
+        with(context) {
+            val bounds = layerBounds
+            val zeroFraction = zero.fraction ?: ranges.getYRange(verticalAxisPosition).let { range ->
+                if (range.length > 0.0) ((0.0 - range.minY) / range.length).toFloat() else 0f
+            }
+            val zeroY = (bounds.bottom - zeroFraction * bounds.height).coerceIn(bounds.top, bounds.bottom)
+            val lineBounds = linePath.getBounds()
+            areaPath.rewind()
+            areaPath.addPath(linePath)
+            areaPath.lineTo(if (isLtr) lineBounds.right else lineBounds.left, zeroY)
+            areaPath.lineTo(if (isLtr) lineBounds.left else lineBounds.right, zeroY)
+            areaPath.close()
+            canvas.save()
+            canvas.clipRect(bounds.left, bounds.top, bounds.right, bounds.bottom)
+            canvas.drawPath(areaPath, paint)
+            canvas.restore()
+        }
+    }
 }
 
 /** Processed deviation data split by type for multi-series line rendering */
@@ -1631,16 +1702,15 @@ private class DebugWindowHolder {
 }
 
 /**
- * Wraps Vico's line interpolator and logs the stored bar heights of the visible part, as a fraction
+ * Wraps the line interpolator and logs the stored bar heights of the visible part, as a fraction
  * of the graph height (0 = bottom, 1 = top). A highest bar above 1 means a bar is drawn past the top
  * of the graph; "none" for the old heights means Vico grows every bar from the bottom.
  */
 private class BarHeightProbe(
+    private val delegate: CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel>,
     private val window: DebugWindowHolder,
     private val log: (String) -> Unit
 ) : CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel> {
-
-    private val delegate = CartesianLayerDrawingModelInterpolator.line()
 
     override fun setModels(old: LineCartesianLayerDrawingModel?, new: LineCartesianLayerDrawingModel?) {
         log("heights from ${describe(old)} to ${describe(new)}")
