@@ -55,6 +55,7 @@ import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlin.math.abs
 
 /**
  * CartesianChartModelProducer.update() skips notifying receivers (and thus skips recomputing axis
@@ -694,8 +695,9 @@ fun SecondaryGraphCompose(
             return@remember if (primaryIsPivot) {
                 val pairing = pivotZeroFloorPairing(primaryYValues, secondaryY, pivot, pivotMinDeviation, pivotTickCount)
                 // Primary is the pivot itself here — its own axis is fully meaningful in both
-                // directions, no label clamping needed.
-                AlignedRanges(pairing.pivotNice.min, pairing.pivotNice.max, -pairing.zeroFloorHalf, pairing.zeroFloorHalf)
+                // directions, no label clamping needed. Secondary is the zero-floor side, so its
+                // labels stop at its own real floor.
+                AlignedRanges(pairing.pivotNice.min, pairing.pivotNice.max, -pairing.zeroFloorHalf, pairing.zeroFloorHalf, secondaryLabelFloor = pairing.zeroFloorMin)
             } else {
                 val pairing = pivotZeroFloorPairing(secondaryY, primaryYValues, pivot, pivotMinDeviation, pivotTickCount)
                 // Primary is the zero-floor side, pushed into a symmetric container purely to
@@ -714,27 +716,7 @@ fun SecondaryGraphCompose(
             return@remember alignZeros(primaryYValues.min(), primaryYValues.max(), secondaryY.min(), secondaryY.max(), primaryPivot, secondaryPivot)
         }
 
-        // Neither series is pivot-centered (e.g. COB + VAR_SENSITIVITY, or BGI + STEPS): primary
-        // stays nice-scaled and zero-floored, secondary stays raw. Each series' own "negative
-        // fraction" is computed independently — primary from its nice bounds, secondary from its
-        // raw bounds — and the shared target is their average, so neither curve's height dominates
-        // the compromise. Each axis is then widened just enough to hit that shared fraction,
-        // anchored at whichever of its own real/nice bounds avoids clipping (see
-        // fractionAlignedRange / fractionAlignedNiceRange) so nothing is ever clipped.
-        val primaryNice = zeroFloorNiceRange(primaryYValues.min(), primaryYValues.max().coerceAtLeast(0.1), SECONDARY_GRAPH_TICK_COUNT)
-        val primaryFraction = if (primaryNice.max > primaryNice.min) -primaryNice.min / (primaryNice.max - primaryNice.min) else 0.0
-
-        val secondaryMax = secondaryY.max().coerceAtLeast(0.1)
-        val secondaryFraction = if (secondaryY.min() < 0.0) -secondaryY.min() / (secondaryMax - secondaryY.min()) else 0.0
-
-        val sharedFraction = (primaryFraction + secondaryFraction) / 2.0
-
-        val (aMin, aMax) = fractionAlignedNiceRange(primaryNice.min, primaryNice.max, sharedFraction)
-        val (bMin, bMax) = fractionAlignedRange(secondaryY.min(), secondaryMax, sharedFraction)
-        // primaryNice.min is primary's own real floor (0 unless it has a genuine negative sliver);
-        // aMin can be pushed below that purely to align zero with secondary — clamp labels back to
-        // primary's own floor so its axis never shows a fake negative tick.
-        AlignedRanges(aMin, aMax, bMin, bMax, primaryLabelFloor = primaryNice.min)
+        zeroFloorDualRanges(primaryYValues, secondaryY)
     }
 
     // Empty graph (only the normalizer series at y=0) would auto-range to a degenerate [0,0]
@@ -882,6 +864,22 @@ fun SecondaryGraphCompose(
         ),
         guideline = LineComponent(fill = Fill(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
     )
+    // Right-axis numbers for the second series, in its color, so they are not read as the left
+    // axis' numbers. Drawn inside the chart: an axis outside would make this graph narrower than the
+    // others and its times would no longer line up with them. No line, ticks or grid of its own.
+    val endAxisItemPlacer = remember(dualAxisRanges?.secondaryLabelFloor) {
+        val stepPlacer = VerticalAxis.ItemPlacer.step()
+        val labelFloor = dualAxisRanges?.secondaryLabelFloor
+        if (labelFloor != null) ClampedVerticalAxisItemPlacer(stepPlacer, visibleMin = { labelFloor }) else stepPlacer
+    }
+    val endAxis = VerticalAxis.rememberEnd(
+        line = null,
+        label = rememberTextComponent(style = TextStyle(color = secondaryAxisColor)),
+        horizontalLabelPosition = VerticalAxis.HorizontalLabelPosition.Inside,
+        tick = null,
+        guideline = null,
+        itemPlacer = endAxisItemPlacer
+    )
     val bottomAxis = HorizontalAxis.rememberBottom(
         valueFormatter = timeFormatter,
         itemPlacer = bottomAxisItemPlacer,
@@ -891,6 +889,9 @@ fun SecondaryGraphCompose(
         guideline = LineComponent(fill = Fill(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
     )
 
+    // animationSpec = null: the axis range follows the visible window, so every scroll changes the
+    // model. Vico's change animation then drew wrong shapes for about half a second (area fills as
+    // a band across the whole graph, lines lifted off zero), so a new scale is shown at once.
     if (hasBasalLayer) {
         val basalLayer = rememberLineCartesianLayer(
             lineProvider = LineCartesianLayer.LineProvider.series(basalLines),
@@ -905,7 +906,8 @@ fun SecondaryGraphCompose(
             ),
             modelProducer = modelProducer,
             modifier = modifier.fillMaxWidth(),
-            scrollState = scrollState, zoomState = zoomState
+            scrollState = scrollState, zoomState = zoomState,
+            animationSpec = null
         )
     } else if (isDualAxis) {
         val secondaryLayer = rememberLineCartesianLayer(
@@ -917,11 +919,13 @@ fun SecondaryGraphCompose(
             chart = rememberCartesianChart(
                 primaryLayer, secondaryLayer,
                 startAxis = startAxis,
+                endAxis = endAxis,
                 bottomAxis = bottomAxis, decorations = decorations, getXStep = { _, _, _ -> 1.0 }
             ),
             modelProducer = modelProducer,
             modifier = modifier.fillMaxWidth(),
-            scrollState = scrollState, zoomState = zoomState
+            scrollState = scrollState, zoomState = zoomState,
+            animationSpec = null
         )
     } else {
         CartesianChartHost(
@@ -932,7 +936,8 @@ fun SecondaryGraphCompose(
             ),
             modelProducer = modelProducer,
             modifier = modifier.fillMaxWidth(),
-            scrollState = scrollState, zoomState = zoomState
+            scrollState = scrollState, zoomState = zoomState,
+            animationSpec = null
         )
     }
 }
@@ -1439,9 +1444,17 @@ internal data class ProcessedDeviationLines(
  * Aligned y-ranges for primary (a*) and secondary (b*) axes — zeros share the same fractional
  * position. [primaryLabelFloor], when set, is primary's own real floor (below which its axis was
  * artificially extended purely for zero-alignment) — the start axis' tick placer clamps labels to
- * it so primary never shows a fake tick below a value it can actually reach.
+ * it so primary never shows a fake tick below a value it can actually reach. [secondaryLabelFloor]
+ * does the same for the end axis.
  */
-internal data class AlignedRanges(val aMin: Double, val aMax: Double, val bMin: Double, val bMax: Double, val primaryLabelFloor: Double? = null)
+internal data class AlignedRanges(
+    val aMin: Double,
+    val aMax: Double,
+    val bMin: Double,
+    val bMax: Double,
+    val primaryLabelFloor: Double? = null,
+    val secondaryLabelFloor: Double? = null
+)
 
 /** Result of [pivotZeroFloorPairing]: the pivot side's full nice range, and the zero-floor side's symmetric container (half-width, and its own real floor for label clamping). */
 internal data class PivotZeroFloorPairing(val pivotNice: NiceScale, val zeroFloorHalf: Double, val zeroFloorMin: Double)
@@ -1544,7 +1557,49 @@ internal fun fractionAlignedNiceRange(niceMin: Double, niceMax: Double, targetFr
     val fraction = targetFraction.coerceIn(0.0, 0.9)
     if (fraction <= 0.0) return niceMin to niceMax
     val candidateMax = niceMin * (fraction - 1.0) / fraction
+    // The range already has its zero at the target (the usual case when the target is this axis'
+    // own fraction). Rounding either bound again would only shrink the data for nothing.
+    if (abs(candidateMax - niceMax) <= ALIGN_TOLERANCE * maxOf(1.0, abs(niceMax))) return niceMin to niceMax
     return if (candidateMax >= niceMax) niceMin to niceUp(candidateMax)
     else niceNegativeSliver(-fraction / (1.0 - fraction) * niceMax) to niceMax
+}
+
+/** Relative rounding error accepted when checking that a range already has its zero at the target. */
+private const val ALIGN_TOLERANCE = 1e-9
+
+/**
+ * The largest part of the height below zero that two dual-axis series share. Without a limit a
+ * mostly negative series would squeeze the other one into a thin strip at the top.
+ */
+internal const val MAX_SHARED_ZERO_FRACTION = 0.5
+
+/**
+ * Ranges for a dual-axis combo where neither series is pivot-centered (e.g. DEV + COB, or
+ * BGI + STEPS). Primary stays nice-scaled and zero-floored, secondary stays raw.
+ *
+ * Both axes put zero at the same height. That height is the larger of the two series' own
+ * "part below zero", capped at [MAX_SHARED_ZERO_FRACTION]. The series that needs more room below
+ * zero keeps its full scale, and the other one gives up only that part of its height. Taking the
+ * average instead cost the series below zero about half its height or more, even for a dip of
+ * 1 mg/dl, because its scale had to be stretched upwards to bring its zero down.
+ */
+internal fun zeroFloorDualRanges(primaryY: List<Double>, secondaryY: List<Double>): AlignedRanges {
+    val primaryNice = zeroFloorNiceRange(primaryY.min(), primaryY.max().coerceAtLeast(0.1), SECONDARY_GRAPH_TICK_COUNT)
+    val primaryFraction = if (primaryNice.max > primaryNice.min) -primaryNice.min / (primaryNice.max - primaryNice.min) else 0.0
+
+    val secondaryMax = secondaryY.max().coerceAtLeast(0.1)
+    val secondaryFraction = if (secondaryY.min() < 0.0) -secondaryY.min() / (secondaryMax - secondaryY.min()) else 0.0
+
+    val sharedFraction = maxOf(primaryFraction, secondaryFraction).coerceAtMost(MAX_SHARED_ZERO_FRACTION)
+
+    val (aMin, aMax) = fractionAlignedNiceRange(primaryNice.min, primaryNice.max, sharedFraction)
+    // Rounding the primary bounds to nice values moves its zero a little. The secondary range is
+    // not rounded, so it follows the zero where it really is, not where it was aimed.
+    val primaryZeroFraction = if (aMax > aMin) -aMin / (aMax - aMin) else sharedFraction
+    val (bMin, bMax) = fractionAlignedRange(secondaryY.min(), secondaryMax, primaryZeroFraction)
+    // primaryNice.min is primary's own real floor (0 unless it has a genuine negative sliver);
+    // aMin can be pushed below that purely to align zero with secondary — clamp labels back to
+    // primary's own floor so its axis never shows a fake negative tick. The same for secondary.
+    return AlignedRanges(aMin, aMax, bMin, bMax, primaryLabelFloor = primaryNice.min, secondaryLabelFloor = minOf(0.0, secondaryY.min()))
 }
 
