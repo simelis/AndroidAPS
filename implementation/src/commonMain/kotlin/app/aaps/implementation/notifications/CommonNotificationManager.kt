@@ -140,6 +140,19 @@ class CommonNotificationManager(
         removeExpired()
 
         val current = _notifications.value.toMutableList()
+
+        // A repeat of a listed alarm only updates it: no new system notification or sound, so a muted alarm stays quiet
+        val listed = if (id.allowMultiple) null else current.firstOrNull { it.id == id }
+        if (listed != null && listed.isAudibleAlarm && level == NotificationLevel.URGENT && sound != null) {
+            val updated = listed.copy(
+                text = text, date = date, validTo = validTo, sound = sound, actions = actions, validityCheck = validityCheck
+            )
+            _notifications.value = current.map { if (it === listed) updated else it }
+            refreshAlarmSound()
+            aapsLogger.debug(LTag.NOTIFICATION, "Alarm repeated${if (listed.muted) " (muted)" else ""}: [${id.name}] $text")
+            return@withLock NotificationHandle(listed.instanceKey)
+        }
+
         val instanceKey: Int
         if (id.allowMultiple) {
             instanceKey = nextInstanceKey++
@@ -185,17 +198,18 @@ class CommonNotificationManager(
     }
 
     /**
-     * Silence and dismiss every active audible alarm - the global "mute all" path.
+     * Silence every active audible alarm - the global "mute all" path.
      *
-     * Drops every audible URGENT notification so [refreshAlarmSound] falls to silence, then clears
-     * whatever the platform is still showing for them. Non-audible notifications are left alone.
+     * Marks every audible URGENT notification [AapsNotification.muted] so [refreshAlarmSound] falls
+     * to silence, then clears whatever the platform is still showing for them. Non-audible
+     * notifications are left alone.
      */
     override fun muteAllAlarms() = lock.withLock {
         val current = _notifications.value
-        val audible = current.filter { it.level == NotificationLevel.URGENT && it.sound != null }
+        val audible = current.filter { it.isAudibleAlarm && !it.muted }
         if (audible.isNotEmpty()) {
             audible.forEach { cancelSystemNotification(it) }
-            _notifications.value = current - audible.toSet()
+            _notifications.value = current.map { if (it in audible) it.copy(muted = true) else it }
         }
         refreshAlarmSound()
         platform.cancelAll()
@@ -231,10 +245,13 @@ class CommonNotificationManager(
 
     private fun cancelSystemNotification(n: AapsNotification) = platform.cancel(n.instanceKey)
 
+    private val AapsNotification.isAudibleAlarm: Boolean
+        get() = level == NotificationLevel.URGENT && sound != null
+
     /**
      * Re-evaluate which alarm owns the sound.
      *
-     * The newest active URGENT notification carrying a sound owns it. Replacing a single "currently
+     * The newest active URGENT notification carrying a sound, and not muted, owns it. Replacing a single "currently
      * sounding" slot is what makes concurrent alarms hand off correctly: dismissing the audible one
      * promotes the next remaining one instead of going silent.
      *
@@ -242,7 +259,7 @@ class CommonNotificationManager(
      */
     private fun refreshAlarmSound() {
         val top = _notifications.value
-            .filter { it.level == NotificationLevel.URGENT && it.sound != null }
+            .filter { it.isAudibleAlarm && !it.muted }
             .maxByOrNull { it.date }
         when {
             top == null                    ->

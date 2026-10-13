@@ -11,5 +11,6 @@ data class AapsNotification(
     val validTo: Long = 0L,
     val sound: AlarmSound? = null,
     val actions: List<NotificationAction> = emptyList(),
-    val validityCheck: (() -> Boolean)? = null
+    val validityCheck: (() -> Boolean)? = null,
+    val muted: Boolean = false
 )
