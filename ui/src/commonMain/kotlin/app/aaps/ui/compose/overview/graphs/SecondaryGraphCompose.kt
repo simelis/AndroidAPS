@@ -695,9 +695,8 @@ fun SecondaryGraphCompose(
             return@remember if (primaryIsPivot) {
                 val pairing = pivotZeroFloorPairing(primaryYValues, secondaryY, pivot, pivotMinDeviation, pivotTickCount)
                 // Primary is the pivot itself here — its own axis is fully meaningful in both
-                // directions, no label clamping needed. Secondary is the zero-floor side, so its
-                // labels stop at its own real floor.
-                AlignedRanges(pairing.pivotNice.min, pairing.pivotNice.max, -pairing.zeroFloorHalf, pairing.zeroFloorHalf, secondaryLabelFloor = pairing.zeroFloorMin)
+                // directions, no label clamping needed.
+                AlignedRanges(pairing.pivotNice.min, pairing.pivotNice.max, -pairing.zeroFloorHalf, pairing.zeroFloorHalf)
             } else {
                 val pairing = pivotZeroFloorPairing(secondaryY, primaryYValues, pivot, pivotMinDeviation, pivotTickCount)
                 // Primary is the zero-floor side, pushed into a symmetric container purely to
@@ -864,22 +863,6 @@ fun SecondaryGraphCompose(
         ),
         guideline = LineComponent(fill = Fill(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
     )
-    // Right-axis numbers for the second series, in its color, so they are not read as the left
-    // axis' numbers. Drawn inside the chart: an axis outside would make this graph narrower than the
-    // others and its times would no longer line up with them. No line, ticks or grid of its own.
-    val endAxisItemPlacer = remember(dualAxisRanges?.secondaryLabelFloor) {
-        val stepPlacer = VerticalAxis.ItemPlacer.step()
-        val labelFloor = dualAxisRanges?.secondaryLabelFloor
-        if (labelFloor != null) ClampedVerticalAxisItemPlacer(stepPlacer, visibleMin = { labelFloor }) else stepPlacer
-    }
-    val endAxis = VerticalAxis.rememberEnd(
-        line = null,
-        label = rememberTextComponent(style = TextStyle(color = secondaryAxisColor)),
-        horizontalLabelPosition = VerticalAxis.HorizontalLabelPosition.Inside,
-        tick = null,
-        guideline = null,
-        itemPlacer = endAxisItemPlacer
-    )
     val bottomAxis = HorizontalAxis.rememberBottom(
         valueFormatter = timeFormatter,
         itemPlacer = bottomAxisItemPlacer,
@@ -889,9 +872,6 @@ fun SecondaryGraphCompose(
         guideline = LineComponent(fill = Fill(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
     )
 
-    // animationSpec = null: the axis range follows the visible window, so every scroll changes the
-    // model. Vico's change animation then drew wrong shapes for about half a second (area fills as
-    // a band across the whole graph, lines lifted off zero), so a new scale is shown at once.
     if (hasBasalLayer) {
         val basalLayer = rememberLineCartesianLayer(
             lineProvider = LineCartesianLayer.LineProvider.series(basalLines),
@@ -906,8 +886,7 @@ fun SecondaryGraphCompose(
             ),
             modelProducer = modelProducer,
             modifier = modifier.fillMaxWidth(),
-            scrollState = scrollState, zoomState = zoomState,
-            animationSpec = null
+            scrollState = scrollState, zoomState = zoomState
         )
     } else if (isDualAxis) {
         val secondaryLayer = rememberLineCartesianLayer(
@@ -919,13 +898,11 @@ fun SecondaryGraphCompose(
             chart = rememberCartesianChart(
                 primaryLayer, secondaryLayer,
                 startAxis = startAxis,
-                endAxis = endAxis,
                 bottomAxis = bottomAxis, decorations = decorations, getXStep = { _, _, _ -> 1.0 }
             ),
             modelProducer = modelProducer,
             modifier = modifier.fillMaxWidth(),
-            scrollState = scrollState, zoomState = zoomState,
-            animationSpec = null
+            scrollState = scrollState, zoomState = zoomState
         )
     } else {
         CartesianChartHost(
@@ -936,8 +913,7 @@ fun SecondaryGraphCompose(
             ),
             modelProducer = modelProducer,
             modifier = modifier.fillMaxWidth(),
-            scrollState = scrollState, zoomState = zoomState,
-            animationSpec = null
+            scrollState = scrollState, zoomState = zoomState
         )
     }
 }
@@ -1444,17 +1420,9 @@ internal data class ProcessedDeviationLines(
  * Aligned y-ranges for primary (a*) and secondary (b*) axes — zeros share the same fractional
  * position. [primaryLabelFloor], when set, is primary's own real floor (below which its axis was
  * artificially extended purely for zero-alignment) — the start axis' tick placer clamps labels to
- * it so primary never shows a fake tick below a value it can actually reach. [secondaryLabelFloor]
- * does the same for the end axis.
+ * it so primary never shows a fake tick below a value it can actually reach.
  */
-internal data class AlignedRanges(
-    val aMin: Double,
-    val aMax: Double,
-    val bMin: Double,
-    val bMax: Double,
-    val primaryLabelFloor: Double? = null,
-    val secondaryLabelFloor: Double? = null
-)
+internal data class AlignedRanges(val aMin: Double, val aMax: Double, val bMin: Double, val bMax: Double, val primaryLabelFloor: Double? = null)
 
 /** Result of [pivotZeroFloorPairing]: the pivot side's full nice range, and the zero-floor side's symmetric container (half-width, and its own real floor for label clamping). */
 internal data class PivotZeroFloorPairing(val pivotNice: NiceScale, val zeroFloorHalf: Double, val zeroFloorMin: Double)
@@ -1599,7 +1567,7 @@ internal fun zeroFloorDualRanges(primaryY: List<Double>, secondaryY: List<Double
     val (bMin, bMax) = fractionAlignedRange(secondaryY.min(), secondaryMax, primaryZeroFraction)
     // primaryNice.min is primary's own real floor (0 unless it has a genuine negative sliver);
     // aMin can be pushed below that purely to align zero with secondary — clamp labels back to
-    // primary's own floor so its axis never shows a fake negative tick. The same for secondary.
-    return AlignedRanges(aMin, aMax, bMin, bMax, primaryLabelFloor = primaryNice.min, secondaryLabelFloor = minOf(0.0, secondaryY.min()))
+    // primary's own floor so its axis never shows a fake negative tick.
+    return AlignedRanges(aMin, aMax, bMin, bMax, primaryLabelFloor = primaryNice.min)
 }
 

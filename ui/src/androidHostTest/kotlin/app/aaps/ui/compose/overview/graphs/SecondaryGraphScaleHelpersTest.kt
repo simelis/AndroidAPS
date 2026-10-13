@@ -290,11 +290,10 @@ internal class SecondaryGraphScaleHelpersTest {
         }
 
         @Test
-        fun `labels of an axis pushed below its own floor stop at that floor`() {
+        fun `left labels stop at the left series' own floor`() {
             val ranges = zeroFloorDualRanges(listOf(-3.0, 28.0), listOf(0.0, 120.0))
 
             assertThat(ranges.bMin).isLessThan(0.0)
-            assertThat(ranges.secondaryLabelFloor).isEqualTo(0.0)
             assertThat(ranges.primaryLabelFloor).isEqualTo(ranges.aMin)
         }
 
@@ -320,7 +319,6 @@ internal class SecondaryGraphScaleHelpersTest {
             assertThat(ranges.aMin).isLessThan(0.0)
             assertThat(ranges.aMax).isEqualTo(10.0)
             assertThat(ranges.primaryLabelFloor).isEqualTo(0.0)
-            assertThat(ranges.secondaryLabelFloor).isEqualTo(-5.0)
         }
     }
 
