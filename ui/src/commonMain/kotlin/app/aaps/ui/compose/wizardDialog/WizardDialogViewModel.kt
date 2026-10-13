@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.time.T
 import app.aaps.core.data.ue.Sources
@@ -45,6 +46,8 @@ import app.aaps.core.objects.wizard.BolusWizard
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.clientcontrol.failText
 import app.aaps.core.ui.compose.icons.IcCalculator
+import app.aaps.ui.UiStrings
+import app.aaps.ui.compose.foodManagement.formatAmount
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
@@ -505,7 +508,7 @@ class WizardDialogViewModel(
             state.useTT,
             state.useTrend,
             state.alarmChecked,
-            state.notes,
+            mealNotes(state),
             state.carbTime
         )
 
@@ -556,6 +559,45 @@ class WizardDialogViewModel(
             )
         }
     }
+
+    /**
+     * The note saved with the meal: what was used from the food, then the user's own note. It goes to the bolus
+     * calculation, the carbs entries, the user entry log and Nightscout, so the food values stay in the history.
+     * Dumplings and pizza are a rough split for food like that, so their name is not saved, only the split.
+     */
+    private fun mealNotes(state: WizardDialogUiState): String {
+        val food = state.foodECarbs ?: return state.notes
+        val amount = food.amount.formatAmount()
+        val plan = state.carbPlan()
+        val label = when {
+            food.enabled    -> eCarbsSource(food)
+            plan.eCarbs > 0 -> rh.gs(UiStrings.food_history_ecarbs_label)
+            else            -> null
+        }
+        val carbsNowPercent = if (food.enabled) food.rule.carbsNowPercent else state.carbsType.carbsPercent
+        val summary =
+            if (label == null) rh.gs(UiStrings.food_history_note, food.food.name, amount, food.food.unit)
+            else rh.gs(
+                UiStrings.food_history_note_ecarbs, food.food.name, amount, food.food.unit, label,
+                carbsNowPercent, state.carbs, plan.eCarbs, plan.delayMinutes, plan.durationHours
+            )
+        // The note starts as the food name, which the summary already has
+        val own = state.notes.trim()
+        return if (own.isEmpty() || own == food.food.name) summary else rh.gs(UiStrings.food_history_note_with_own, summary, own)
+    }
+
+    /** Where the eCarbs came from: changed for this meal, the fixed amount of the food, or its formula. */
+    private fun eCarbsSource(food: FoodECarbsState): String = rh.gs(
+        when {
+            food.overrideGrams != null    -> UiStrings.food_history_changed_for_meal
+            food.rule.manualGrams != null -> UiStrings.food_history_fixed_amount
+            else                          -> when (food.rule.method) {
+                FoodECarbsMethod.CUSTOM       -> UiStrings.food_ecarbs_custom
+                FoodECarbsMethod.FPU          -> UiStrings.food_ecarbs_fpu
+                FoodECarbsMethod.MODIFIED_FPU -> UiStrings.food_ecarbs_modified_fpu
+            }
+        }
+    )
 
     // --- Action methods ---
 
@@ -623,7 +665,7 @@ class WizardDialogViewModel(
         val inputs = WizardBolusExecutor.WizardInputs(
             bg = state.bg, carbs = effectiveCarbs, percentage = state.percentage, directCorrection = state.directCorrection,
             carbTime = state.carbTime, useBg = state.useBg, useCob = state.useCOB, useIob = state.useIOB,
-            useTt = state.useTT, useTrend = state.useTrend, alarm = state.alarmChecked, notes = state.notes,
+            useTt = state.useTT, useTrend = state.useTrend, alarm = state.alarmChecked, notes = mealNotes(state),
             eCarbsGrams = state.eCarbs, eCarbsDelayMinutes = state.eCarbsDelayMinutes + state.carbTime, eCarbsDurationHours = state.eCarbsDurationHours,
             profileName = profileName
         )

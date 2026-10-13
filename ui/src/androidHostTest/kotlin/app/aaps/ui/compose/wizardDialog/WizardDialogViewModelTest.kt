@@ -41,6 +41,7 @@ import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.runningMode.RunningModeGuard
 import app.aaps.core.objects.wizard.BolusWizard
+import app.aaps.ui.UiStrings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.anyVararg
+import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
@@ -251,9 +254,15 @@ internal class WizardDialogViewModelTest {
             any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(wizard)
         whenever(rh.gs(CoreUiStrings.clientcontrol_action_deliver_bolus)).thenReturn("Deliver bolus")
         whenever(wizardExecutor.prepare(any(), any())).thenReturn(ActionProgress.Sending)
+        whenever(rh.gs(UiStrings.food_ecarbs_fpu)).thenReturn("FPU")
+        whenever(rh.gs(eq(UiStrings.food_history_note_ecarbs), anyVararg())).thenReturn("Meal summary")
+        whenever(rh.gs(UiStrings.food_history_ecarbs_label)).thenReturn("eCarbs")
         advanceUntilIdle()
         sut.updateCarbsType(CarbsType.PIZZA)
         sut.updateFoodAmount(300.0)
+        advanceUntilIdle()
+        // With pizza only the split is in the note, not the name of the choice: 80 % of 75 g now, 35 % of it later
+        verify(rh, atLeastOnce()).gs(UiStrings.food_history_note_ecarbs, "Meal", "300", "g", "eCarbs", 80, 75, 26, 60, 3)
         sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3))
         sut.toggleFoodECarbs(true)
         sut.updateCarbTime(15)
@@ -269,6 +278,9 @@ internal class WizardDialogViewModelTest {
         assertThat(inputs.carbTime).isEqualTo(15)
         assertThat(inputs.eCarbsDelayMinutes).isEqualTo(75)
         assertThat(inputs.eCarbsDurationHours).isEqualTo(3)
+        // The food values go to the history in the note: 300 g, all 75 g carbs now, 26 g eCarbs 60 min after carb time over 3 h
+        verify(rh, atLeastOnce()).gs(UiStrings.food_history_note_ecarbs, "Meal", "300", "g", "FPU", 100, 75, 26, 60, 3)
+        assertThat(inputs.notes).isEqualTo("Meal summary")
     }
 
     @Test
