@@ -38,6 +38,7 @@ fun OverviewChipsColumn(
     runningModeSceneManaged: Boolean = false,
     smbEnabled: Boolean = false,
     profileName: String,
+    profileSuffix: String = "",
     profileRemaining: String = "",
     isProfileModified: Boolean,
     profileProgress: Float,
@@ -83,6 +84,7 @@ fun OverviewChipsColumn(
                             runningModeSceneManaged = runningModeSceneManaged,
                             smbEnabled = smbEnabled,
                             profileName = profileName,
+                            profileSuffix = profileSuffix,
                             profileRemaining = profileRemaining,
                             isProfileModified = isProfileModified,
                             profileProgress = profileProgress,
@@ -113,6 +115,7 @@ fun OverviewChipsColumn(
                 runningModeSceneManaged = runningModeSceneManaged,
                 smbEnabled = smbEnabled,
                 profileName = profileName,
+                profileSuffix = profileSuffix,
                 profileRemaining = profileRemaining,
                 isProfileModified = isProfileModified,
                 profileProgress = profileProgress,
@@ -149,6 +152,7 @@ private fun NarrowChips(
     runningModeSceneManaged: Boolean,
     smbEnabled: Boolean,
     profileName: String,
+    profileSuffix: String = "",
     profileRemaining: String = "",
     isProfileModified: Boolean,
     profileProgress: Float,
@@ -163,8 +167,24 @@ private fun NarrowChips(
     onTbrChipClick: () -> Unit,
     commandsAllowed: Boolean
 ) {
+    // Profile on its own full-width row, so it lines up with the IOB / COB row and its name has room
+    ProfileChip(
+        profileName = profileName.ifEmpty { stringResource(CoreUiStrings.no_profile_set) },
+        suffix = profileSuffix,
+        remaining = profileRemaining,
+        isModified = isProfileModified,
+        progress = profileProgress,
+        onClick = { onNavigate(NavigationRequest.Element(ElementType.PROFILE_MANAGEMENT)) },
+        sceneManaged = profileSceneManaged,
+        isNoProfile = profileName.isEmpty(),
+        // Stays clickable even on an unpaired client: profile management opens read-only there,
+        // so this is a view affordance, not a command one (unlike the running-mode / TT chips).
+        modifier = Modifier.fillMaxWidth()
+    )
+    // The small status chips together: running mode, temp target, temp basal
     Row(
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AapsSpacing.small)
     ) {
         if (runningModeText.isNotEmpty()) {
             RunningModeChip(
@@ -178,23 +198,6 @@ private fun NarrowChips(
                 onClick = { onNavigate(NavigationRequest.Element(ElementType.RUNNING_MODE)) }
             )
         }
-        ProfileChip(
-            profileName = profileName.ifEmpty { stringResource(CoreUiStrings.no_profile_set) },
-            remaining = profileRemaining,
-            isModified = isProfileModified,
-            progress = profileProgress,
-            onClick = { onNavigate(NavigationRequest.Element(ElementType.PROFILE_MANAGEMENT)) },
-            sceneManaged = profileSceneManaged,
-            isNoProfile = profileName.isEmpty(),
-            // Stays clickable even on an unpaired client: profile management opens read-only there,
-            // so this is a view affordance, not a command one (unlike the running-mode / TT chips).
-            modifier = Modifier.weight(1f)
-        )
-    }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(AapsSpacing.small)
-    ) {
         if (tempTargetText.isNotEmpty()) {
             TempTargetChip(
                 targetText = tempTargetText,

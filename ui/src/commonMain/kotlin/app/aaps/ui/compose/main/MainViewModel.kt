@@ -231,6 +231,7 @@ class MainViewModel(
             showAuthFailedDialog = ev.showAuthFailedDialog,
             isProfileLoaded = chip.isProfileLoaded,
             profileName = chip.profileName,
+            profileSuffix = chip.profileSuffix,
             profileRemaining = chip.profileRemaining,
             profilePsId = chip.profilePsId,
             isProfileModified = chip.isProfileModified,
@@ -313,8 +314,8 @@ class MainViewModel(
             (elapsed.toFloat() / profileData.duration.toFloat()).coerceIn(0f, 1f)
         } else 0f
 
-        // Name and time left are kept apart, so the chip can shorten a long name and still show both
-        // the percentage (part of the name) and the time left in full.
+        // Name, percentage and time left are kept apart, so the chip can shorten a long name and still
+        // show the percentage and the time left in full.
         val profileText = profileData?.profileName.orEmpty()
         val profileRemaining = if (profileText.isNotEmpty() && profileData != null && profileData.duration > 0 && !profileExpired) {
             dateUtil.untilString(profileData.timestamp + profileData.duration, rh)
@@ -345,6 +346,7 @@ class MainViewModel(
         return ChipState(
             isProfileLoaded = profileData?.isLoaded ?: false,
             profileName = profileText,
+            profileSuffix = profileData?.nameSuffix.orEmpty(),
             profileRemaining = profileRemaining,
             profilePsId = profileData?.originalPsId ?: 0,
             isProfileModified = profileData?.isModified ?: false,
@@ -935,6 +937,7 @@ private data class EventState(
 private data class ChipState(
     val isProfileLoaded: Boolean = false,
     val profileName: String = "",
+    val profileSuffix: String = "",
     val profileRemaining: String = "",
     val profilePsId: Long = 0,
     val isProfileModified: Boolean = false,

@@ -28,9 +28,9 @@ import app.aaps.core.ui.compose.navigation.label
 import app.aaps.core.ui.compose.stringResourceOrNull
 
 /**
- * [profileName] includes the percentage and time shift, e.g. "Weekday (90%)". [remaining] is the time
- * left of a temporary switch, e.g. "(1h 56')". When they do not fit on one line, the name is shortened
- * in the middle, so its start, the percentage at its end and the time left stay visible.
+ * [suffix] is the percentage and time shift of the switch, e.g. "(90%)", and [remaining] the time left
+ * of a temporary switch, e.g. "(1h 56')". When they do not fit on one line, only the name is
+ * shortened, at its end; the percentage and the time left are always shown in full.
  *
  * @see ProfileChipPreview
  * @see ProfileChipModifiedPreview
@@ -42,6 +42,7 @@ fun ProfileChip(
     progress: Float,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    suffix: String = "",
     remaining: String = "",
     sceneManaged: Boolean = false,
     isNoProfile: Boolean = false,
@@ -86,14 +87,14 @@ fun ProfileChip(
                     style = MaterialTheme.typography.bodyMedium,
                     color = contentColor,
                     maxLines = 1,
-                    overflow = TextOverflow.MiddleEllipsis,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .padding(start = AapsSpacing.medium)
                 )
-                if (remaining.isNotEmpty()) {
+                for (detail in listOf(suffix, remaining).filter { it.isNotEmpty() }) {
                     Text(
-                        text = remaining,
+                        text = detail,
                         style = MaterialTheme.typography.bodyMedium,
                         color = contentColor,
                         maxLines = 1,

@@ -665,6 +665,7 @@ class OverviewDataCacheImpl(
         var percentage = 100
         var timestamp = 0L
         var duration = 0L
+        var timeshift = 0L
 
         if (profile is ProfileSealed.EPS) {
             val eps = profile.value
@@ -672,10 +673,14 @@ class OverviewDataCacheImpl(
             percentage = eps.originalPercentage
             timestamp = eps.timestamp
             duration = eps.originalDuration
+            timeshift = eps.originalTimeshift
         }
+        // The ViewModel adds the remaining time
+        val (name, nameSuffix) = splitCustomizedName(profileFunction.getProfileName(), percentage, timeshift)
 
         _profileFlow.value = ProfileDisplayData(
-            profileName = profileFunction.getProfileName(),  // Raw name, ViewModel adds remaining time
+            profileName = name,
+            nameSuffix = nameSuffix,
             isLoaded = profile != null,
             isModified = isModified,
             percentage = percentage,
@@ -1392,4 +1397,16 @@ internal fun beltMeals(boluses: List<BS>, carbs: List<CA>, window: Long = T.mins
     val withBolus = carbsOfBolus.map { (bs, cas) -> BeltMeal(bs.timestamp, bs.amount, cas.sumOf { it.amount }.takeIf { cas.isNotEmpty() }, 0L) }
     val alone = ownCarbs.map { BeltMeal(it.timestamp, null, it.amount, it.duration) }
     return (withBolus + alone).sortedBy { it.timestamp }
+}
+
+/**
+ * Splits the switch part, e.g. "(95%)" or "(95%,1h)", off a customized profile name, as
+ * `getCustomizedName` adds it, so the overview chip can shorten the name and still show the
+ * percentage in full. Only a switch with another percentage or a time shift has that part.
+ */
+internal fun splitCustomizedName(name: String, percentage: Int, timeshift: Long): Pair<String, String> {
+    if (percentage == 100 && timeshift == 0L) return name to ""
+    val start = name.lastIndexOf(" (")
+    if (start < 0 || !name.endsWith(")")) return name to ""
+    return name.substring(0, start) to name.substring(start + 1)
 }

@@ -356,7 +356,8 @@ data class TempTargetDisplayData(
  * Stores raw data - ViewModel computes display text with remaining time.
  */
 data class ProfileDisplayData(
-    val profileName: String,             // Profile name only (no remaining time)
+    val profileName: String,             // Profile name only (no percentage, time shift or remaining time)
+    val nameSuffix: String = "",         // Percentage and time shift of the switch, e.g. "(95%)" or "(95%,1h)"
     val isLoaded: Boolean,               // True if profile is loaded
     val isModified: Boolean,             // True if percentage/timeshift/duration modified
     val percentage: Int = 100,           // Profile percentage (100 = no change)

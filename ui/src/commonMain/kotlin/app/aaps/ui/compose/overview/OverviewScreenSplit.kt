@@ -39,6 +39,7 @@ import app.aaps.ui.compose.scenes.ActiveSceneBanner
 @Composable
 fun OverviewScreenSplit(
     profileName: String,
+    profileSuffix: String = "",
     profileRemaining: String = "",
     isProfileModified: Boolean,
     profileProgress: Float,
@@ -134,6 +135,7 @@ fun OverviewScreenSplit(
                         runningModeSceneManaged = runningModeSceneManaged,
                         smbEnabled = smbEnabled,
                         profileName = profileName,
+                        profileSuffix = profileSuffix,
                         profileRemaining = profileRemaining,
                         isProfileModified = isProfileModified,
                         profileProgress = profileProgress,

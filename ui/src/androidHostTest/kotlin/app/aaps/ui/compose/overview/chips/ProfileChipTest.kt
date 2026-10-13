@@ -39,11 +39,12 @@ class ProfileChipTest {
     }
 
     @Test
-    fun longName_onNarrowChip_keepsTimeLeftInsideTheChip() {
+    fun longName_onNarrowChip_keepsPercentageAndTimeLeftInsideTheChip() {
         compose.setContent {
             MaterialTheme {
                 ProfileChip(
-                    profileName = "Darbadienis su ilgu pavadinimu (90%)",
+                    profileName = "Darbadienis su ilgu pavadinimu",
+                    suffix = "(90%)",
                     remaining = "(1h 56')",
                     isModified = true,
                     progress = 0.5f,
@@ -55,8 +56,13 @@ class ProfileChipTest {
             }
         }
 
+        // The chip merges its texts into one node, so the texts are found in the unmerged tree
         val chip = compose.onNodeWithTag("profileChip").getUnclippedBoundsInRoot()
-        val remaining = compose.onNodeWithText("(1h 56')").assertIsDisplayed().getUnclippedBoundsInRoot()
+        val name = compose.onNodeWithText("Darbadienis su ilgu pavadinimu", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val suffix = compose.onNodeWithText("(90%)", useUnmergedTree = true).assertIsDisplayed().getUnclippedBoundsInRoot()
+        val remaining = compose.onNodeWithText("(1h 56')", useUnmergedTree = true).assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertThat(name.right).isAtMost(suffix.left)
+        assertThat(suffix.right).isAtMost(remaining.left)
         assertThat(remaining.right).isAtMost(chip.right)
         assertThat(remaining.bottom).isAtMost(chip.bottom)
     }

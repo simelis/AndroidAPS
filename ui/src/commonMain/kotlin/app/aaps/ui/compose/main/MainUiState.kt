@@ -30,6 +30,7 @@ data class MainUiState(
     val showMaintenanceSheet: Boolean = false,
     // Profile state for top bar chip
     val profileName: String = "",
+    val profileSuffix: String = "", // percentage and time shift of the switch, e.g. "(95%)"
     val profileRemaining: String = "", // time left of a temporary profile switch, e.g. "(1h 56')"
     val profilePsId: Long = 0, // PS id that triggered current EPS (for scene override detection)
     val isProfileModified: Boolean = false,

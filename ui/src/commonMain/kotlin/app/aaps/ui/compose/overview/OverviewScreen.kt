@@ -50,6 +50,7 @@ private val SPLIT_LAYOUT_MIN_WIDTH: Dp = 720.dp
 @Composable
 fun OverviewScreen(
     profileName: String,
+    profileSuffix: String = "",
     profileRemaining: String = "",
     profilePsId: Long = 0,
     isProfileModified: Boolean,
@@ -142,6 +143,7 @@ fun OverviewScreen(
         if (isTablet) {
             OverviewScreenTablet(
                 profileName = profileName,
+                profileSuffix = profileSuffix,
                 profileRemaining = profileRemaining,
                 isProfileModified = isProfileModified,
                 profileProgress = profileProgress,
@@ -181,6 +183,7 @@ fun OverviewScreen(
             if (isLandscape && maxWidth >= SPLIT_LAYOUT_MIN_WIDTH) {
                 OverviewScreenSplit(
                     profileName = profileName,
+                    profileSuffix = profileSuffix,
                     profileRemaining = profileRemaining,
                     isProfileModified = isProfileModified,
                     profileProgress = profileProgress,
@@ -219,6 +222,7 @@ fun OverviewScreen(
             } else {
                 OverviewScreenStacked(
                     profileName = profileName,
+                    profileSuffix = profileSuffix,
                     profileRemaining = profileRemaining,
                     isProfileModified = isProfileModified,
                     profileProgress = profileProgress,
