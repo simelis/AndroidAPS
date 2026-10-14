@@ -97,9 +97,6 @@ class GraphViewModel(
 
     fun updateGraphConfig(config: GraphConfig) = graphConfigRepository.update(config)
 
-    /** TEMPORARY: diagnostics for deviation bars drawn at a wrong height, see `BarHeightProbe`. */
-    fun logGraphDebug(message: String) = aapsLogger.debug(LTag.UI, message)
-
     // Individual series flows - each can trigger independent recomposition
     val bgReadingsFlow: StateFlow<List<BgDataPoint>> = cache.bgReadingsFlow
     val bucketedDataFlow: StateFlow<List<BgDataPoint>> = cache.bucketedDataFlow
