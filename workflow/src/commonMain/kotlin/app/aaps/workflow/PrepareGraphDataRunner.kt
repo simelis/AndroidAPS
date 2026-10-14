@@ -713,9 +713,7 @@ class PrepareGraphDataRunner(
     private suspend fun prepareIobAutosensGraphData(data: PrepareGraphData, isStopped: () -> Boolean) {
         val cacheTimeRange = data.cache.timeRangeFlow.value
         val fromTime = cacheTimeRange?.fromTime ?: data.overviewData.fromTime
-        // The BG phase above has just reset the cached end to toTime (the next full hour). The prediction
-        // horizon is added only after the loop, so it is in overviewData from the run before. Without it the
-        // future activity, IOB and BGI stopped at the next full hour while the axis went on to the horizon.
+        // The BG phase reset the cached end to the next full hour; overviewData still has the horizon
         val endTime = maxOf(cacheTimeRange?.endTime ?: 0L, data.overviewData.endTime)
 
         data.signals.emitProgress(CalculationWorkflow.ProgressData.PREPARE_IOB_AUTOSENS_DATA, 0)

@@ -51,9 +51,6 @@ fun Modifier.clearFocusOnTap(focusManager: FocusManager): Modifier =
  * Without this, scrolling to the end of content inside a ModalBottomSheet
  * causes the sheet to interpret overscroll as a dismiss gesture, leading to
  * jitter and crashes. Apply this modifier **before** `.verticalScroll(…)`.
- *
- * The fling matters too: a quick swipe down at the top of the content left its speed to the sheet,
- * which then closed. The sheet still closes when its drag handle is dragged.
  */
 private val ConsumeOverscrollConnection = object : NestedScrollConnection {
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset = available

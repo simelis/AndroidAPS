@@ -68,12 +68,8 @@ enum class StringNonKey(
     // sync publisher/receiver in :plugins:sync can observe it without an inter-module dependency.
     AutomationEvents(key = "AUTOMATION_EVENTS", defaultValue = "", sync = SyncSpec(SyncChannel.Cold, SyncDirection.Bidirectional)),
     QuickLaunchActions(key = "quick_launch_actions", defaultValue = "[{\"type\":\"wizard\"},{\"type\":\"quick_launch_config\"}]"),
-    /** Last food eCarbs formula saved on this phone, as JSON. A new formula starts from it. Not synced. */
     FoodLastECarbsRule(key = "food_last_ecarbs_rule", defaultValue = ""),
-    /**
-     * Favourite foods, as database IDs separated by commas. Not exportable: the IDs belong to this
-     * install's database, and after a reinstall the same IDs would point at other foods.
-     */
+    // Not exportable: the food IDs belong to this database and point at other foods after a reinstall
     FoodFavourites(key = "food_favourites", defaultValue = "", exportable = false),
     InsulinConfiguration("insulin_configuration", "{}", sync = SyncSpec(SyncChannel.Cold, SyncDirection.Bidirectional)),
     ComposeGraphConfig("compose_graphconfig", ""),

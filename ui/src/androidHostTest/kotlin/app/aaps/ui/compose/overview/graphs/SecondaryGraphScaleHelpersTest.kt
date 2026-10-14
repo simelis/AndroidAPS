@@ -271,7 +271,6 @@ internal class SecondaryGraphScaleHelpersTest {
 
         @Test
         fun `deviations with a small dip keep their own scale next to COB`() {
-            // From a phone recording: DEV -1..17 with COB 0..50 was drawn on a 0..50 deviation axis
             val deviations = listOf(-1.0, 5.0, 17.0)
             val ranges = zeroFloorDualRanges(deviations, listOf(0.0, 20.0, 50.0))
 
@@ -299,7 +298,6 @@ internal class SecondaryGraphScaleHelpersTest {
 
         @Test
         fun `a mostly negative series takes at most half of the height below zero, zeros still aligned`() {
-            // Rounding the stretched deviation bound to a nice value (-30..50) puts its zero a bit lower
             val ranges = zeroFloorDualRanges(listOf(-30.0, 5.0), listOf(0.0, 80.0))
 
             assertThat(zeroFraction(ranges.aMin, ranges.aMax)).isAtMost(MAX_SHARED_ZERO_FRACTION)

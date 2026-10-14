@@ -74,11 +74,7 @@ import kotlin.math.roundToInt
  */
 private val AXIS_SCALE_KEY = ExtraStore.Key<AxisScale>()
 
-/**
- * Everything about the axes that a scroll or zoom can change. The range providers are data
- * classes, and the item placer is remembered on its values, so two equal [AxisScale]s mean the
- * axes did not change.
- */
+/** The axis setup that a scroll or zoom can change. Equal values mean the axes did not change. */
 private data class AxisScale(
     val primary: CartesianLayerRangeProvider,
     val secondary: CartesianLayerRangeProvider,
@@ -89,7 +85,7 @@ private data class AxisScale(
 /** Marks the settle pass, so Vico does not skip it as a repeat of the update before it. */
 private val SETTLE_PASS_KEY = ExtraStore.Key<Boolean>()
 
-/** Wait before the settle pass: Vico's change animation (500 ms) plus a margin. */
+/** Vico's change animation (500 ms) plus a margin. */
 private const val SETTLE_DELAY_MS = 700L
 
 /**
@@ -221,8 +217,7 @@ fun SecondaryGraphCompose(
 
     val hasIob = primaryType == SeriesType.IOB
     val hasCob = primaryType == SeriesType.COB
-    // Carb markers belong to COB, on whichever axis it is. Deviations are always moved to the left axis,
-    // so COB together with deviations is on the right one.
+    // Deviations always take the left axis, so with them COB and its carb markers are on the right one
     val cobOnSecondary = isDualAxis && secondaryType == SeriesType.COB
 
     // Collect flows for primary series (includes share flow for DEV and BGI if together on the same graph with shareAxis true)
@@ -536,7 +531,6 @@ fun SecondaryGraphCompose(
     val iobLineStyle = rememberIobLineStyles()
     val cobLineStyle = rememberCobLineStyles()
     val normalizerLine = remember { createNormalizerLine() }
-    // Where zero is drawn in the current animation frame, for the deviation bars' fill
     val animatedZero = remember { AnimatedZero() }
 
     val lines = remember(primarySeries, seriesColors, iobLineStyle, cobLineStyle, normalizerLine, animatedZero) {
@@ -657,7 +651,6 @@ fun SecondaryGraphCompose(
     // Only applied to true dual-axis case (no basal overlay, secondary present).
     val dualAxisRanges = remember(isDualAxis, hasBasalLayer, primaryYValues, processedSecondary, secondaryCarbs, visibleMinX, visibleMaxX) {
         if (!isDualAxis || hasBasalLayer) return@remember null
-        // The right axis must also fit the carb markers drawn on it
         val secondaryY = windowedY(processedSecondary + secondaryCarbs, visibleMinX, visibleMaxX)
         if (primaryYValues.isEmpty() || secondaryY.isEmpty()) return@remember null
 
@@ -802,7 +795,7 @@ fun SecondaryGraphCompose(
             )
         )
     }
-    // One style per series of the right-axis model, in the same order: the line, the carb markers if any, the normalizer
+    // One style per series of the right-axis model, in the same order
     val hasSecondaryCarbs = secondaryCarbs.isNotEmpty()
     val secondaryAxisLines = remember(secondaryAxisLine, normalizerLine, cobLineStyle, hasSecondaryCarbs) {
         if (hasSecondaryCarbs) listOf(secondaryAxisLine, cobLineStyle.carbsLine, normalizerLine) else listOf(secondaryAxisLine, normalizerLine)
@@ -839,10 +832,7 @@ fun SecondaryGraphCompose(
         }
     }
 
-    // The model is rebuilt only when the data or the axes change, not on every scroll step. While
-    // scrolling, the visible window changes up to 20 times per second, but the axis ranges (nice
-    // numbers) mostly stay the same, and rebuilding the model would also restart Vico's change
-    // animation each time.
+    // Rebuilt only when the data or the axes change, not on every scroll step
     val axisScale = AxisScale(primaryRangeProvider, secondaryRangeProvider, basalRangeProvider, startAxisItemPlacer)
     LaunchedEffect(
         processedSimpleSeries,
@@ -895,8 +885,7 @@ fun SecondaryGraphCompose(
                         } else {
                             series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
                         }
-                        // Carb markers when COB is the right-axis series; secondaryAxisLines has a style for them
-                        if (secondaryCarbs.isNotEmpty())
+                            if (secondaryCarbs.isNotEmpty())
                             series(x = secondaryCarbs.map { it.first }, y = secondaryCarbs.map { it.second })
                         // Normalizer for end axis layer
                         series(x = normalizerX(maxX), y = NORMALIZER_Y)
@@ -915,11 +904,8 @@ fun SecondaryGraphCompose(
         }
 
         pushModel(settlePass = false)
-        // Settle pass: the same data once more, after the change animation has ended. Sometimes the
-        // bars were left drawn at a wrong height after a scroll (on the COB + DEV graph, full height
-        // with correct axis numbers) until the next update. Vico recalculates every point here and
-        // animates from what is drawn to the right place; when nothing was wrong, nothing moves.
-        // New data or new axes cancel this effect, so it runs once, after the last change.
+        // Workaround: the same data again after the change animation, because bars are sometimes left
+        // at a wrong height after a scroll
         // TEMPORARY: GRAPH_SETTLE in the log settings switches it off for a test.
         if (settlePassOn) {
             delay(SETTLE_DELAY_MS)
@@ -1482,20 +1468,13 @@ private fun createDeviationLine(type: DeviationType, zero: AnimatedZero): LineCa
     )
 }
 
-/**
- * Where zero is drawn in the current animation frame, as a fraction of the graph height from the
- * bottom. Null when Vico has no stored heights (then zero comes from the scale). Written on Vico's
- * worker thread, read while drawing.
- */
+/** Where zero is drawn in the current animation frame, as a fraction of the height from the bottom. */
 private class AnimatedZero {
     @Volatile
     var fraction: Float? = null
 }
 
-/**
- * Vico's line interpolator, also noting where zero is in each frame. The normalizer series is the
- * last series of the primary layer and lies at zero, so its height in a frame is zero's height.
- */
+/** Vico's line interpolator that also notes where zero is in each frame (the last series lies at zero). */
 private class ZeroTrackingInterpolator(
     private val zero: AnimatedZero
 ) : CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel> {
@@ -1508,11 +1487,7 @@ private class ZeroTrackingInterpolator(
         delegate.transform(fraction).also { model -> zero.fraction = model?.lastOrNull()?.values?.firstOrNull()?.y }
 }
 
-/**
- * Fills between the line and zero, like Vico's single area fill, but at zero as drawn in the current
- * animation frame. Vico's own fill moves to the new zero at once while the bars still glide there,
- * so for half a second it painted a band below (or above) zero that was then trimmed away.
- */
+/** Vico's single area fill, but closed at zero as drawn in the current animation frame. */
 private class ZeroFollowingAreaFill(
     color: Color,
     private val zero: AnimatedZero
@@ -1663,31 +1638,20 @@ internal fun fractionAlignedNiceRange(niceMin: Double, niceMax: Double, targetFr
     val fraction = targetFraction.coerceIn(0.0, 0.9)
     if (fraction <= 0.0) return niceMin to niceMax
     val candidateMax = niceMin * (fraction - 1.0) / fraction
-    // The range already has its zero at the target (the usual case when the target is this axis'
-    // own fraction). Rounding either bound again would only shrink the data for nothing.
+    // Already at the target: rounding again would only shrink the range
     if (abs(candidateMax - niceMax) <= ALIGN_TOLERANCE * maxOf(1.0, abs(niceMax))) return niceMin to niceMax
     return if (candidateMax >= niceMax) niceMin to niceUp(candidateMax)
     else niceNegativeSliver(-fraction / (1.0 - fraction) * niceMax) to niceMax
 }
 
-/** Relative rounding error accepted when checking that a range already has its zero at the target. */
 private const val ALIGN_TOLERANCE = 1e-9
 
-/**
- * The largest part of the height below zero that two dual-axis series share. Without a limit a
- * mostly negative series would squeeze the other one into a thin strip at the top.
- */
+/** The largest part of the height below zero that two dual-axis series share. */
 internal const val MAX_SHARED_ZERO_FRACTION = 0.5
 
 /**
- * Ranges for a dual-axis combo where neither series is pivot-centered (e.g. DEV + COB, or
- * BGI + STEPS). Primary stays nice-scaled and zero-floored, secondary stays raw.
- *
- * Both axes put zero at the same height. That height is the larger of the two series' own
- * "part below zero", capped at [MAX_SHARED_ZERO_FRACTION]. The series that needs more room below
- * zero keeps its full scale, and the other one gives up only that part of its height. Taking the
- * average instead cost the series below zero about half its height or more, even for a dip of
- * 1 mg/dl, because its scale had to be stretched upwards to bring its zero down.
+ * Ranges for a dual-axis combo where neither series is pivot-centered (e.g. DEV + COB). Both zeros are
+ * at the larger of the two series' part below zero, capped at [MAX_SHARED_ZERO_FRACTION].
  */
 internal fun zeroFloorDualRanges(primaryY: List<Double>, secondaryY: List<Double>): AlignedRanges {
     val primaryNice = zeroFloorNiceRange(primaryY.min(), primaryY.max().coerceAtLeast(0.1), SECONDARY_GRAPH_TICK_COUNT)
@@ -1699,8 +1663,7 @@ internal fun zeroFloorDualRanges(primaryY: List<Double>, secondaryY: List<Double
     val sharedFraction = maxOf(primaryFraction, secondaryFraction).coerceAtMost(MAX_SHARED_ZERO_FRACTION)
 
     val (aMin, aMax) = fractionAlignedNiceRange(primaryNice.min, primaryNice.max, sharedFraction)
-    // Rounding the primary bounds to nice values moves its zero a little. The secondary range is
-    // not rounded, so it follows the zero where it really is, not where it was aimed.
+    // The secondary range follows the primary zero after rounding, not the target
     val primaryZeroFraction = if (aMax > aMin) -aMin / (aMax - aMin) else sharedFraction
     val (bMin, bMax) = fractionAlignedRange(secondaryY.min(), secondaryMax, primaryZeroFraction)
     // primaryNice.min is primary's own real floor (0 unless it has a genuine negative sliver);

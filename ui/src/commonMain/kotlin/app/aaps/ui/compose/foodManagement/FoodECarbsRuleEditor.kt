@@ -35,10 +35,6 @@ import app.aaps.core.ui.compose.NumberInputRow
 import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
 
-/**
- * Reusable rule edited and saved with the food, including a fixed amount for the saved amount of the
- * food (for example 100 g). Explanations are behind ⓘ buttons, so the editor shows only the inputs and errors.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun FoodECarbsRuleEditor(
@@ -47,7 +43,6 @@ internal fun FoodECarbsRuleEditor(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
-        // A fixed amount or a carbs-only split needs no protein or fat, so the switch is always available
         val info = stringResource(UiStrings.food_more_info)
         FoodECarbsSwitch(UiStrings.food_ecarbs_rule_enable, enabled, true, onEnabledChange) {
             InfoTooltipButton(info) { Text(stringResource(UiStrings.food_ecarbs_rule_hint)) }
@@ -93,7 +88,6 @@ internal fun FoodECarbsRuleEditor(
             }
             FoodUnknownNutrients(food, rule)
             val calculated = rule.equivalentGrams((food.protein ?: 0).toDouble(), (food.fat ?: 0).toDouble())
-            // For the saved amount of the food, like its nutrients
             val amount = food.portion.formatAmount()
             Text(stringResource(UiStrings.food_ecarbs_amount_calculated, amount, food.unit, NumberFormat.DECIMAL_1.format(calculated)))
             NumberInputRow(
@@ -123,7 +117,6 @@ internal fun FoodECarbsRuleEditor(
     }
 }
 
-/** Says which unknown nutrient the formula counts as 0 g, so a lower result is not a surprise. */
 @Composable
 internal fun FoodUnknownNutrients(food: FD, rule: FoodECarbsRule) {
     if (!rule.countsProteinAndFat || !food.canUse(rule)) return
@@ -131,7 +124,6 @@ internal fun FoodUnknownNutrients(food: FD, rule: FoodECarbsRule) {
     if (!food.fatKnown) Text(stringResource(UiStrings.food_ecarbs_fat_unknown))
 }
 
-/** A labelled switch. [info] is an optional ⓘ button shown after the label. */
 @Composable
 internal fun FoodECarbsSwitch(
     label: TextRef, checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -> Unit,
@@ -146,7 +138,7 @@ internal fun FoodECarbsSwitch(
     }
 }
 
-/** Duration starts at 0 so a new rule has no duration until the user chooses one. */
+/** Duration starts at 0, below the valid range, so a new rule has no duration until the user chooses one. */
 @Composable
 internal fun FoodECarbsTiming(rule: FoodECarbsRule, onChange: (FoodECarbsRule) -> Unit) {
     NumberInputRow(
@@ -168,7 +160,7 @@ internal fun methodLabel(method: FoodECarbsMethod): String = stringResource(when
     FoodECarbsMethod.MODIFIED_FPU -> UiStrings.food_ecarbs_modified_fpu
 })
 
-/** Only a bound for the input field. The wizard checks each meal against the carb limit. */
+/** Only an input bound: the wizard checks each meal against the carb limit. */
 private const val MANUAL_GRAMS_INPUT_MAX = 1000.0
 
 private fun IntRange.toDoubleRange(): ClosedFloatingPointRange<Double> = first.toDouble()..last.toDouble()

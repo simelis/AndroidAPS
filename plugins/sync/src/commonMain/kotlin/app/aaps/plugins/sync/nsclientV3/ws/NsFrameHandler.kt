@@ -199,7 +199,7 @@ class NsFrameHandler(
                 storeDataForDb.requestUpdateDeletedGlucoseValues()
             }
 
-            // Only the id comes with a delete. SyncNsFoodTransaction marks the food deleted and copies nothing.
+            // A delete has only the id. The empty fields are not copied, only the food is marked deleted
             "food"       -> if (identifier.isNotEmpty()) {
                 storeDataForDb.addToFoods(mutableListOf(FD(isValid = false, name = "", portion = 0.0, carbs = 0, ids = IDs(nightscoutId = identifier))))
                 storeDataForDb.requestStoreFoods()

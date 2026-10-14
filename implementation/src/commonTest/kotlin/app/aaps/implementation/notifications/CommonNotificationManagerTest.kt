@@ -316,10 +316,7 @@ class CommonNotificationManagerTest {
         assertContains(platform.calls, "cancelAll")
     }
 
-    /**
-     * Missed readings, pump unreachable and Nightscout alarms are posted again while the problem
-     * lasts. Muted from the watch, they must not ring again with the next repeat.
-     */
+    /** A repeat of a muted alarm stays quiet. */
     @Test
     fun `a repeat of a muted alarm stays quiet`() = runTest {
         val sut = createSut()

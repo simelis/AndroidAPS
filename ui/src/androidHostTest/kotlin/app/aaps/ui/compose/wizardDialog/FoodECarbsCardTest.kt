@@ -222,7 +222,6 @@ class FoodECarbsCardTest {
     @Test
     fun foodEditorExplainsWhenTheFormulaNeedsANutrientTheFoodLacks() {
         val context = RuntimeEnvironment.getApplication()
-        // A custom fat factor needs the fat value
         val rule = FoodECarbsRule(method = FoodECarbsMethod.CUSTOM, fatPercent = 50, durationHours = 3)
         compose.setContent {
             MaterialTheme {
@@ -260,7 +259,6 @@ class FoodECarbsCardTest {
         compose.onNodeWithText(fpuText).assertDoesNotExist()
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_carbs_now_hint)).assertDoesNotExist()
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_rule_hint)).assertDoesNotExist()
-        // The switch, the method and carbs counted now each have one
         val infoButtons = compose.onAllNodesWithContentDescription(context.getString(UiR.string.food_more_info))
         infoButtons.assertCountEquals(3)
         infoButtons[1].performClick()

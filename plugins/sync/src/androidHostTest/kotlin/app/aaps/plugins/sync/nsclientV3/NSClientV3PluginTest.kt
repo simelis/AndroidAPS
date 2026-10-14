@@ -505,7 +505,6 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
 
     @Test
     fun `a food edit that Nightscout rejects is not counted as uploaded`() = runTest {
-        // Counting it as uploaded would let the next download put the older Nightscout copy back
         val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
         whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(400, null, errorResponse = "Bad request"))
 
@@ -800,7 +799,6 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
 
     @Test
     fun `the saved sync state never contains the food key, so official AAPS can still read it`() {
-        // Official AAPS reads this JSON strictly. A websocket food frame must not put "food" in it.
         sut.lastLoadedSrvModified.set("food", 1672531200000L)
         sut.lastLoadedSrvModified.collections.treatments = 1672531200000L
 

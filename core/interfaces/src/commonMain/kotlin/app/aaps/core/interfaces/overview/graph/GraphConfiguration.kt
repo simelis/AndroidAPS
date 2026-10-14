@@ -26,7 +26,7 @@ enum class SeriesType {
     STEPS,
     ACTIVITY,
     PREDICTIONS,
-    /** UI-only overlay flag: meal boluses and carbs as markers on the treatment belt above the BG graph */
+    /** UI-only overlay flag: meal markers on the treatment belt */
     TREATMENTS
 }
 
@@ -47,8 +47,8 @@ data class SecondaryGraph(
  * - IOB graph: IOB line with bolus markers + flipped basal overlay, with optional activity
  *   overlay (toggled via [iobOverlays]).
  *
- * @param bgOverlays       Overlay toggles for the BG graph: [SeriesType.ACTIVITY], [SeriesType.PREDICTIONS],
- *   and [SeriesType.TREATMENTS] for the meal markers on the treatment belt above it.
+ * @param bgOverlays       Overlay toggles for the BG graph ([SeriesType.ACTIVITY], [SeriesType.PREDICTIONS],
+ *   [SeriesType.TREATMENTS]).
  * @param iobOverlays      Overlay toggles for the fixed IOB graph (currently only [SeriesType.ACTIVITY]).
  * @param secondaryGraphs  Ordered list of user-configurable secondary graph configurations.
  *   IOB cannot appear here (it has a dedicated fixed slot). Each graph is a List (not Set) to

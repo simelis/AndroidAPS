@@ -149,8 +149,7 @@ internal class WizardDialogViewModelTest {
         whenever(iobCobCalculator.calculateIobFromTempBasalsIncludingConvertedExtended()).thenReturn(IobTotal(NOW))
         whenever(preferences.get(IntKey.OverviewBolusPercentage)).thenReturn(100)
         whenever(rh.gs(CoreUiStrings.active)).thenReturn("Active")
-        // runTest drains the original queued init before entering its body. Construct this instance
-        // after stubbing so initialization observes the food and profile store.
+        // Created after the stubs, so init sees the food and the profile store
         sut = createViewModel()
     }
 
@@ -261,7 +260,7 @@ internal class WizardDialogViewModelTest {
         sut.updateCarbsType(CarbsType.PIZZA)
         sut.updateFoodAmount(300.0)
         advanceUntilIdle()
-        // With pizza only the split is in the note, not the name of the choice: 80 % of 75 g now, 35 % of it later
+        // Pizza: only the split goes in the note, not the name of the choice
         verify(rh, atLeastOnce()).gs(UiStrings.food_history_note_ecarbs, "Meal", "300", "g", "eCarbs", 80, 75, 26, 60, 3)
         sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3))
         sut.toggleFoodECarbs(true)
@@ -278,7 +277,6 @@ internal class WizardDialogViewModelTest {
         assertThat(inputs.carbTime).isEqualTo(15)
         assertThat(inputs.eCarbsDelayMinutes).isEqualTo(75)
         assertThat(inputs.eCarbsDurationHours).isEqualTo(3)
-        // The food values go to the history in the note: 300 g, all 75 g carbs now, 26 g eCarbs 60 min after carb time over 3 h
         verify(rh, atLeastOnce()).gs(UiStrings.food_history_note_ecarbs, "Meal", "300", "g", "FPU", 100, 75, 26, 60, 3)
         assertThat(inputs.notes).isEqualTo("Meal summary")
     }

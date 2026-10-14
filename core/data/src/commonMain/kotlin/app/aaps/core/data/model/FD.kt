@@ -21,11 +21,8 @@ data class FD(
     var energy: Int? = null, // in kJ
     var unit: String = "g",
     var gi: Int? = null, // not used yet
-    // Synced to Nightscout as the aapsECarbsRule field
     var eCarbsRule: FoodECarbsRule? = null,
-    // The wizard starts with an empty amount, so it is weighed or counted every time. When false it
-    // starts at [portion], the usual amount. Synced to Nightscout as the aapsAskAmount field.
-    var askAmount: Boolean = true
+    var askAmount: Boolean = true // false: the wizard starts at portion, not with an empty amount
 
 ) : HasIDs {
 
@@ -53,7 +50,6 @@ data class FD(
 
     companion object {
 
-        /** Units that are a weight. A food from Nightscout that does not say [askAmount] is asked every time when its unit is one. */
         fun isWeightUnit(unit: String): Boolean = unit.trim().lowercase() in setOf("g", "gram", "grams", "kg")
     }
 }

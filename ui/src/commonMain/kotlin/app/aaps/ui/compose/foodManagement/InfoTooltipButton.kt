@@ -18,7 +18,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import app.aaps.core.ui.compose.AapsSpacing
 import kotlinx.coroutines.launch
 
-/** An ⓘ button that shows help text on tap, so the screen keeps only the inputs. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun InfoTooltipButton(contentDescription: String, content: @Composable ColumnScope.() -> Unit) {

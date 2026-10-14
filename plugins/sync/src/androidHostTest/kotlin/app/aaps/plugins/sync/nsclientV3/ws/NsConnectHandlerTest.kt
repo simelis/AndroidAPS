@@ -73,7 +73,6 @@ class NsConnectHandlerTest : TestBaseWithProfile() {
         sut.onConnectStorage(socket) {}
 
         assertThat(socket.emittedEvent).isEqualTo("subscribe")
-        // Nightscout names the food collection "food"; a "foods" room does not exist there
         listOf("devicestatus", "entries", "profile", "treatments", "food", "settings").forEach {
             assertThat(socket.emittedPayload).contains("\"$it\"")
         }

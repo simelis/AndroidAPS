@@ -1471,12 +1471,9 @@ interface PersistenceLayer {
     suspend fun getLastFoodId(): Long?
 
     /**
-     * Foods edited in AAPS whose newest change is uploaded follow Nightscout again
+     * Let foods edited in AAPS follow NS again once their newest change is uploaded
      *
-     * Without this, a reset of the upload cursor (full sync) would protect them again and a newer
-     * Nightscout version would be skipped and then overwritten.
-     *
-     * @param uploadedUpTo food upload cursor: every food change with an id up to it is in NS
+     * @param uploadedUpTo food upload cursor
      */
     suspend fun clearUploadedFoodEdits(uploadedUpTo: Long)
 
@@ -1501,10 +1498,8 @@ interface PersistenceLayer {
     /**
      * Store records coming from NS to database
      *
-     * A food edited in AAPS is not changed while its newest change is not uploaded yet.
-     *
      * @param foods list of records
-     * @param lastUploadedId food upload cursor: every food change with an id up to it is in NS
+     * @param lastUploadedId food upload cursor. Foods edited in AAPS after it are not overwritten
      * @return List of inserted/updated/invalidated records
      */
     suspend fun syncNsFood(foods: List<FD>, lastUploadedId: Long): TransactionResult<FD>

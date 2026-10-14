@@ -938,8 +938,7 @@ class NSClientV3Plugin(
 
                     201  -> nsClientRepository.addLog("◄ ADDED", "OK ${dataPair.value::class.simpleName}")
 
-                    // Stop here and keep the upload cursor. Moving on would end the protection of this local
-                    // edit, and the next Nightscout download would put the older Nightscout copy back.
+                    // Keep the cursor: moving on would let the next download put the older NS copy back
                     400  -> {
                         nsClientRepository.addLog("◄ FAIL", "${dataPair.value::class.simpleName} ${result.errorResponse}")
                         return config.isEnabled(ExternalOptions.IGNORE_NS_V3_ERRORS)
@@ -952,8 +951,7 @@ class NSClientV3Plugin(
                         ) return false
                     }
 
-                    // Deleted in Nightscout, which cannot change a deleted food. A valid food here was
-                    // restored or edited in AAPS after that, so add it again as a new Nightscout food.
+                    // NS cannot change a deleted food. A valid one was restored or edited here, so add it again
                     410  -> {
                         nsClientRepository.addLog("◄ GONE", "${dataPair.value::class.simpleName} $id")
                         if (operation == Operation.UPDATE && dataPair.value.isValid) {
@@ -1214,7 +1212,7 @@ class NSClientV3Plugin(
             StringKey.NsClientUrl,
             StringKey.NsClientAccessToken,
             BooleanKey.NsClient3UseWs,
-            // Not in the synchronization screen below: that screen is hidden on AAPSClient, and this must show there too
+            // Not in the screen below: that one is hidden on AAPSClient
             BooleanKey.NsClientUploadFood,
             PreferenceSubScreenDef(
                 key = "ns_client_synchronization",

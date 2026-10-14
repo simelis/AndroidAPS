@@ -140,12 +140,10 @@ class SyncNsFoodTransactionTest {
         whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
         whenever(foodDao.getLastChangeId(7)).thenReturn(40)
 
-        // Change 40 is not uploaded yet: keep ours
         SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 30)), lastUploadedId = 39)
             .apply { database = this@SyncNsFoodTransactionTest.database }.run()
         assertThat(existing.carbs).isEqualTo(25)
 
-        // Uploaded: an edit made on another device now applies, and the row is the Nightscout version again
         val result = SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 30)), lastUploadedId = 40)
             .apply { database = this@SyncNsFoodTransactionTest.database }.run()
         assertThat(existing.carbs).isEqualTo(30)
@@ -163,7 +161,6 @@ class SyncNsFoodTransactionTest {
             .apply { database = this@SyncNsFoodTransactionTest.database }.run()
         assertThat(existing.eCarbsRuleJson).isEqualTo(rule)
 
-        // Removed on another device
         SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 25)), lastUploadedId = 0)
             .apply { database = this@SyncNsFoodTransactionTest.database }.run()
         assertThat(existing.eCarbsRuleJson).isNull()

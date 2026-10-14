@@ -16,7 +16,6 @@ import kotlin.test.Test
 
 class FoodMigrationTest {
 
-    /** Creates a database file with the exported schema of [version], then runs [fill] on it. */
     private fun createDatabase(fileName: String, version: Int, fill: (SQLiteConnection) -> Unit) {
         val schema = Json.parseToJsonElement(File("src/androidDeviceTest/assets/app.aaps.database.AppDatabase/$version.json").readText())
             .jsonObject.getValue("database").jsonObject

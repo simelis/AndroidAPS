@@ -196,12 +196,6 @@ internal class NightscoutApi(
             nsUrl("v3", "food") { encodedParameters.append("limit", limit.toString()) }
         }
 
-    /**
-     * Foods changed through API v3 since [from], deleted ones included (`isValid = false`). The
-     * plain list above hides deleted foods, so this is the only way to see them without the socket.
-     * Foods made or edited in the Nightscout web editor (API v1) have no `srvModified` and are not
-     * here; the full list still finds those.
-     */
     suspend fun getFoodsModifiedSince(from: Long, limit: Int) = call(HttpMethod.Get, foodListSerializer) {
         nsUrl("v3", "food", "history", from.toString()) {
             encodedParameters.append("limit", limit.toString())
@@ -214,15 +208,8 @@ internal class NightscoutApi(
         }
 
     /**
-     * Patch one food. Only the fields a client may change are sent.
-     *
-     * Nightscout rejects a PATCH that carries `date`, `app`, `utcOffset`, `identifier` and other
-     * fixed fields with a different value - and foods made in the Nightscout web editor have no
-     * `date` or `app` at all, so sending the whole food fails with 400 "Field date cannot be
-     * modified". That was why food update looked broken on the Nightscout side.
-     *
-     * `aapsECarbsRule` is always sent, as `null` when there is no rule, because a missing field in
-     * a PATCH keeps the old value on the server.
+     * Only fields a client may change: Nightscout refuses a PATCH of fixed fields like `date`.
+     * A removed value is sent as `null`, because a missing field keeps the old value.
      */
     suspend fun updateFood(remoteFood: RemoteFood, identifier: String): NsHttpResponse<RemoteCreateUpdateResponse> {
         require(identifier.isNotBlank()) { "A food update needs an identifier, or it would patch the whole collection" }

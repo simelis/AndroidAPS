@@ -3,11 +3,7 @@ package app.aaps.database.transactions
 import app.aaps.database.entities.Food
 
 /**
- * Sync the Foods from NS.
- *
- * A row edited in AAPS ([Food.isLocallyEdited]) is skipped while its newest change is not uploaded
- * yet, because then the Nightscout copy is older. [lastUploadedId] is the food upload cursor: every
- * change with an id up to it is already in Nightscout.
+ * Sync the Foods from NS
  */
 class SyncNsFoodTransaction(
     private val foods: List<Food>,
@@ -24,12 +20,12 @@ class SyncNsFoodTransaction(
                 }
 
             if (current != null && current.isLocallyEdited && (database.foodDao.getLastChangeId(current.id) ?: current.id) > lastUploadedId) {
-                // Edited in AAPS and not uploaded yet: keep ours, it is uploaded next
+                // Edited in AAPS and not uploaded yet: the NS copy is older, keep ours
                 result.skipped.add(current)
                 continue
             }
             when {
-                // Deleted in NS. A delete may carry only the id, so mark it deleted and copy nothing
+                // Deleted in NS. A delete may carry only the id, so copy nothing
                 !food.isValid      -> if (current?.isValid == true) {
                     current.isValid = false
                     current.isLocallyEdited = false
@@ -41,7 +37,6 @@ class SyncNsFoodTransaction(
                 current != null    -> if (!current.contentEqualsTo(food)) {
                     if (current.isValid) result.updated.add(current)
                     current.copyFrom(food)
-                    // Now it is the Nightscout version again
                     current.isLocallyEdited = false
                     database.foodDao.updateExistingEntry(current)
                 }

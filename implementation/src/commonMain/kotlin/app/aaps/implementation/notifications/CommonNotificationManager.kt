@@ -141,11 +141,7 @@ class CommonNotificationManager(
 
         val current = _notifications.value.toMutableList()
 
-        // A repeat of an alarm that is still listed (missed readings, pump unreachable, Nightscout
-        // alarms are posted again while the problem lasts) only updates it: no new system
-        // notification and no new sound, so the phone and a watch that mirrors it do not buzz again,
-        // and an alarm muted from the watch stays quiet. 3.4 did the same; 4.0 replaced it with a new
-        // alarm every time, so a muted alarm came back with the next repeat.
+        // A repeat of a listed alarm only updates it: no new system notification or sound, so a muted alarm stays quiet
         val listed = if (id.allowMultiple) null else current.firstOrNull { it.id == id }
         if (listed != null && listed.isAudibleAlarm && level == NotificationLevel.URGENT && sound != null) {
             val updated = listed.copy(
@@ -205,9 +201,8 @@ class CommonNotificationManager(
      * Silence every active audible alarm - the global "mute all" path.
      *
      * Marks every audible URGENT notification [AapsNotification.muted] so [refreshAlarmSound] falls
-     * to silence, then clears whatever the platform is still showing for them. The alarms stay
-     * listed: a repeat post of the same alarm stays quiet until the user dismisses it, instead of
-     * ringing again as a new alarm. Non-audible notifications are left alone.
+     * to silence, then clears whatever the platform is still showing for them. Non-audible
+     * notifications are left alone.
      */
     override fun muteAllAlarms() = lock.withLock {
         val current = _notifications.value

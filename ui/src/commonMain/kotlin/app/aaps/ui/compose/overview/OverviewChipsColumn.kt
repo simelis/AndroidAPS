@@ -167,7 +167,6 @@ private fun NarrowChips(
     onTbrChipClick: () -> Unit,
     commandsAllowed: Boolean
 ) {
-    // The small status chips together: running mode, temp target, temp basal
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AapsSpacing.small)
@@ -201,7 +200,6 @@ private fun NarrowChips(
             onClick = onTbrChipClick
         )
     }
-    // Profile on its own full-width row, so it lines up with the IOB / COB row and its name has room
     ProfileChip(
         profileName = profileName.ifEmpty { stringResource(CoreUiStrings.no_profile_set) },
         suffix = profileSuffix,

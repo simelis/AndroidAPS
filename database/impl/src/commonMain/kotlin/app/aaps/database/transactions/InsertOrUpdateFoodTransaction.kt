@@ -3,9 +3,7 @@ package app.aaps.database.transactions
 import app.aaps.database.entities.Food
 
 /**
- * Inserts or updates the Food from a local edit.
- *
- * The row is marked as edited in AAPS, so a later Nightscout download cannot overwrite it.
+ * Inserts or updates the Food from a local edit
  */
 class InsertOrUpdateFoodTransaction(private val food: Food) : Transaction<InsertOrUpdateFoodTransaction.TransactionResult>() {
 

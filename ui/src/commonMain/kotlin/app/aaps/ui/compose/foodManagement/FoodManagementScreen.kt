@@ -128,7 +128,7 @@ fun FoodManagementScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Filter chips. Favourites comes first and is always there, so it can be found before any are marked.
+            // Filter chips
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -293,7 +293,6 @@ private fun FoodItem(
                 val protein = grams(food.protein)
                 val energy = food.energy?.takeIf { it > 0 }
                 if (rule != null && food.canUse(rule)) {
-                    // For the saved amount shown on the left, like the nutrients
                     val eCarbs = rule.manualGrams ?: rule.equivalentGrams((food.protein ?: 0).toDouble(), (food.fat ?: 0).toDouble())
                     Text(stringResource(UiStrings.food_ecarbs_list, NumberFormat.UP_TO_1_DECIMAL.format(eCarbs)), style = MaterialTheme.typography.labelSmall)
                 }
@@ -304,7 +303,7 @@ private fun FoodItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            // Named by the food like the calculator button below, so a screen reader says "Chicken salad, Favourite, on".
+            // Named by the food, like the calculator button below
             IconToggleButton(
                 checked = isFavourite,
                 onCheckedChange = { onToggleFavourite() },
@@ -379,7 +378,7 @@ internal fun FoodEditorContent(
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f)
             )
-            // Applied on Save, like the rest of the form: a new food has no ID before that
+            // Applied on Save: a new food has no ID before that
             IconToggleButton(checked = state.editorFavourite, onCheckedChange = onFavouriteChange) {
                 Icon(
                     imageVector = if (state.editorFavourite) Icons.Filled.Star else Icons.Filled.StarBorder,
@@ -415,7 +414,6 @@ internal fun FoodEditorContent(
             )
         }
 
-        // The nutrients below are for this amount: 100 g from a label, 3 pieces, 250 ml, ...
         Row(horizontalArrangement = Arrangement.spacedBy(AapsSpacing.large)) {
             OutlinedTextField(
                 value = state.editorPortion, onValueChange = onPortionChange,
@@ -467,7 +465,6 @@ internal fun FoodEditorContent(
             )
         }
 
-        // A typo like 30 g carbs in a 25 g slice: no nutrient can weigh more than the food
         val weight = state.editorWeightGrams
         if (weight != null && listOf(state.editorCarbs, state.editorFat, state.editorProtein).any { (it.toIntOrNull() ?: 0) > weight }) Text(
             stringResource(UiStrings.food_nutrient_more_than_food, state.editorPortion, state.editorUnit),

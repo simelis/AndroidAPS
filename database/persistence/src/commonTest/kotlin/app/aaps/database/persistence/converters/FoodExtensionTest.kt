@@ -173,9 +173,7 @@ internal class FoodExtensionTest {
     fun unreadableOrInvalidRuleIsReadAsNoRule() {
         assertNull(sampleEntity().copy(eCarbsRuleJson = "not json").fromDb().eCarbsRule)
         assertNull(sampleEntity().copy(eCarbsRuleJson = "{\"method\":\"UNKNOWN\",\"durationHours\":3}").fromDb().eCarbsRule)
-        // A broken hand value must remove the rule, never fall back to the formula.
         assertNull(sampleEntity().copy(eCarbsRuleJson = "{\"durationHours\":3,\"manualGramsPer100g\":\"invalid\"}").fromDb().eCarbsRule)
-        // Duration 0 means the user never chose one, so the rule is not usable.
         assertNull(sampleEntity().copy(eCarbsRuleJson = "{\"durationHours\":0}").fromDb().eCarbsRule)
         assertEquals(FoodECarbsRule(durationHours = 3), sampleEntity().copy(eCarbsRuleJson = "{\"durationHours\":3,\"newField\":1}").fromDb().eCarbsRule)
     }

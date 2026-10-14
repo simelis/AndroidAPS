@@ -175,7 +175,6 @@ class PrepareGraphDataRunnerTest : TestBaseWithProfile() {
         val toTime = now + T.mins(30).msecs()
         val horizon = toTime + T.hours(2).msecs()
         whenever(overviewData.toTime).thenReturn(toTime)
-        // Set by the prediction step of the run before; the BG phase resets the cached range to toTime
         whenever(overviewData.endTime).thenReturn(horizon)
         val timeRange = MutableStateFlow<TimeRange?>(null)
         whenever(cache.timeRangeFlow).thenReturn(timeRange)

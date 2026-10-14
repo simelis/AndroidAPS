@@ -12,10 +12,7 @@ import kotlin.io.path.createTempDirectory
 import kotlin.test.AfterTest
 import kotlin.test.Test
 
-/**
- * A food edited in AAPS is protected from Nightscout downloads until its newest change is uploaded.
- * After that it must follow Nightscout again, also when a full sync sets the upload cursor back to 0.
- */
+/** A food edited in AAPS follows Nightscout again once its newest change is uploaded, also after a full sync. */
 class FoodUploadProtectionTest {
 
     private val directory = createTempDirectory("aaps-food-protection")
@@ -33,7 +30,6 @@ class FoodUploadProtectionTest {
         val lastChange = database.foodDao.getLastChangeId(id)!!
 
         assertThat(database.foodDao.clearUploadedEdits(lastChange)).isEqualTo(1)
-        // Full sync: the upload cursor is 0 again
         run(SyncNsFoodTransaction(listOf(fromNs(carbs = 30)), lastUploadedId = 0))
 
         assertThat(database.foodDao.findById(id)!!.carbs).isEqualTo(30)
@@ -63,7 +59,6 @@ class FoodUploadProtectionTest {
         assertThat(database.foodDao.findById(id)!!.isLocallyEdited).isFalse()
     }
 
-    /** Downloads a food with 20 g carbs from Nightscout and edits it here to 25 g. Returns its id. */
     private suspend fun editedFood(): Long {
         run(SyncNsFoodTransaction(listOf(fromNs(carbs = 20)), lastUploadedId = 0))
         val food = database.foodDao.findByNSId(NS_ID)!!

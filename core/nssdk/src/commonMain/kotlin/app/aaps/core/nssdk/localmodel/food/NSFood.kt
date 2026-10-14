@@ -30,7 +30,7 @@ data class NSFood(
     var energy: Int? = null, // in kJ
     var unit: String = "g",
     var gi: Int? = null, // not used yet
-    var aapsECarbsRule: JsonElement? = null, // FoodECarbsRule as JSON, decoded in :plugins:sync
+    var aapsECarbsRule: JsonElement? = null, // FoodECarbsRule as JSON
     var aapsAskAmount: Boolean? = null, // null when the food does not say, like one from the web editor
-    var aapsByWeight: Boolean? = null // Read only: the same choice as written by earlier test versions of this build
+    var aapsByWeight: Boolean? = null // read only: old name of aapsAskAmount
 )

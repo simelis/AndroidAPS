@@ -207,7 +207,6 @@ internal class FoodManagementViewModelTest {
         assertThat(sut.uiState.value.editorCanSave).isFalse()
         sut.updateEditorUnit("kg")
         assertThat(sut.uiState.value.editorCanSave).isTrue()
-        // Pieces have no weight, so nothing to compare
         sut.updateEditorUnit("pieces")
         sut.updateEditorCarbs("300")
         assertThat(sut.uiState.value.editorCanSave).isTrue()
@@ -295,7 +294,6 @@ internal class FoodManagementViewModelTest {
         assertThat(saved.firstValue.carbs).isEqualTo(25)
         assertThat(saved.firstValue.eCarbsRule).isEqualTo(rule)
         assertThat(sut.uiState.value.showEditor).isFalse()
-        // The fixed amount belongs to this food only, so the remembered formula leaves it out
         verify(preferences).put(StringNonKey.FoodLastECarbsRule, rule.copy(manualGrams = null).toJsonString())
     }
 
@@ -331,7 +329,6 @@ internal class FoodManagementViewModelTest {
         sut.updateEditorName("Soup")
         sut.updateEditorCarbs("5")
         sut.updateEditorFavourite(true)
-        // Nothing is stored before Save
         verify(preferences, never()).put(eq(StringNonKey.FoodFavourites), any<String>())
 
         sut.saveFood()
@@ -398,7 +395,6 @@ internal class FoodManagementViewModelTest {
         sut.updateEditorECarbsRule(FoodECarbsRule(durationHours = 3, manualGrams = 5.0))
         sut.updateEditorECarbsEnabled(true)
         assertThat(sut.uiState.value.editorCanSave).isTrue()
-        // FPU without a fixed amount needs at least one of them
         sut.updateEditorECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
         assertThat(sut.uiState.value.editorCanSave).isFalse()
         sut.updateEditorFat("5")

@@ -32,7 +32,7 @@ import org.robolectric.annotation.GraphicsMode
 import app.aaps.core.ui.R as CoreUiR
 import app.aaps.ui.R as UiR
 
-/** Robolectric composable test for [WizardDialogContent]: renders, fires navigate-back (Close), and opens the BG field only for a real old or missing reading. */
+/** Robolectric composable test for [WizardDialogContent]: renders + fires navigate-back (Close). */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35])
@@ -98,10 +98,6 @@ class WizardDialogContentTest {
         assertThat(back).isTrue()
     }
 
-    /**
-     * The first frame is drawn before the view model has loaded, so it has no BG yet. That must not
-     * open the BG field: opening it also scrolls the screen down, away from the food card at the top.
-     */
     @Test
     fun aFreshBgStaysClosedWhenTheFirstFrameIsDrawnBeforeLoading() {
         var state by mutableStateOf(WizardDialogUiState())

@@ -77,7 +77,7 @@ class GraphConfigRepositoryImpl(
 
         private const val KEY_SECONDARY_GRAPHS = "secondaryGraphs"
         private const val KEY_BG_OVERLAYS = "bgOverlays"
-        // Written with every config. A stored config without it is from before the meal markers existed.
+        // Written with every config, so a stored config without it is from before the meal markers
         private const val KEY_HAS_TREATMENTS_OVERLAY = "hasTreatmentsOverlay"
         private const val KEY_IOB_OVERLAYS = "iobOverlays"
         private const val KEY_BG_HEIGHT = "bgHeight"
@@ -137,7 +137,6 @@ class GraphConfigRepositoryImpl(
         fun fromJson(json: String): GraphConfig {
             val obj = Json.parseToJsonElement(json) as JsonObject
             val storedBgOverlays = overlaysFromJson(obj.array(KEY_BG_OVERLAYS), listOf(SeriesType.ACTIVITY, SeriesType.PREDICTIONS, SeriesType.TREATMENTS))
-            // The meal markers are on by default, also for a config saved before they existed
             val bgOverlays =
                 if (obj[KEY_HAS_TREATMENTS_OVERLAY] == null && SeriesType.TREATMENTS !in storedBgOverlays) storedBgOverlays + SeriesType.TREATMENTS
                 else storedBgOverlays

@@ -104,7 +104,6 @@ class GraphConfigRepositoryImplTest {
         val old = GraphConfigRepositoryImpl.fromJson("""{"bgOverlays":["ACTIVITY"]}""")
         assertThat(old.bgOverlays).containsExactly(SeriesType.ACTIVITY, SeriesType.TREATMENTS).inOrder()
 
-        // Turned off after that: written with the marker, so it stays off
         val turnedOff = GraphConfigRepositoryImpl.fromJson(GraphConfigRepositoryImpl.toJson(old.copy(bgOverlays = listOf(SeriesType.ACTIVITY))))
         assertThat(turnedOff.bgOverlays).containsExactly(SeriesType.ACTIVITY)
     }

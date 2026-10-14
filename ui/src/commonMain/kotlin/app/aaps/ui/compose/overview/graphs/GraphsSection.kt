@@ -89,7 +89,7 @@ import kotlin.math.abs
  *
  * Synchronization Implementation:
  * - snapshotFlow observes scroll/zoom values from BG graph
- * - conflate() takes the newest position on every frame, so the other graphs follow while scrolling
+ * - conflate() takes the newest position on every frame
  * - zoomState.zoom() and scrollState.scroll() copy state to secondary graphs
  *
  * Secondary graphs are config-driven via [GraphConfig.secondaryGraphs].
@@ -272,10 +272,6 @@ fun GraphsSection(
         var initialValue = true
         var syncedZoom: Float? = null
         var syncedCount = -1
-        // The newest position on every frame. This was debounce(30), which only passed a value once
-        // the position had not changed for 30 ms. A phone that draws at 120 fps changes it every
-        // 8 ms while the finger moves, so the other graphs only followed after a pause; a slower
-        // phone that dropped frames followed in jumps.
         snapshotFlow { bgScrollState.value to bgZoomState.value }
             .conflate()
             .collect { (scroll, zoom) ->
@@ -285,8 +281,7 @@ fun GraphsSection(
                     graphViewModel.onGraphInteraction()
                 }
                 val count = activeCount
-                // Sync zoom first, then scroll (order matters for proper positioning). A plain
-                // scroll skips the zoom and its wait, so the other graphs move in the same frame.
+                // Sync zoom first, then scroll (order matters for proper positioning)
                 if (zoom != syncedZoom || count != syncedCount) {
                     beltZoomState.zoom(Zoom.fixed(zoom))
                     iobZoomState.zoom(Zoom.fixed(zoom))
@@ -379,9 +374,7 @@ fun GraphsSection(
             }
     }
 
-    // A belt tooltip is bigger than the belt and covers it, while Vico only closes it on a tap in the
-    // belt. So a tap anywhere else in the graphs closes it too: the belt chart is rebuilt with a new
-    // dismiss key. The tap still does its own job (scrolling, opening a graph's settings).
+    // Vico closes the belt tooltip only on a tap in the belt, so a tap elsewhere in the graphs closes it too
     val beltTooltip = remember { BeltTooltipTracker() }
     var beltTooltipDismissKey by remember { mutableIntStateOf(0) }
 
@@ -821,10 +814,7 @@ private fun GraphSeriesBottomSheet(
     }
 }
 
-/**
- * Whether a belt tooltip is open, and where the belt is in the graphs column. Plain fields, not
- * Compose state: Vico reports the tooltip while drawing, and the tap handler only reads them.
- */
+/** Plain fields, not Compose state: Vico reports the tooltip while drawing. */
 private class BeltTooltipTracker {
     var shown = false
     var bounds = Rect.Zero

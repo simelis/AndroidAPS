@@ -17,15 +17,6 @@ import app.aaps.plugins.sync.nsclientV3.keys.NsclientLongKey
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.CancellationException
 
-/**
- * Loads foods in two ways, because Nightscout has two kinds of food:
- *
- * - Changes made through API v3 (AAPS and AAPSClient) are read from the food history every time,
- *   from [NsclientLongKey.FoodLastLoadedSrvModified] (0 the first time, so all of it). Only the
- *   history has deleted foods; the plain list hides them.
- * - Foods made or edited in the Nightscout web editor (API v1) have no change time and are not in
- *   the history. The full list is read every 5th time to find them.
- */
 @Inject
 class LoadFoodsRunner(
 
@@ -43,11 +34,10 @@ class LoadFoodsRunner(
         val nsAndroidClient = nsClientV3Plugin.nsAndroidClient ?: return WorkOutcome.Failure("AndroidClient is null")
         val loadedUpTo = preferences.get(NsclientLongKey.FoodLastLoadedSrvModified)
 
-        // A failed history read must not also skip the full list below, so it has its own error handling
+        // Own try: a failed history read must not skip the full list
         var historyError: Exception? = null
         try {
-            // The first time (and after a full sync) it is read from the start: the full list hides
-            // deleted foods, so a delete made before that would never be seen
+            // Starts at 0 the first time: only the history has deleted foods, the full list hides them
             if ((nsClientV3Plugin.newestDataOnServer?.collections?.food ?: Long.MAX_VALUE) > loadedUpTo)
                 loadChanges(nsAndroidClient, loadedUpTo)
         } catch (error: Exception) {
@@ -57,6 +47,7 @@ class LoadFoodsRunner(
             historyError = error
         }
 
+        // Foods from the NS web editor are not in the history: read the full list every 5th time
         try {
             if (nsClientV3Plugin.lastLoadedSrvModified.collections.foods++ % 5 == 0L) {
                 val foods: List<NSFood> = nsAndroidClient.getFoods(1000).values
@@ -91,7 +82,6 @@ class LoadFoodsRunner(
             nsClientRepository.addLog("◄ RCV", "${response.values.size} FOOD changes from ${dateUtil.dateAndTimeAndSecondsString(from)}")
             nsIncomingDataProcessor.processFood(response.values)
             storeDataForDb.storeFoodsToDb()
-            // Stop when the cursor cannot move, or the next page would repeat this one
             val next = response.lastServerModified ?: return
             if (next <= from) return
             preferences.put(NsclientLongKey.FoodLastLoadedSrvModified, next)

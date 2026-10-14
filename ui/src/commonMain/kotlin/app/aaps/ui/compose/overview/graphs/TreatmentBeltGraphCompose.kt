@@ -76,7 +76,7 @@ private val modeSegmentsKey = ExtraStore.Key<List<Triple<Double, Double, RM.Mode
  * Treatment Belt Graph — thin graph above BG graph showing:
  * - Running mode background colors (colored rectangles per mode segment)
  * - Therapy event icons (MBG, Finger Stick, Announcement, Exercise, etc.)
- * - Meal markers when [showMeals]: a bolus, carbs, or a bolus with its carbs as one icon (no SMBs)
+ * - Meal markers when [showMeals] (no SMBs)
  *
  * Architecture:
  * - Fixed Y range (0.0 to 1.0) — all events plotted at Y=0.5
@@ -720,10 +720,8 @@ internal class PainterComponent(
     }
 }
 
-/** Belt marker types that [TreatmentBeltGraphCompose] shows only with its `showMeals` option. */
 private val MEAL_TYPES = setOf(TherapyEventType.BOLUS, TherapyEventType.CARBS, TherapyEventType.BOLUS_WITH_CARBS)
 
-/** An icon-only point style, like the therapy event icons. */
 private fun iconLine(painter: Painter, color: Color) = LineCartesianLayer.Line(
     fill = LineCartesianLayer.LineFill.single(Fill(Color.Transparent)),
     areaFill = null,

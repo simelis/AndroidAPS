@@ -22,7 +22,6 @@ class FoodECarbsTest {
     @Test
     fun `a usual amount starts at the saved amount and scales by the amount eaten, a fixed amount too`() {
         val slice = FD(id = 8, name = "Slice", portion = 30.0, unit = "g", carbs = 15, protein = 10, fat = 10, askAmount = false)
-        // Starts at the saved amount, so a usual meal is taken as it is
         assertThat(FoodECarbsState(slice).amount).isEqualTo(30.0)
         assertThat(FoodECarbsState(slice).carbsGrams).isEqualTo(15)
         val state = FoodECarbsState(slice, amount = 60.0, enabled = true, rule = rule)
@@ -66,7 +65,7 @@ class FoodECarbsTest {
 
     @Test
     fun `FPU counts one unknown nutrient as zero but needs at least one`() {
-        // Fat unknown: only the 20 g protein count, (4 x 20) / 10 = 8 g
+        // Fat unknown: (4 x 20) / 10 = 8 g
         val noFat = FoodECarbsState(meal.copy(fat = null), amount = 200.0, enabled = true, rule = rule)
         assertThat(noFat.isValid(100)).isTrue()
         assertThat(noFat.eCarbsGrams).isEqualTo(8)
@@ -90,7 +89,7 @@ class FoodECarbsTest {
             foodECarbs = FoodECarbsState(meal, amount = 200.0, enabled = true, rule = rule.copy(carbsNowPercent = 80)))
         assertThat(state.carbPlan()).isEqualTo(WizardCarbPlan(40, 27, 60, 3))
         assertThat(state.foodInputsValid).isTrue()
-        // The moved carbs count against the limit too: 45 g + 10 g moved is over a 50 g limit
+        // 45 g + 10 g moved is over the 50 g limit
         val food = state.foodECarbs!!
         assertThat(state.copy(maxCarbs = 50, foodECarbs = food.copy(overrideGrams = 40)).foodInputsValid).isTrue()
         assertThat(state.copy(maxCarbs = 50, foodECarbs = food.copy(overrideGrams = 45)).foodInputsValid).isFalse()

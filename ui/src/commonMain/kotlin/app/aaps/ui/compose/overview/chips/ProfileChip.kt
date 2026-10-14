@@ -28,9 +28,7 @@ import app.aaps.core.ui.compose.navigation.label
 import app.aaps.core.ui.compose.stringResourceOrNull
 
 /**
- * [suffix] is the percentage and time shift of the switch, e.g. "(90%)", and [remaining] the time left
- * of a temporary switch, e.g. "(1h 56')". When they do not fit on one line, only the name is
- * shortened, at its end; the percentage and the time left are always shown in full.
+ * Only the name is shortened when the texts do not fit; [suffix] and [remaining] are always shown in full.
  *
  * @see ProfileChipPreview
  * @see ProfileChipModifiedPreview

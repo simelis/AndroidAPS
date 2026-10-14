@@ -171,8 +171,6 @@ class QuickLaunchConfigScreenTest {
 
     @Test
     fun theFoodListIsOfferedAndCanBeAdded() {
-        // Food is a management screen, so no category section picks it up by itself. The Treatment
-        // section has to list it, or the shortcut cannot be added at all.
         viewModels.labelOf = { if (it == QuickLaunchAction.Food) "Food" else it.typeId }
         viewModels.givenSelected(emptyList())
 

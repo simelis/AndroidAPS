@@ -32,8 +32,7 @@ import java.io.File
  * because moving a database after people have data in it is the expensive kind of change. That
  * decision now lives with the shell, where it belongs.
  *
- * Migrations are shared with Android and Apple through `databaseMigrations`, so existing desktop
- * databases retain their foods and other records when the schema changes.
+ * Uses the same `databaseMigrations` as Android and Apple, so desktop data survives a schema change.
  */
 class JvmAppDatabaseBuilder {
 

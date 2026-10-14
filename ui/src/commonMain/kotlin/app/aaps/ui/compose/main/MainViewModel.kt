@@ -314,8 +314,6 @@ class MainViewModel(
             (elapsed.toFloat() / profileData.duration.toFloat()).coerceIn(0f, 1f)
         } else 0f
 
-        // Name, percentage and time left are kept apart, so the chip can shorten a long name and still
-        // show the percentage and the time left in full.
         val profileText = profileData?.profileName.orEmpty()
         val profileRemaining = if (profileText.isNotEmpty() && profileData != null && profileData.duration > 0 && !profileExpired) {
             dateUtil.untilString(profileData.timestamp + profileData.duration, rh)

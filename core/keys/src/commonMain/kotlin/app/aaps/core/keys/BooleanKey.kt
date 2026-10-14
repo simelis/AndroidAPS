@@ -219,7 +219,7 @@ enum class BooleanKey(
 
     VirtualPumpStatusUpload("virtualpump_uploadstatus", false, KeysStrings.pref_title_virtual_pump_status_upload, showInNsClientMode = false),
     NsClientUploadData("ns_upload", true, KeysStrings.pref_title_ns_upload_data, KeysStrings.pref_summary_ns_upload_data, showInNsClientMode = false, hideParentScreenIfHidden = true),
-    // Off by default: official AAPS on another phone would take over uploaded food changes without the eCarbs rule
+    // Off by default: official AAPS on the same Nightscout would take over food changes without the eCarbs rule
     NsClientUploadFood("ns_upload_food", false, KeysStrings.pref_title_ns_upload_food, KeysStrings.pref_summary_ns_upload_food),
     NsClientAcceptCgmData("ns_receive_cgm", false, KeysStrings.pref_title_ns_receive_cgm, KeysStrings.pref_summary_ns_receive_cgm, showInNsClientMode = false, hideParentScreenIfHidden = true),
     NsClientAcceptProfileStore("ns_receive_profile_store", false, KeysStrings.pref_title_ns_receive_profile_store, KeysStrings.pref_summary_ns_receive_profile_store, showInNsClientMode = false, hideParentScreenIfHidden = true),

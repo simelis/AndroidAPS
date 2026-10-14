@@ -51,18 +51,10 @@ internal data class FoodECarbsCallbacks(
     val grams: (Int?) -> Unit = {}
 )
 
-/**
- * Apply the stored food formula, with the amount eaten and changes for this meal only.
- *
- * Shows the amount eaten and one nutrient line. The formula is chosen next to bread, dumplings and pizza
- * ([CarbsTypeSelector]), the split is shown under the carbs field ([CarbsSplitLine]), and the eCarbs
- * amount and timing are a row of the wizard inputs ([FoodECarbsRow]). Background text is in the tooltip.
- */
 @Composable
 internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallbacks, modifier: Modifier = Modifier) {
     val food = state.foodECarbs ?: return
-    // A food that asks for the amount every time starts empty. That is not a mistake yet, so the problem
-    // text waits until the user has entered an amount, and the amount field gets the focus instead.
+    // An empty amount is not a mistake yet: show the problem only after an amount is entered
     var amountEntered by rememberSaveable { mutableStateOf(false) }
     val amountFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) {
@@ -78,7 +70,6 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                 Text(food.food.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 FoodInfoButton(food)
             }
-            // In the food's own unit; empty or at the saved amount, see FoodECarbsState.amount
             NumberInputRow(
                 labelRef = UiStrings.food_amount_eaten, value = food.amount,
                 onValueChange = {
@@ -88,7 +79,6 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                 decimalPlaces = if (food.amountStep < 1.0) 1 else 0, unitLabel = TextRef.Literal(food.food.unit), compact = true,
                 modifier = Modifier.focusRequester(amountFocus)
             )
-            // Only real numbers: before an amount is entered every amount would be 0
             if (hasAmount) {
                 val unknown = stringResource(UiStrings.food_value_unknown)
                 Text(stringResource(UiStrings.food_ecarbs_macros,
@@ -96,10 +86,8 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
                     if (food.food.proteinKnown) food.proteinGrams.roundToInt().toString() else unknown,
                     if (food.food.fatKnown) food.fatGrams.roundToInt().toString() else unknown))
             }
-            // The formula is chosen next to bread, dumplings and pizza (CarbsTypeSelector); this says why it cannot be
             if (food.food.eCarbsRule == null) Text(stringResource(UiStrings.food_ecarbs_no_rule), style = MaterialTheme.typography.bodySmall)
             else if (!food.canUseRule) Text(stringResource(UiStrings.food_ecarbs_missing_macros), style = MaterialTheme.typography.bodySmall)
-            // The eCarbs amount and timing are a row of the wizard inputs, next to carb time (FoodECarbsRow)
             if (food.enabled && hasAmount) FoodUnknownNutrients(food.food, food.rule)
             if (!state.foodInputsValid && (amountEntered || hasAmount)) Text(
                 stringResource(UiStrings.food_ecarbs_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last),
@@ -109,10 +97,6 @@ internal fun FoodECarbsCard(state: WizardDialogUiState, actions: FoodECarbsCallb
     }
 }
 
-/**
- * The eCarbs of the food formula as one row of the wizard inputs, like carb time and percentage:
- * the value, and a Change button that opens the amount and timing for this meal.
- */
 @Composable
 internal fun FoodECarbsRow(state: WizardDialogUiState, actions: FoodECarbsCallbacks, modifier: Modifier = Modifier) {
     val food = state.foodECarbs?.takeIf { it.enabled } ?: return
@@ -156,7 +140,6 @@ internal fun FoodECarbsRow(state: WizardDialogUiState, actions: FoodECarbsCallba
     }
 }
 
-/** Background for this card that does not need to be on screen all the time. */
 @Composable
 private fun FoodInfoButton(food: FoodECarbsState) {
     val rule = food.food.eCarbsRule

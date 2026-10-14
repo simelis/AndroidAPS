@@ -36,8 +36,6 @@ enum class NsclientLongKey(
     RunningModeLastSyncedId("ns_running_mode_last_synced_id", 0L),
     ProfileStoreLastSyncedId("ns_profile_store_last_synced_timestamp", 0L),
 
-    // A download cursor: the server time up to which food changes are loaded from the Nightscout
-    // food history. Kept here and not in the saved LastModified JSON, because official AAPS reads
-    // that JSON strictly and would fail on a key it does not know.
+    // Food download cursor. Not in the saved LastModified JSON: official AAPS fails on unknown keys there
     FoodLastLoadedSrvModified("ns_food_last_loaded_srv_modified", 0L),
 }

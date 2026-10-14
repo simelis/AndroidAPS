@@ -90,7 +90,6 @@ class FoodEditorContentTest {
         compose.onNodeWithContentDescription(ctx.getString(UiR.string.food_ask_amount)).assertIsOn().performClick()
         assertThat(askAmount).isFalse()
 
-        // 30 g carbs in a 25 g slice is a typo
         val tooHeavy = ctx.getString(UiR.string.food_nutrient_more_than_food, "25", "g")
         compose.onNodeWithText(tooHeavy).assertDoesNotExist()
         state = FoodManagementUiState(editorPortion = "25", editorUnit = "g", editorCarbs = "30")

@@ -171,7 +171,7 @@ fun QuickLauchConfigScreen(
             }
 
             // ── Available: Treatment ── (whole section hidden when empty — e.g. all visibility-filtered on a client)
-            // Food is a management screen, but it is offered here because a food leads straight into the wizard
+            // Food is a management screen, but it leads straight into the wizard
             val treatmentItems = state.availableStaticItems.filter {
                 it.action.elementType?.category in setOf(ElementCategory.TREATMENT, ElementCategory.CGM) || it.action == QuickLaunchAction.Food
             }

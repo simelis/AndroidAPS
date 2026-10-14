@@ -175,7 +175,6 @@ internal class LoadFoodsWorkerTest : TestBaseWithProfile() {
         assertIs<ListenableWorker.Result.Success>(result)
         verify(nsIncomingDataProcessor).processFood(argThat<List<NSFood>> { singleOrNull()?.isValid == false })
         verify(nsAndroidClient).getFoods(anyInt())
-        // The cursor follows the history, never jumps to the newest server time
         verify(preferences).put(NsclientLongKey.FoodLastLoadedSrvModified, 2500)
         verify(preferences, never()).put(NsclientLongKey.FoodLastLoadedSrvModified, 3000)
     }

@@ -54,10 +54,8 @@ internal class FoodExtensionKtTest {
         val back = (slice.toNSFood().convertToRemoteAndBack() as NSFood).toFood()
         assertThat(back.askAmount).isFalse()
         assertThat(back.contentEqualsTo(slice)).isTrue()
-        // Like a food from the Nightscout web editor
         assertThat(slice.toNSFood().copy(aapsAskAmount = null).toFood().askAmount).isTrue()
         assertThat(slice.copy(unit = "piece").toNSFood().copy(aapsAskAmount = null).toFood().askAmount).isFalse()
-        // Uploaded by an earlier test version of this build
         assertThat(slice.toNSFood().copy(aapsAskAmount = null, aapsByWeight = false).toFood().askAmount).isFalse()
     }
 }

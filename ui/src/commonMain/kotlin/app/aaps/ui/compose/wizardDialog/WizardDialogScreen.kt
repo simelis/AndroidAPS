@@ -613,7 +613,7 @@ internal fun WizardDialogContent(
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
 
-            // Before loading, the state has no BG yet. Expanding then would also scroll the screen down to the BG row.
+            // Not before loading: the default "no BG" would expand the row and scroll away from the food card
             val bgIsOld = uiState.isLoaded && (!uiState.hasBgData || uiState.bgAgeMinutes > 9)
             var bgExpanded by rememberSaveable { mutableStateOf(false) }
             LaunchedEffect(bgIsOld) {
@@ -636,7 +636,6 @@ internal fun WizardDialogContent(
                             step = 1.0,
                             unitLabel = TextRef.Literal("g")
                         )
-                        // The field is the whole meal; this says what counts now and what comes later
                         CarbsSplitLine(uiState)
                         QuickAddButtons(
                             increment1 = uiState.carbsButtonIncrement1,
@@ -645,7 +644,6 @@ internal fun WizardDialogContent(
                             onAddCarbs = onAddCarbs
                         )
 
-                        // Bread, dumplings, pizza or the food's own formula: one choice
                         CarbsTypeSelector(
                             state = uiState,
                             onCarbsTypeChange = onCarbsTypeChange,
@@ -673,7 +671,7 @@ internal fun WizardDialogContent(
                         onAlarmChange = onAlarmToggle,
                         modifier = itemModifier
                     )
-                    // Food eCarbs (collapsible, only while the food formula is on)
+                    // Food eCarbs (collapsible, only with the food formula)
                     FoodECarbsRow(uiState, foodActions, modifier = itemModifier)
                     // BG (collapsible, auto-expand when old/missing)
                     val bgExpandRequester = rememberBringIntoViewOnExpand(bgExpanded)

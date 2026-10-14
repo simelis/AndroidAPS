@@ -134,7 +134,6 @@ class FoodManagementViewModel(
         _uiState.update { it.copy(filterSubCategory = subCategory) }
     }
 
-    /** A new food starts as 100 g, the usual label basis, asked for every time in the wizard. */
     fun openEditor(food: FD? = null) {
         val rule = food?.eCarbsRule
         _uiState.update {
@@ -155,7 +154,6 @@ class FoodManagementViewModel(
         }
     }
 
-    /** A new formula starts from the last one saved on this phone. */
     private fun lastSavedRule(): FoodECarbsRule? = FoodECarbsRule.fromJsonString(preferences.get(StringNonKey.FoodLastECarbsRule).ifBlank { null })
 
     fun closeEditor() {
@@ -169,7 +167,7 @@ class FoodManagementViewModel(
     fun updateEditorFat(v: String) = _uiState.update { it.copy(editorFat = v, editorECarbsRule = it.editorECarbsRule.copy(manualGrams = null)) }
     fun updateEditorProtein(v: String) = _uiState.update { it.copy(editorProtein = v, editorECarbsRule = it.editorECarbsRule.copy(manualGrams = null)) }
     fun updateEditorEnergy(v: String) = _uiState.update { it.copy(editorEnergy = v) }
-    // A fixed eCarbs amount is per saved amount, so a new amount or unit clears it, like new nutrients do
+    // A fixed eCarbs amount is for the saved amount, so a new amount or unit clears it
     fun updateEditorPortion(v: String) = _uiState.update { it.copy(editorPortion = v, editorECarbsRule = it.editorECarbsRule.copy(manualGrams = null)) }
     fun updateEditorUnit(v: String) = _uiState.update { it.copy(editorUnit = v, editorECarbsRule = it.editorECarbsRule.copy(manualGrams = null)) }
     fun updateEditorAskAmount(v: Boolean) = _uiState.update { it.copy(editorAskAmount = v) }
@@ -284,7 +282,6 @@ data class FoodManagementUiState(
     val editorSubCategory: String = "",
     val editorPortion: String = "100",
     val editorUnit: String = "g",
-    /** The wizard starts with an empty amount; false means it starts at [editorPortion]. */
     val editorAskAmount: Boolean = true,
     val editorCarbs: String = "",
     val editorFat: String = "",
@@ -304,7 +301,6 @@ data class FoodManagementUiState(
         carbs = editorCarbs.toIntOrNull() ?: 0, fat = editorFat.toIntOrNull(), protein = editorProtein.toIntOrNull()
     )
 
-    /** Weight of the saved amount, when its unit is a weight. No nutrient can weigh more than the food. */
     val editorWeightGrams: Double? get() = editorPortion.toDoubleOrNull()?.let { weightInGrams(it, editorUnit) }
 
     val editorCanSave: Boolean get() {

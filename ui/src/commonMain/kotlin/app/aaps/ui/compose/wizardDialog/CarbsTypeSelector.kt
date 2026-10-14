@@ -37,12 +37,7 @@ import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
 import kotlinx.coroutines.launch
 
-/**
- * How the carbs are split: bread (all now), dumplings or pizza (part now, eCarbs added), or the
- * eCarbs formula of the food the wizard was opened from. They exclude each other, so they are one
- * choice. The food choice is shown only for a food with a saved formula, and is disabled while the
- * food lacks a nutrient the formula needs (the food card says which).
- */
+/** Bread, dumplings, pizza or the formula of the food: they exclude each other, so they are one choice. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CarbsTypeSelector(
@@ -69,8 +64,6 @@ internal fun CarbsTypeSelector(
                             CarbsType.CAKE  -> IcCake
                             CarbsType.PIZZA -> IcPizza
                         },
-                        // Was the enum name ("BREAD"), untranslated and saying
-                        // nothing about what the choice does to the carbs.
                         contentDescription = carbsTypeEffect(type),
                         modifier = Modifier.size(24.dp)
                     )
@@ -127,10 +120,7 @@ internal fun CarbsTypeSelector(
     }
 }
 
-/**
- * How much of the meal counts in the bolus now and how much comes later as eCarbs, for the bread,
- * dumplings and pizza choices as well as the food formula. Nothing is shown when all carbs count now.
- */
+/** How much of the meal counts in the bolus now and how much comes later as eCarbs. */
 @Composable
 internal fun CarbsSplitLine(state: WizardDialogUiState, modifier: Modifier = Modifier) {
     val plan = state.carbPlan()

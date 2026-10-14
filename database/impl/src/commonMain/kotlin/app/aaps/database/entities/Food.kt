@@ -44,13 +44,9 @@ data class Food(
     var energy: Int? = null, // in kJ
     var unit: String = "g",
     var gi: Int? = null, // not used yet
-    // Synced to Nightscout as the aapsECarbsRule field
-    var eCarbsRuleJson: String? = null,
-    // Saved, deleted or restored in AAPS. Kept in AAPS only. Until this change is uploaded, the
-    // Nightscout copy is older and SyncNsFoodTransaction must not overwrite this row.
-    var isLocallyEdited: Boolean = false,
-    // The wizard asks for the amount every time; false means it starts at the portion. Synced as aapsAskAmount
-    // This build keeps the column name of its earlier test versions, so phones need no migration
+    var eCarbsRuleJson: String? = null, // FoodECarbsRule as JSON
+    var isLocallyEdited: Boolean = false, // changed in AAPS: NS must not overwrite it until uploaded
+    // false: the wizard starts at the portion, not with an empty amount. Do not rename the column without a migration
     @ColumnInfo(name = "byWeight") var askAmount: Boolean = true
 
 ) : TraceableDBEntry {

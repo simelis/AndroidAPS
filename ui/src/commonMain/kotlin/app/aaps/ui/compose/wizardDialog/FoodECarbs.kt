@@ -7,11 +7,11 @@ import kotlin.math.roundToInt
 
 data class WizardCarbPlan(val carbs: Int, val eCarbs: Int, val delayMinutes: Int, val durationHours: Int)
 
-/** Food mode replaces the bread, dumplings and pizza split; it must never add both estimates for the same meal. */
+/** Food mode replaces the carbs type split: never add both estimates for the same meal. */
 fun WizardDialogUiState.carbPlan(): WizardCarbPlan {
     val food = foodECarbs
     return if (food?.enabled == true) {
-        // The carbs held back from the bolus are moved to the eCarbs, so the meal total stays the same
+        // Carbs held back from the bolus move to the eCarbs, so the meal total stays the same
         val carbsNow = food.rule.carbsNow(carbs)
         WizardCarbPlan(carbsNow, food.eCarbsGrams + carbs - carbsNow, food.rule.delayMinutes, food.rule.durationHours)
     } else {
@@ -22,11 +22,7 @@ fun WizardDialogUiState.carbPlan(): WizardCarbPlan {
 val WizardDialogUiState.foodInputsValid: Boolean
     get() = !foodUnavailable && (foodECarbs?.let { it.isValid(maxCarbs) && carbs in 0..maxCarbs && carbPlan().eCarbs in 0..maxCarbs } ?: true)
 
-/**
- * One meal of a food, scaled by [amount] in the food's own unit against the amount saved with it
- * ([FD.portion]). The amount starts empty when the food asks for it every time ([FD.askAmount]), so it
- * is weighed or counted, and at the saved amount otherwise. Nothing here is saved.
- */
+/** One meal of a food. [amount] is in the food's own unit and is scaled against [FD.portion]. */
 data class FoodECarbsState(
     val food: FD,
     val amount: Double = if (food.askAmount) 0.0 else food.portion,
@@ -36,18 +32,15 @@ data class FoodECarbsState(
 ) {
 
     private val scale: Double get() = if (food.portion > 0.0) amount / food.portion else 0.0
-    /** False when the food lacks a nutrient the rule needs. */
     val canUseRule: Boolean get() = food.canUse(rule)
     val proteinGrams: Double get() = (food.protein ?: 0) * scale
     val fatGrams: Double get() = (food.fat ?: 0) * scale
     val carbsGrams: Int get() = (food.carbs * scale).takeIf { it.isFinite() }?.roundToInt() ?: 0
-    /** A fixed amount is per saved amount of the food, so it scales like the nutrients. */
+    // A fixed amount is per saved amount of the food, so it scales like the nutrients
     val calculatedGrams: Int get() = (rule.manualGrams?.let { it * scale } ?: rule.equivalentGrams(proteinGrams, fatGrams)).roundToInt()
     val eCarbsGrams: Int get() = if (enabled) overrideGrams ?: calculatedGrams else 0
     val hasAmount: Boolean get() = amount > 0.0
-    /** Largest amount: [MAX_PORTIONS] times the saved amount. */
     val maxAmount: Double get() = food.portion * MAX_PORTIONS
-    /** Half steps for counts like pieces, steps of 10 for amounts like 100 g or 250 ml. */
     val amountStep: Double get() = if (food.portion < 20.0) 0.5 else 10.0
 
     fun isValid(maxCarbs: Int): Boolean =
@@ -57,7 +50,6 @@ data class FoodECarbsState(
 
     companion object {
 
-        /** How many times its saved amount a meal of a food may be. */
         const val MAX_PORTIONS = 20.0
     }
 }

@@ -561,9 +561,8 @@ class WizardDialogViewModel(
     }
 
     /**
-     * The note saved with the meal: what was used from the food, then the user's own note. It goes to the bolus
-     * calculation, the carbs entries, the user entry log and Nightscout, so the food values stay in the history.
-     * Dumplings and pizza are a rough split for food like that, so their name is not saved, only the split.
+     * The food values go into the note, so they stay in the history.
+     * Dumplings and pizza are only a rough split, so the note has the split, not their name.
      */
     private fun mealNotes(state: WizardDialogUiState): String {
         val food = state.foodECarbs ?: return state.notes
@@ -586,7 +585,6 @@ class WizardDialogViewModel(
         return if (own.isEmpty() || own == food.food.name) summary else rh.gs(UiStrings.food_history_note_with_own, summary, own)
     }
 
-    /** Where the eCarbs came from: changed for this meal, the fixed amount of the food, or its formula. */
     private fun eCarbsSource(food: FoodECarbsState): String = rh.gs(
         when {
             food.overrideGrams != null    -> UiStrings.food_history_changed_for_meal

@@ -305,10 +305,10 @@ class WizardBolusExecutorImpl(
         val cob = if (inputs.useCob) iobCobCalculator.getCobInfo("WizardPrepare").displayCob ?: 0.0 else 0.0
         val carbsAfterConstraints = constraintChecker.applyCarbsConstraints(ConstraintObject(inputs.carbs, aapsLogger)).value()
         if (carbsAfterConstraints != inputs.carbs) return WizardBolusExecutor.PrepareResult.Error(rh.gs(CoreUiStrings.wizard_carbs_constraint))
-        // Food-derived eCarbs are inputs too: recheck on the master's current limits, including relayed clients.
+        // eCarbs are inputs too: recheck them on the master's limits
         if (inputs.eCarbsGrams < 0 || constraintChecker.applyCarbsConstraints(ConstraintObject(inputs.eCarbsGrams, aapsLogger)).value() != inputs.eCarbsGrams)
             return WizardBolusExecutor.PrepareResult.Error(rh.gs(CoreUiStrings.wizard_carbs_constraint))
-        // The delay here is the food rule delay plus the wizard carb time, which can be up to 60 min before or after.
+        // Food rule delay plus the wizard carb time, which is -60..+60 min
         val delayRange = (FoodECarbsRule.DELAY_MINUTES.first - 60)..(FoodECarbsRule.DELAY_MINUTES.last + 60)
         if (inputs.eCarbsGrams > 0 && (inputs.eCarbsDurationHours !in FoodECarbsRule.DURATION_HOURS || inputs.eCarbsDelayMinutes !in delayRange))
             return WizardBolusExecutor.PrepareResult.Error(

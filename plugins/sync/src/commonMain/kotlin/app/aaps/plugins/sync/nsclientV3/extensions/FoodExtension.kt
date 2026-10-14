@@ -20,7 +20,7 @@ fun NSFood.toFood(): FD =
         unit = unit,
         gi = gi,
         eCarbsRule = FoodECarbsRule.fromJson(aapsECarbsRule),
-        // aapsByWeight: the same choice, uploaded by earlier test versions of this build
+        // A food that does not say: only a food in g or kg asks for the amount every time
         askAmount = aapsAskAmount ?: aapsByWeight ?: FD.isWeightUnit(unit),
         ids = IDs(nightscoutId = identifier)
     )

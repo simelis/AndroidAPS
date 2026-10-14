@@ -941,8 +941,7 @@ class OverviewDataCacheImpl(
                 )
             }
 
-        // Meal markers for the treatment belt: a bolus and its carbs as one marker. eCarbs stay one entry
-        // here (not expanded), with their duration in the text.
+        // Not expanded, so eCarbs stay one entry
         val carbs = persistenceLayer.getCarbsFromTimeNotExpanded(fromTime, true).filter { it.timestamp <= toTime }
         val mealPoints = beltMeals(boluses, carbs).map { meal ->
             val insulin = meal.insulin?.let { decimalFormatter.toPumpSupportedBolusWithUnits(it, bolusStep) }
@@ -962,7 +961,7 @@ class OverviewDataCacheImpl(
                     insulin != null && carbsText != null -> rh.gs(UiStrings.belt_bolus_carbs, insulin, carbsText)
                     else                                 -> insulin ?: carbsText ?: ""
                 },
-                // The marker is at the start; the eCarbs duration is in the text
+                // The eCarbs duration is in the text
                 duration = 0L
             )
         }
@@ -1379,9 +1378,8 @@ internal fun mergeRunningModeSegments(samples: List<Pair<Long, RM.Mode>>, endTim
 internal data class BeltMeal(val timestamp: Long, val insulin: Double?, val carbs: Double?, val carbsDuration: Long)
 
 /**
- * Meal boluses and carbs for the treatment belt, without SMBs and other bolus types. Carbs up to
- * [window] before or after a bolus join the nearest one as one meal, because the database does not link
- * a bolus to the carbs entered with it. eCarbs (carbs with a duration) are always their own entry.
+ * Meal boluses (no SMBs) and carbs for the belt. Carbs within [window] of a bolus join the nearest one,
+ * because the database does not link them; eCarbs are always their own entry.
  */
 internal fun beltMeals(boluses: List<BS>, carbs: List<CA>, window: Long = T.mins(15).msecs()): List<BeltMeal> {
     val mealBoluses = boluses.filter { it.isValid && it.type == BS.Type.NORMAL && it.amount > 0.0 }
@@ -1397,11 +1395,7 @@ internal fun beltMeals(boluses: List<BS>, carbs: List<CA>, window: Long = T.mins
     return (withBolus + alone).sortedBy { it.timestamp }
 }
 
-/**
- * Splits the switch part, e.g. "(95%)" or "(95%,1h)", off a customized profile name, as
- * `getCustomizedName` adds it, so the overview chip can shorten the name and still show the
- * percentage in full. Only a switch with another percentage or a time shift has that part.
- */
+/** Splits the part that `getCustomizedName` adds, e.g. "(95%)" or "(95%,1h)", off a profile name. */
 internal fun splitCustomizedName(name: String, percentage: Int, timeshift: Long): Pair<String, String> {
     if (percentage == 100 && timeshift == 0L) return name to ""
     val start = name.lastIndexOf(" (")
