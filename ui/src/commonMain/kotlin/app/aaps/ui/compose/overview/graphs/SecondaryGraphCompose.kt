@@ -62,6 +62,12 @@ import kotlinx.coroutines.delay
  */
 private val VISIBLE_RANGE_KEY = ExtraStore.Key<Pair<Double?, Double?>>()
 
+/** Marks the settle pass, so Vico does not skip it as a repeat of the update before it. */
+private val SETTLE_PASS_KEY = ExtraStore.Key<Boolean>()
+
+/** Vico's change animation (500 ms) plus a margin. */
+private const val SETTLE_DELAY_MS = 700L
+
 /**
  * Secondary graphs are much shorter than the BG graph, so Vico's ItemPlacer thins out a denser
  * tick request to avoid label overlap — and it does so by doubling the step rather than picking a
@@ -491,47 +497,58 @@ fun SecondaryGraphCompose(
         // (axes, grid, now-line) renders the empty-state normalizer series instead of staying blank.
         // (Matches TreatmentBeltGraphCompose.) When data is absent the processed* lists are empty,
         // so only the normalizer is emitted; the primary range provider anchors an empty 0..1 axis.
-        modelProducer.runTransaction {
-            // Primary line layer — emit in the exact order of `primarySeries` so the line styles
-            // (built from the same list) map 1:1 to the series.
-            lineModel {
-                primarySeries.forEach { spec -> series(x = spec.x, y = spec.y) }
-                // Normalizer — ensures identical maxPointSize across all charts
-                series(x = normalizerX(maxX), y = NORMALIZER_Y)
-            }
-
-            // Block 2 → Basal layer (end axis, flipped) OR secondary series layer (end axis)
-            if (hasBasalLayer) {
+        suspend fun pushModel(settlePass: Boolean) {
+            modelProducer.runTransaction {
+                // Primary line layer — emit in the exact order of `primarySeries` so the line styles
+                // (built from the same list) map 1:1 to the series.
                 lineModel {
-                    if (processedBasalActual.size >= 2) {
-                        series(x = processedBasalActual.map { it.first }, y = processedBasalActual.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                    if (processedBasalProfile.size >= 2) {
-                        series(x = processedBasalProfile.map { it.first }, y = processedBasalProfile.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                }
-            } else if (isDualAxis) {
-                lineModel {
-                    if (processedSecondary.isNotEmpty()) {
-                        series(x = processedSecondary.map { it.first }, y = processedSecondary.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                    // Normalizer for end axis layer
+                    primarySeries.forEach { spec -> series(x = spec.x, y = spec.y) }
+                    // Normalizer — ensures identical maxPointSize across all charts
                     series(x = normalizerX(maxX), y = NORMALIZER_Y)
                 }
-            }
 
-            // Forces Vico to reprocess this transaction even when the series data above is
-            // identical to last time (see VISIBLE_RANGE_KEY doc) — otherwise scrolling/zooming
-            // would re-submit the same partials and get silently skipped, never picking up the
-            // updated primaryRangeProvider.
-            extras { it[VISIBLE_RANGE_KEY] = visibleMinX to visibleMaxX }
+                // Block 2 → Basal layer (end axis, flipped) OR secondary series layer (end axis)
+                if (hasBasalLayer) {
+                    lineModel {
+                        if (processedBasalActual.size >= 2) {
+                            series(x = processedBasalActual.map { it.first }, y = processedBasalActual.map { it.second })
+                        } else {
+                            series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                        }
+                        if (processedBasalProfile.size >= 2) {
+                            series(x = processedBasalProfile.map { it.first }, y = processedBasalProfile.map { it.second })
+                        } else {
+                            series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                        }
+                    }
+                } else if (isDualAxis) {
+                    lineModel {
+                        if (processedSecondary.isNotEmpty()) {
+                            series(x = processedSecondary.map { it.first }, y = processedSecondary.map { it.second })
+                        } else {
+                            series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                        }
+                        // Normalizer for end axis layer
+                        series(x = normalizerX(maxX), y = NORMALIZER_Y)
+                    }
+                }
+
+                // Forces Vico to reprocess this transaction even when the series data above is
+                // identical to last time (see VISIBLE_RANGE_KEY doc) — otherwise scrolling/zooming
+                // would re-submit the same partials and get silently skipped, never picking up the
+                // updated primaryRangeProvider.
+                extras {
+                    it[VISIBLE_RANGE_KEY] = visibleMinX to visibleMaxX
+                    it[SETTLE_PASS_KEY] = settlePass
+                }
+            }
         }
+
+        pushModel(settlePass = false)
+        // Workaround: the same data again after the change animation, because bars are sometimes left
+        // at a wrong height after a scroll
+        delay(SETTLE_DELAY_MS)
+        pushModel(settlePass = true)
     }
 
     // =========================================================================
