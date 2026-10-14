@@ -5,6 +5,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,7 @@ import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvi
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.LineCartesianLayerDrawingModel
 import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
+import com.patrykandpatrick.vico.compose.cartesian.decoration.Decoration
 import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
@@ -61,6 +63,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlin.concurrent.Volatile
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * CartesianChartModelProducer.update() skips notifying receivers (and thus skips recomputing axis
@@ -456,6 +459,16 @@ fun SecondaryGraphCompose(
     val visibleMinX = visibleRange?.first
     val visibleMaxX = visibleRange?.second
 
+    // TEMPORARY diagnostics for deviation bars that are sometimes drawn at a wrong height (full
+    // height on the COB + DEV graph) after a scroll. Written to the AAPS log with the UI tag; the
+    // DEV-only graph logs too, for comparison. Remove together with BarHeightProbe and
+    // DrawnScaleProbe when the cause is found.
+    val debugEnabled = SeriesType.DEVIATIONS in orderedTypes
+    val debugLabel = remember(orderedTypes) { orderedTypes.joinToString("+") { it.name } }
+    val debugWindow = remember { DebugWindowHolder() }
+    SideEffect { debugWindow.value = visibleRange }
+    val debugLog: (String) -> Unit = remember(viewModel, debugLabel) { { message -> viewModel.logGraphDebug("Graph debug $debugLabel $message") } }
+
     // Single source of truth for the primary layer: build the (x, y, slot) specs synchronously,
     // in the exact order they are emitted to the model below. Deriving the line styles,
     // hasPrimaryData and the Y-range from this list (instead of from slot state set asynchronously
@@ -583,7 +596,10 @@ fun SecondaryGraphCompose(
     val bottomAxisItemPlacer = rememberBottomAxisItemPlacer(minTimestamp)
     val nowLineColor = MaterialTheme.colorScheme.onSurface
     val nowLine = rememberNowLine(minTimestamp, nowTimestamp, nowLineColor)
-    val decorations = remember(nowLine, visibleRangeReporter) { listOf(nowLine, visibleRangeReporter) }
+    val drawnScaleProbe = remember(debugLog, animatedZero) { DrawnScaleProbe(animatedZero, debugLog) }
+    val decorations = remember(nowLine, visibleRangeReporter, debugEnabled, drawnScaleProbe) {
+        if (debugEnabled) listOf(nowLine, visibleRangeReporter, drawnScaleProbe) else listOf(nowLine, visibleRangeReporter)
+    }
 
     // Union of Y values across all primary-layer series (IOB, COB, simple series, DevSlope-min,
     // deviation lines), windowed to the visible scroll/zoom range — computed once here since the
@@ -797,7 +813,10 @@ fun SecondaryGraphCompose(
     }
 
     // Build chart layers
-    val primaryInterpolator = remember(animatedZero) { ZeroTrackingInterpolator(animatedZero) }
+    val primaryInterpolator = remember(animatedZero, debugEnabled, debugWindow, debugLog) {
+        val zeroTracking = ZeroTrackingInterpolator(animatedZero)
+        if (debugEnabled) BarHeightProbe(zeroTracking, animatedZero, debugWindow, debugLog) else zeroTracking
+    }
     val primaryLayer = rememberLineCartesianLayer(
         lineProvider = LineCartesianLayer.LineProvider.series(lines),
         rangeProvider = primaryRangeProvider,
@@ -842,6 +861,7 @@ fun SecondaryGraphCompose(
         // (Matches TreatmentBeltGraphCompose.) When data is absent the processed* lists are empty,
         // so only the normalizer is emitted; the primary range provider anchors an empty 0..1 axis.
         suspend fun pushModel(settlePass: Boolean) {
+            if (debugEnabled) debugLog("update${if (settlePass) " (settle)" else ""}: window=${visibleMinX.debugText()}..${visibleMaxX.debugText()} left=${axisScale.primary} right=${if (isDualAxis) axisScale.secondary.toString() else "none"}")
             modelProducer.runTransaction {
                 // Primary line layer — emit in the exact order of `primarySeries` so the line styles
                 // (built from the same list) map 1:1 to the series.
@@ -1683,3 +1703,69 @@ internal fun zeroFloorDualRanges(primaryY: List<Double>, secondaryY: List<Double
     return AlignedRanges(aMin, aMax, bMin, bMax, primaryLabelFloor = primaryNice.min)
 }
 
+
+// =========================================================================
+// TEMPORARY diagnostics: deviation bars drawn at a wrong height. Remove when the cause is found.
+// =========================================================================
+
+/** The visible x-window of the graph, read from Vico's worker thread. */
+private class DebugWindowHolder {
+    @Volatile
+    var value: Pair<Double, Double>? = null
+}
+
+/**
+ * Wraps the line interpolator and logs the stored bar heights of the visible part, as a fraction
+ * of the graph height (0 = bottom, 1 = top), and where zero is. A highest bar above 1 means a bar is
+ * drawn past the top of the graph; "none" for the old heights means Vico grows every bar from the
+ * bottom.
+ */
+private class BarHeightProbe(
+    private val delegate: CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel>,
+    private val zero: AnimatedZero,
+    private val window: DebugWindowHolder,
+    private val log: (String) -> Unit
+) : CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel> {
+
+    override fun setModels(old: LineCartesianLayerDrawingModel?, new: LineCartesianLayerDrawingModel?) {
+        log("heights from ${describe(old)} to ${describe(new)}")
+        delegate.setModels(old, new)
+    }
+
+    override suspend fun transform(fraction: Float): LineCartesianLayerDrawingModel? {
+        val result = delegate.transform(fraction)
+        if (fraction >= 1f) log("heights drawn ${describe(result)} zero=${zero.fraction?.toDouble().debugText()}")
+        return result
+    }
+
+    private fun describe(model: LineCartesianLayerDrawingModel?): String {
+        if (model == null) return "none"
+        val visible = window.value
+        val heights = model.flatMap { series ->
+            series.filterKeys { x -> visible == null || x in visible.first..visible.second }.values.map { it.y.toDouble() }
+        }
+        if (heights.isEmpty()) return "empty"
+        val zeroHeight = model.lastOrNull()?.values?.firstOrNull()?.y?.toDouble()
+        return "[n=${heights.size} lowest=${heights.min().debugText()} highest=${heights.max().debugText()} normalizer=${zeroHeight.debugText()}]"
+    }
+}
+
+/**
+ * Logs the left-axis scale Vico really draws with, and the zero the deviation fill uses, each time
+ * one of them changes.
+ */
+private class DrawnScaleProbe(private val zero: AnimatedZero, private val log: (String) -> Unit) : Decoration {
+
+    private var last: Triple<Double, Double, Float?>? = null
+
+    override fun drawOverLayers(context: CartesianDrawingContext) {
+        val range = context.ranges.getYRange(Axis.Position.Vertical.Start)
+        val current = Triple(range.minY, range.maxY, zero.fraction)
+        if (current != last) {
+            last = current
+            log("drawn left scale ${current.first.debugText()}..${current.second.debugText()} fill zero=${current.third?.toDouble().debugText()}")
+        }
+    }
+}
+
+private fun Double?.debugText(): String = if (this == null) "null" else ((this * 100).roundToInt() / 100.0).toString()
