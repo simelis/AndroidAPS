@@ -13,6 +13,9 @@ enum class LTag(val tag: String, val defaultValue: Boolean = true, val requiresR
     EVENTS("EVENTS", defaultValue = false, requiresRestart = true),
     GARMIN("GARMIN"),
     GLUCOSE("GLUCOSE", defaultValue = false),
+    // TEMPORARY test switch, not a log tag: the settle pass of the secondary graphs (see SecondaryGraphCompose).
+    // Shown in the log settings so it can be switched on a phone. Remove with the graph diagnostics.
+    GRAPH_SETTLE("GRAPH_SETTLE", defaultValue = true),
     HTTP("HTTP"),
     LOCATION("LOCATION"),
     NOTIFICATION("NOTIFICATION"),

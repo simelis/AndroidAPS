@@ -461,13 +461,16 @@ fun SecondaryGraphCompose(
 
     // TEMPORARY diagnostics for deviation bars that are sometimes drawn at a wrong height (full
     // height on the COB + DEV graph) after a scroll. Written to the AAPS log with the UI tag; the
-    // DEV-only graph logs too, for comparison. Remove together with BarHeightProbe and
-    // DrawnScaleProbe when the cause is found.
-    val debugEnabled = SeriesType.DEVIATIONS in orderedTypes
+    // DEV-only graph logs too, for comparison. Set up only while the UI tag is on, so with it off the
+    // graph runs exactly as without them (the probes change Vico's timing). Remove together with
+    // BarHeightProbe, DrawnScaleProbe and the GRAPH_SETTLE switch when the cause is found.
+    val debugTagOn = remember(viewModel) { viewModel.isGraphDebugEnabled() }
+    val settlePassOn = remember(viewModel) { viewModel.isSettlePassEnabled() }
+    val debugEnabled = debugTagOn && SeriesType.DEVIATIONS in orderedTypes
     val debugLabel = remember(orderedTypes) { orderedTypes.joinToString("+") { it.name } }
     val debugWindow = remember { DebugWindowHolder() }
-    SideEffect { debugWindow.value = visibleRange }
-    val debugLog: (String) -> Unit = remember(viewModel, debugLabel) { { message -> viewModel.logGraphDebug("Graph debug $debugLabel $message") } }
+    if (debugEnabled) SideEffect { debugWindow.value = visibleRange }
+    val debugLog: (() -> String) -> Unit = remember(viewModel, debugLabel) { { message -> viewModel.logGraphDebug { "Graph debug $debugLabel ${message()}" } } }
 
     // Single source of truth for the primary layer: build the (x, y, slot) specs synchronously,
     // in the exact order they are emitted to the model below. Deriving the line styles,
@@ -861,7 +864,7 @@ fun SecondaryGraphCompose(
         // (Matches TreatmentBeltGraphCompose.) When data is absent the processed* lists are empty,
         // so only the normalizer is emitted; the primary range provider anchors an empty 0..1 axis.
         suspend fun pushModel(settlePass: Boolean) {
-            if (debugEnabled) debugLog("update${if (settlePass) " (settle)" else ""}: window=${visibleMinX.debugText()}..${visibleMaxX.debugText()} left=${axisScale.primary} right=${if (isDualAxis) axisScale.secondary.toString() else "none"}")
+            if (debugEnabled) debugLog { "update${if (settlePass) " (settle)" else ""}: window=${visibleMinX.debugText()}..${visibleMaxX.debugText()} left=${axisScale.primary} right=${if (isDualAxis) axisScale.secondary.toString() else "none"}" }
             modelProducer.runTransaction {
                 // Primary line layer — emit in the exact order of `primarySeries` so the line styles
                 // (built from the same list) map 1:1 to the series.
@@ -917,8 +920,11 @@ fun SecondaryGraphCompose(
         // with correct axis numbers) until the next update. Vico recalculates every point here and
         // animates from what is drawn to the right place; when nothing was wrong, nothing moves.
         // New data or new axes cancel this effect, so it runs once, after the last change.
-        delay(SETTLE_DELAY_MS)
-        pushModel(settlePass = true)
+        // TEMPORARY: GRAPH_SETTLE in the log settings switches it off for a test.
+        if (settlePassOn) {
+            delay(SETTLE_DELAY_MS)
+            pushModel(settlePass = true)
+        }
     }
 
     val startAxis = VerticalAxis.rememberStart(
@@ -1724,17 +1730,17 @@ private class BarHeightProbe(
     private val delegate: CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel>,
     private val zero: AnimatedZero,
     private val window: DebugWindowHolder,
-    private val log: (String) -> Unit
+    private val log: (() -> String) -> Unit
 ) : CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel> {
 
     override fun setModels(old: LineCartesianLayerDrawingModel?, new: LineCartesianLayerDrawingModel?) {
-        log("heights from ${describe(old)} to ${describe(new)}")
+        log { "heights from ${describe(old)} to ${describe(new)}" }
         delegate.setModels(old, new)
     }
 
     override suspend fun transform(fraction: Float): LineCartesianLayerDrawingModel? {
         val result = delegate.transform(fraction)
-        if (fraction >= 1f) log("heights drawn ${describe(result)} zero=${zero.fraction?.toDouble().debugText()}")
+        if (fraction >= 1f) log { "heights drawn ${describe(result)} zero=${zero.fraction?.toDouble().debugText()}" }
         return result
     }
 
@@ -1754,7 +1760,7 @@ private class BarHeightProbe(
  * Logs the left-axis scale Vico really draws with, and the zero the deviation fill uses, each time
  * one of them changes.
  */
-private class DrawnScaleProbe(private val zero: AnimatedZero, private val log: (String) -> Unit) : Decoration {
+private class DrawnScaleProbe(private val zero: AnimatedZero, private val log: (() -> String) -> Unit) : Decoration {
 
     private var last: Triple<Double, Double, Float?>? = null
 
@@ -1763,7 +1769,7 @@ private class DrawnScaleProbe(private val zero: AnimatedZero, private val log: (
         val current = Triple(range.minY, range.maxY, zero.fraction)
         if (current != last) {
             last = current
-            log("drawn left scale ${current.first.debugText()}..${current.second.debugText()} fill zero=${current.third?.toDouble().debugText()}")
+            log { "drawn left scale ${current.first.debugText()}..${current.second.debugText()} fill zero=${current.third?.toDouble().debugText()}" }
         }
     }
 }

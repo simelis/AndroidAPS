@@ -13,6 +13,7 @@ import app.aaps.core.interfaces.overview.graph.OverviewDataCache
 import app.aaps.core.interfaces.overview.graph.SeriesType
 import app.aaps.core.interfaces.resources.TextResolver
 import app.aaps.core.interfaces.utils.DateUtil
+import app.aaps.core.keys.BooleanComposedKey
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.UnitDoubleKey
 import app.aaps.core.keys.interfaces.Preferences
@@ -98,7 +99,19 @@ class GraphViewModel(
     fun updateGraphConfig(config: GraphConfig) = graphConfigRepository.update(config)
 
     /** TEMPORARY: diagnostics for deviation bars drawn at a wrong height, see `BarHeightProbe`. */
-    fun logGraphDebug(message: String) = aapsLogger.debug(LTag.UI, message)
+    fun logGraphDebug(message: () -> String) = aapsLogger.debug(LTag.UI, message)
+
+    /**
+     * TEMPORARY: whether the graph diagnostics are set up at all. Only with the UI log tag on, so with
+     * it off a graph is set up exactly as without the diagnostics. Read when a graph is set up, so a
+     * change shows after the overview is opened again.
+     */
+    fun isGraphDebugEnabled(): Boolean = logTagEnabled(LTag.UI)
+
+    /** TEMPORARY test switch: the settle pass of the secondary graphs, GRAPH_SETTLE in the log settings. */
+    fun isSettlePassEnabled(): Boolean = logTagEnabled(LTag.GRAPH_SETTLE)
+
+    private fun logTagEnabled(tag: LTag): Boolean = preferences.get(BooleanComposedKey.Log, tag.tag, defaultValue = tag.defaultValue)
 
     // Individual series flows - each can trigger independent recomposition
     val bgReadingsFlow: StateFlow<List<BgDataPoint>> = cache.bgReadingsFlow
