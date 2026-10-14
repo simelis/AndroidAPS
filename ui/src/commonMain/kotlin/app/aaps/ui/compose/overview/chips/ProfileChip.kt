@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.style.TextOverflow
 import app.aaps.core.interfaces.navigation.ElementType
 import app.aaps.core.ui.compose.AapsSpacing
 import app.aaps.core.ui.compose.AapsTheme
@@ -27,6 +28,8 @@ import app.aaps.core.ui.compose.navigation.label
 import app.aaps.core.ui.compose.stringResourceOrNull
 
 /**
+ * Only the name is shortened when the texts do not fit; [suffix] and [remaining] are always shown in full.
+ *
  * @see ProfileChipPreview
  * @see ProfileChipModifiedPreview
  */
@@ -37,6 +40,8 @@ fun ProfileChip(
     progress: Float,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    suffix: String = "",
+    remaining: String = "",
     sceneManaged: Boolean = false,
     isNoProfile: Boolean = false,
     enabled: Boolean = true
@@ -79,8 +84,22 @@ fun ProfileChip(
                     text = profileName,
                     style = MaterialTheme.typography.bodyMedium,
                     color = contentColor,
-                    modifier = Modifier.padding(start = AapsSpacing.medium)
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .padding(start = AapsSpacing.medium)
                 )
+                for (detail in listOf(suffix, remaining).filter { it.isNotEmpty() }) {
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(start = AapsSpacing.small)
+                    )
+                }
                 if (sceneManaged) {
                     SceneBadge(modifier = Modifier.padding(start = AapsSpacing.small))
                 }

@@ -682,6 +682,7 @@ class OverviewDataCacheImpl(
         var percentage = 100
         var timestamp = 0L
         var duration = 0L
+        var timeshift = 0L
 
         if (profile is ProfileSealed.EPS) {
             val eps = profile.value
@@ -689,10 +690,14 @@ class OverviewDataCacheImpl(
             percentage = eps.originalPercentage
             timestamp = eps.timestamp
             duration = eps.originalDuration
+            timeshift = eps.originalTimeshift
         }
+        // The ViewModel adds the remaining time
+        val (name, nameSuffix) = splitCustomizedName(profileFunction.getProfileName(), percentage, timeshift)
 
         _profileFlow.value = ProfileDisplayData(
-            profileName = profileFunction.getProfileName(),  // Raw name, ViewModel adds remaining time
+            profileName = name,
+            nameSuffix = nameSuffix,
             isLoaded = profile != null,
             isModified = isModified,
             percentage = percentage,
@@ -1340,4 +1345,12 @@ internal fun mergeRunningModeSegments(samples: List<Pair<Long, RM.Mode>>, endTim
         else segments.add(RunningModeSegment(mode, start, end))
     }
     return segments
+}
+
+/** Splits the part that `getCustomizedName` adds, e.g. "(95%)" or "(95%,1h)", off a profile name. */
+internal fun splitCustomizedName(name: String, percentage: Int, timeshift: Long): Pair<String, String> {
+    if (percentage == 100 && timeshift == 0L) return name to ""
+    val start = name.lastIndexOf(" (")
+    if (start < 0 || !name.endsWith(")")) return name to ""
+    return name.substring(0, start) to name.substring(start + 1)
 }

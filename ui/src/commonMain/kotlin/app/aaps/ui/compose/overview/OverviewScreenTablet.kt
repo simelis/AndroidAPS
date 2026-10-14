@@ -47,6 +47,8 @@ import app.aaps.ui.compose.scenes.ActiveSceneBanner
 @Composable
 fun OverviewScreenTablet(
     profileName: String,
+    profileSuffix: String = "",
+    profileRemaining: String = "",
     isProfileModified: Boolean,
     profileProgress: Float,
     profileSceneManaged: Boolean = false,
@@ -152,6 +154,8 @@ fun OverviewScreenTablet(
                             runningModeSceneManaged = runningModeSceneManaged,
                             smbEnabled = smbEnabled,
                             profileName = profileName,
+                            profileSuffix = profileSuffix,
+                            profileRemaining = profileRemaining,
                             isProfileModified = isProfileModified,
                             profileProgress = profileProgress,
                             profileSceneManaged = profileSceneManaged,

@@ -244,6 +244,8 @@ class MainViewModel(
             showAuthFailedDialog = ev.showAuthFailedDialog,
             isProfileLoaded = chip.isProfileLoaded,
             profileName = chip.profileName,
+            profileSuffix = chip.profileSuffix,
+            profileRemaining = chip.profileRemaining,
             profilePsId = chip.profilePsId,
             isProfileModified = chip.isProfileModified,
             profileProgress = chip.profileProgress,
@@ -325,12 +327,9 @@ class MainViewModel(
             (elapsed.toFloat() / profileData.duration.toFloat()).coerceIn(0f, 1f)
         } else 0f
 
-        val profileText = if (profileData != null && profileData.profileName.isNotEmpty()) {
-            if (profileData.duration > 0 && !profileExpired) {
-                "${profileData.profileName} ${dateUtil.untilString(profileData.timestamp + profileData.duration, rh)}"
-            } else {
-                profileData.profileName
-            }
+        val profileText = profileData?.profileName.orEmpty()
+        val profileRemaining = if (profileText.isNotEmpty() && profileData != null && profileData.duration > 0 && !profileExpired) {
+            dateUtil.untilString(profileData.timestamp + profileData.duration, rh)
         } else ""
 
         // Running mode progress and display text
@@ -358,6 +357,8 @@ class MainViewModel(
         return ChipState(
             isProfileLoaded = profileData?.isLoaded ?: false,
             profileName = profileText,
+            profileSuffix = profileData?.nameSuffix.orEmpty(),
+            profileRemaining = profileRemaining,
             profilePsId = profileData?.originalPsId ?: 0,
             isProfileModified = profileData?.isModified ?: false,
             profileProgress = profileProgress,
@@ -973,6 +974,8 @@ private data class EventState(
 private data class ChipState(
     val isProfileLoaded: Boolean = false,
     val profileName: String = "",
+    val profileSuffix: String = "",
+    val profileRemaining: String = "",
     val profilePsId: Long = 0,
     val isProfileModified: Boolean = false,
     val profileProgress: Float = 0f,

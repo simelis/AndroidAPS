@@ -22,7 +22,9 @@ internal fun ProfileChipPreview() {
 internal fun ProfileChipModifiedPreview() {
     MaterialTheme {
         ProfileChip(
-            profileName = "Default 5.6 *",
+            profileName = "Default 5.6",
+            suffix = "(90%)",
+            remaining = "(1h 56')",
             isModified = true,
             progress = 0.6f,
             onClick = {}
