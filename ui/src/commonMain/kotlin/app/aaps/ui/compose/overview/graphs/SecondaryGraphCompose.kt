@@ -170,6 +170,8 @@ fun SecondaryGraphCompose(
     nowTimestamp: Long,
     activityOverlay: Boolean = false,
     onVisibleRangeChanged: ((Pair<Double, Double>?) -> Unit)? = null,
+    /** While holding the BG graph, a line at the inspected time. Null turns it off. */
+    inspect: GraphInspectState? = null,
     modifier: Modifier = Modifier
 ) {
     val dateUtil = LocalDateUtil.current
@@ -593,9 +595,10 @@ fun SecondaryGraphCompose(
     val bottomAxisItemPlacer = rememberBottomAxisItemPlacer(minTimestamp)
     val nowLineColor = MaterialTheme.colorScheme.onSurface
     val nowLine = rememberNowLine(minTimestamp, nowTimestamp, nowLineColor)
+    val inspectLine = rememberInspectLine(inspect)
     val drawnScaleProbe = remember(debugLog, animatedZero) { DrawnScaleProbe(animatedZero, debugLog) }
-    val decorations = remember(nowLine, visibleRangeReporter, debugEnabled, drawnScaleProbe) {
-        if (debugEnabled) listOf(nowLine, visibleRangeReporter, drawnScaleProbe) else listOf(nowLine, visibleRangeReporter)
+    val decorations = remember(nowLine, visibleRangeReporter, inspectLine, debugEnabled, drawnScaleProbe) {
+        listOfNotNull(nowLine, visibleRangeReporter, inspectLine, drawnScaleProbe.takeIf { debugEnabled })
     }
 
     // Union of Y values across all primary-layer series (IOB, COB, simple series, DevSlope-min,
