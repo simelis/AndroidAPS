@@ -14,6 +14,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -39,8 +41,10 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.Axis
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerDrawingModelInterpolator
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.compose.cartesian.data.LineCartesianLayerDrawingModel
 import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
 import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
@@ -55,6 +59,7 @@ import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlin.concurrent.Volatile
 import kotlin.math.abs
 
 /**
@@ -77,6 +82,12 @@ private data class AxisScale(
     val basal: CartesianLayerRangeProvider,
     val startAxisItemPlacer: VerticalAxis.ItemPlacer
 )
+
+/** Marks the settle pass, so Vico does not skip it as a repeat of the update before it. */
+private val SETTLE_PASS_KEY = ExtraStore.Key<Boolean>()
+
+/** Wait before the settle pass: Vico's change animation (500 ms) plus a margin. */
+private const val SETTLE_DELAY_MS = 700L
 
 /**
  * Secondary graphs are much shorter than the BG graph, so Vico's ItemPlacer thins out a denser
@@ -509,13 +520,15 @@ fun SecondaryGraphCompose(
     val iobLineStyle = rememberIobLineStyles()
     val cobLineStyle = rememberCobLineStyles()
     val normalizerLine = remember { createNormalizerLine() }
+    // Where zero is drawn in the current animation frame, for the deviation bars' fill
+    val animatedZero = remember { AnimatedZero() }
 
-    val lines = remember(primarySeries, seriesColors, iobLineStyle, cobLineStyle, normalizerLine) {
+    val lines = remember(primarySeries, seriesColors, iobLineStyle, cobLineStyle, normalizerLine, animatedZero) {
         buildList {
             for (spec in primarySeries) {
                 add(
                     when (val slot = spec.slot) {
-                        is SeriesSlot.DeviationLine -> createDeviationLine(slot.type)
+                        is SeriesSlot.DeviationLine -> createDeviationLine(slot.type, animatedZero)
                         SeriesSlot.IobLine          -> iobLineStyle.iobLine
                         SeriesSlot.SmallSmb         -> iobLineStyle.smallSmbLine
                         SeriesSlot.MediumSmb        -> iobLineStyle.mediumSmbLine
@@ -784,10 +797,12 @@ fun SecondaryGraphCompose(
     }
 
     // Build chart layers
+    val primaryInterpolator = remember(animatedZero) { ZeroTrackingInterpolator(animatedZero) }
     val primaryLayer = rememberLineCartesianLayer(
         lineProvider = LineCartesianLayer.LineProvider.series(lines),
         rangeProvider = primaryRangeProvider,
-        verticalAxisPosition = Axis.Position.Vertical.Start
+        verticalAxisPosition = Axis.Position.Vertical.Start,
+        drawingModelInterpolator = primaryInterpolator
     )
 
     // Common axis components
@@ -826,50 +841,64 @@ fun SecondaryGraphCompose(
         // (axes, grid, now-line) renders the empty-state normalizer series instead of staying blank.
         // (Matches TreatmentBeltGraphCompose.) When data is absent the processed* lists are empty,
         // so only the normalizer is emitted; the primary range provider anchors an empty 0..1 axis.
-        modelProducer.runTransaction {
-            // Primary line layer — emit in the exact order of `primarySeries` so the line styles
-            // (built from the same list) map 1:1 to the series.
-            lineModel {
-                primarySeries.forEach { spec -> series(x = spec.x, y = spec.y) }
-                // Normalizer — ensures identical maxPointSize across all charts
-                series(x = normalizerX(maxX), y = NORMALIZER_Y)
-            }
-
-            // Block 2 → Basal layer (end axis, flipped) OR secondary series layer (end axis)
-            if (hasBasalLayer) {
+        suspend fun pushModel(settlePass: Boolean) {
+            modelProducer.runTransaction {
+                // Primary line layer — emit in the exact order of `primarySeries` so the line styles
+                // (built from the same list) map 1:1 to the series.
                 lineModel {
-                    if (processedBasalActual.size >= 2) {
-                        series(x = processedBasalActual.map { it.first }, y = processedBasalActual.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                    if (processedBasalProfile.size >= 2) {
-                        series(x = processedBasalProfile.map { it.first }, y = processedBasalProfile.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                }
-            } else if (isDualAxis) {
-                lineModel {
-                    if (processedSecondary.isNotEmpty()) {
-                        series(x = processedSecondary.map { it.first }, y = processedSecondary.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                    // Carb markers when COB is the right-axis series; secondaryAxisLines has a style for them
-                    if (secondaryCarbs.isNotEmpty())
-                        series(x = secondaryCarbs.map { it.first }, y = secondaryCarbs.map { it.second })
-                    // Normalizer for end axis layer
+                    primarySeries.forEach { spec -> series(x = spec.x, y = spec.y) }
+                    // Normalizer — ensures identical maxPointSize across all charts
                     series(x = normalizerX(maxX), y = NORMALIZER_Y)
                 }
-            }
 
-            // Forces Vico to reprocess this transaction even when the series data above is
-            // identical to last time (see AXIS_SCALE_KEY doc) — otherwise scrolling/zooming
-            // would re-submit the same partials and get silently skipped, never picking up the
-            // updated primaryRangeProvider.
-            extras { it[AXIS_SCALE_KEY] = axisScale }
+                // Block 2 → Basal layer (end axis, flipped) OR secondary series layer (end axis)
+                if (hasBasalLayer) {
+                    lineModel {
+                        if (processedBasalActual.size >= 2) {
+                            series(x = processedBasalActual.map { it.first }, y = processedBasalActual.map { it.second })
+                        } else {
+                            series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                        }
+                        if (processedBasalProfile.size >= 2) {
+                            series(x = processedBasalProfile.map { it.first }, y = processedBasalProfile.map { it.second })
+                        } else {
+                            series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                        }
+                    }
+                } else if (isDualAxis) {
+                    lineModel {
+                        if (processedSecondary.isNotEmpty()) {
+                            series(x = processedSecondary.map { it.first }, y = processedSecondary.map { it.second })
+                        } else {
+                            series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                        }
+                        // Carb markers when COB is the right-axis series; secondaryAxisLines has a style for them
+                        if (secondaryCarbs.isNotEmpty())
+                            series(x = secondaryCarbs.map { it.first }, y = secondaryCarbs.map { it.second })
+                        // Normalizer for end axis layer
+                        series(x = normalizerX(maxX), y = NORMALIZER_Y)
+                    }
+                }
+
+                // Forces Vico to reprocess this transaction even when the series data above is
+                // identical to last time (see AXIS_SCALE_KEY doc) — otherwise scrolling/zooming
+                // would re-submit the same partials and get silently skipped, never picking up the
+                // updated primaryRangeProvider.
+                extras {
+                    it[AXIS_SCALE_KEY] = axisScale
+                    it[SETTLE_PASS_KEY] = settlePass
+                }
+            }
         }
+
+        pushModel(settlePass = false)
+        // Settle pass: the same data once more, after the change animation has ended. Sometimes the
+        // bars were left drawn at a wrong height after a scroll (on the COB + DEV graph, full height
+        // with correct axis numbers) until the next update. Vico recalculates every point here and
+        // animates from what is drawn to the right place; when nothing was wrong, nothing moves.
+        // New data or new axes cancel this effect, so it runs once, after the last change.
+        delay(SETTLE_DELAY_MS)
+        pushModel(settlePass = true)
     }
 
     val startAxis = VerticalAxis.rememberStart(
@@ -1417,14 +1446,80 @@ private fun deviationColor(type: DeviationType): Color = when (type) {
 }
 
 /** Step line with solid area fill and thin stroke, per-deviation-type color */
-private fun createDeviationLine(type: DeviationType): LineCartesianLayer.Line {
+private fun createDeviationLine(type: DeviationType, zero: AnimatedZero): LineCartesianLayer.Line {
     val color = deviationColor(type)
     return LineCartesianLayer.Line(
         fill = LineCartesianLayer.LineFill.single(Fill(color)),
         stroke = LineCartesianLayer.LineStroke.Continuous(thickness = 0.dp),
-        areaFill = LineCartesianLayer.AreaFill.single(Fill(color.copy(alpha = 0.5f))),
+        areaFill = ZeroFollowingAreaFill(color.copy(alpha = 0.5f), zero),
         interpolator = Square
     )
+}
+
+/**
+ * Where zero is drawn in the current animation frame, as a fraction of the graph height from the
+ * bottom. Null when Vico has no stored heights (then zero comes from the scale). Written on Vico's
+ * worker thread, read while drawing.
+ */
+private class AnimatedZero {
+    @Volatile
+    var fraction: Float? = null
+}
+
+/**
+ * Vico's line interpolator, also noting where zero is in each frame. The normalizer series is the
+ * last series of the primary layer and lies at zero, so its height in a frame is zero's height.
+ */
+private class ZeroTrackingInterpolator(
+    private val zero: AnimatedZero
+) : CartesianLayerDrawingModelInterpolator<LineCartesianLayerDrawingModel.Entry, LineCartesianLayerDrawingModel> {
+
+    private val delegate = CartesianLayerDrawingModelInterpolator.line()
+
+    override fun setModels(old: LineCartesianLayerDrawingModel?, new: LineCartesianLayerDrawingModel?) = delegate.setModels(old, new)
+
+    override suspend fun transform(fraction: Float): LineCartesianLayerDrawingModel? =
+        delegate.transform(fraction).also { model -> zero.fraction = model?.lastOrNull()?.values?.firstOrNull()?.y }
+}
+
+/**
+ * Fills between the line and zero, like Vico's single area fill, but at zero as drawn in the current
+ * animation frame. Vico's own fill moves to the new zero at once while the bars still glide there,
+ * so for half a second it painted a band below (or above) zero that was then trimmed away.
+ */
+private class ZeroFollowingAreaFill(
+    color: Color,
+    private val zero: AnimatedZero
+) : LineCartesianLayer.AreaFill {
+
+    private val paint = Paint().apply { this.color = color }
+    private val areaPath = Path()
+
+    override fun draw(
+        context: CartesianDrawingContext,
+        linePath: Path,
+        halfLineThickness: Float,
+        verticalAxisPosition: Axis.Position.Vertical?
+    ) {
+        if (linePath.isEmpty) return
+        with(context) {
+            val bounds = layerBounds
+            val zeroFraction = zero.fraction ?: ranges.getYRange(verticalAxisPosition).let { range ->
+                if (range.length > 0.0) ((0.0 - range.minY) / range.length).toFloat() else 0f
+            }
+            val zeroY = (bounds.bottom - zeroFraction * bounds.height).coerceIn(bounds.top, bounds.bottom)
+            val lineBounds = linePath.getBounds()
+            areaPath.rewind()
+            areaPath.addPath(linePath)
+            areaPath.lineTo(if (isLtr) lineBounds.right else lineBounds.left, zeroY)
+            areaPath.lineTo(if (isLtr) lineBounds.left else lineBounds.right, zeroY)
+            areaPath.close()
+            canvas.save()
+            canvas.clipRect(bounds.left, bounds.top, bounds.right, bounds.bottom)
+            canvas.drawPath(areaPath, paint)
+            canvas.restore()
+        }
+    }
 }
 
 /** Processed deviation data split by type for multi-series line rendering */
