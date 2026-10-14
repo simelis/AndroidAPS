@@ -60,11 +60,23 @@ import kotlin.math.abs
 /**
  * CartesianChartModelProducer.update() skips notifying receivers (and thus skips recomputing axis
  * ranges) when a transaction's partials AND extraStore are both unchanged from the last one. Since
- * scrolling/zooming re-submits identical series data (only the visible window changed), stashing
- * the visible window here forces the extraStore to differ, so Vico actually reprocesses the
+ * scrolling/zooming re-submits identical series data (only the axis ranges changed), stashing
+ * the axis setup here forces the extraStore to differ, so Vico actually reprocesses the
  * transaction instead of silently dropping it.
  */
-private val VISIBLE_RANGE_KEY = ExtraStore.Key<Pair<Double?, Double?>>()
+private val AXIS_SCALE_KEY = ExtraStore.Key<AxisScale>()
+
+/**
+ * Everything about the axes that a scroll or zoom can change. The range providers are data
+ * classes, and the item placer is remembered on its values, so two equal [AxisScale]s mean the
+ * axes did not change.
+ */
+private data class AxisScale(
+    val primary: CartesianLayerRangeProvider,
+    val secondary: CartesianLayerRangeProvider,
+    val basal: CartesianLayerRangeProvider,
+    val startAxisItemPlacer: VerticalAxis.ItemPlacer
+)
 
 /**
  * Secondary graphs are much shorter than the BG graph, so Vico's ItemPlacer thins out a denser
@@ -399,9 +411,9 @@ fun SecondaryGraphCompose(
     // The reporter writes into a plain (non-Compose-state) holder on every draw pass — see
     // VisibleRangeHolder — so we poll it here rather than observing it directly, keeping Compose
     // state writes off the draw path.
-    // Computed here (before the model-rebuild LaunchedEffect below) so visibleMinX/visibleMaxX can
-    // be included in that effect's keys — Vico only reliably re-applies axis ranges via a real
-    // modelProducer.runTransaction, not merely by swapping the CartesianLayerRangeProvider instance.
+    // The axis ranges below are windowed to it, and the model is rebuilt when they change — Vico
+    // only reliably re-applies axis ranges via a real modelProducer.runTransaction, not merely by
+    // swapping the CartesianLayerRangeProvider instance.
     val visibleRangeHolder = remember { VisibleRangeHolder() }
     val visibleRangeReporter = rememberVisibleRangeReporter(visibleRangeHolder)
 
@@ -488,72 +500,6 @@ fun SecondaryGraphCompose(
         }
     }
     val hasPrimaryData = primarySeries.isNotEmpty()
-
-    LaunchedEffect(
-        processedSimpleSeries,
-        processedDevSlopeMin,
-        processedDeviationLines,
-        processedIob,
-        processedIobTreatments,
-        processedCob,
-        processedCarbs,
-        processedBasalProfile,
-        processedBasalActual,
-        processedSecondary,
-        processedActivityOverlay,
-        maxX,
-        visibleMinX,
-        visibleMaxX
-    ) {
-        // Always populate the model — even with no data / no real time range — so the chart frame
-        // (axes, grid, now-line) renders the empty-state normalizer series instead of staying blank.
-        // (Matches TreatmentBeltGraphCompose.) When data is absent the processed* lists are empty,
-        // so only the normalizer is emitted; the primary range provider anchors an empty 0..1 axis.
-        modelProducer.runTransaction {
-            // Primary line layer — emit in the exact order of `primarySeries` so the line styles
-            // (built from the same list) map 1:1 to the series.
-            lineModel {
-                primarySeries.forEach { spec -> series(x = spec.x, y = spec.y) }
-                // Normalizer — ensures identical maxPointSize across all charts
-                series(x = normalizerX(maxX), y = NORMALIZER_Y)
-            }
-
-            // Block 2 → Basal layer (end axis, flipped) OR secondary series layer (end axis)
-            if (hasBasalLayer) {
-                lineModel {
-                    if (processedBasalActual.size >= 2) {
-                        series(x = processedBasalActual.map { it.first }, y = processedBasalActual.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                    if (processedBasalProfile.size >= 2) {
-                        series(x = processedBasalProfile.map { it.first }, y = processedBasalProfile.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                }
-            } else if (isDualAxis) {
-                lineModel {
-                    if (processedSecondary.isNotEmpty()) {
-                        series(x = processedSecondary.map { it.first }, y = processedSecondary.map { it.second })
-                    } else {
-                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                    }
-                    // Carb markers when COB is the right-axis series; secondaryAxisLines has a style for them
-                    if (secondaryCarbs.isNotEmpty())
-                        series(x = secondaryCarbs.map { it.first }, y = secondaryCarbs.map { it.second })
-                    // Normalizer for end axis layer
-                    series(x = normalizerX(maxX), y = NORMALIZER_Y)
-                }
-            }
-
-            // Forces Vico to reprocess this transaction even when the series data above is
-            // identical to last time (see VISIBLE_RANGE_KEY doc) — otherwise scrolling/zooming
-            // would re-submit the same partials and get silently skipped, never picking up the
-            // updated primaryRangeProvider.
-            extras { it[VISIBLE_RANGE_KEY] = visibleMinX to visibleMaxX }
-        }
-    }
 
     // =========================================================================
     // Line styles
@@ -855,6 +801,77 @@ fun SecondaryGraphCompose(
             else               -> stepPlacer
         }
     }
+
+    // The model is rebuilt only when the data or the axes change, not on every scroll step. While
+    // scrolling, the visible window changes up to 20 times per second, but the axis ranges (nice
+    // numbers) mostly stay the same, and rebuilding the model would also restart Vico's change
+    // animation each time.
+    val axisScale = AxisScale(primaryRangeProvider, secondaryRangeProvider, basalRangeProvider, startAxisItemPlacer)
+    LaunchedEffect(
+        processedSimpleSeries,
+        processedDevSlopeMin,
+        processedDeviationLines,
+        processedIob,
+        processedIobTreatments,
+        processedCob,
+        processedCarbs,
+        processedBasalProfile,
+        processedBasalActual,
+        processedSecondary,
+        processedActivityOverlay,
+        maxX,
+        axisScale
+    ) {
+        // Always populate the model — even with no data / no real time range — so the chart frame
+        // (axes, grid, now-line) renders the empty-state normalizer series instead of staying blank.
+        // (Matches TreatmentBeltGraphCompose.) When data is absent the processed* lists are empty,
+        // so only the normalizer is emitted; the primary range provider anchors an empty 0..1 axis.
+        modelProducer.runTransaction {
+            // Primary line layer — emit in the exact order of `primarySeries` so the line styles
+            // (built from the same list) map 1:1 to the series.
+            lineModel {
+                primarySeries.forEach { spec -> series(x = spec.x, y = spec.y) }
+                // Normalizer — ensures identical maxPointSize across all charts
+                series(x = normalizerX(maxX), y = NORMALIZER_Y)
+            }
+
+            // Block 2 → Basal layer (end axis, flipped) OR secondary series layer (end axis)
+            if (hasBasalLayer) {
+                lineModel {
+                    if (processedBasalActual.size >= 2) {
+                        series(x = processedBasalActual.map { it.first }, y = processedBasalActual.map { it.second })
+                    } else {
+                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                    }
+                    if (processedBasalProfile.size >= 2) {
+                        series(x = processedBasalProfile.map { it.first }, y = processedBasalProfile.map { it.second })
+                    } else {
+                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                    }
+                }
+            } else if (isDualAxis) {
+                lineModel {
+                    if (processedSecondary.isNotEmpty()) {
+                        series(x = processedSecondary.map { it.first }, y = processedSecondary.map { it.second })
+                    } else {
+                        series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
+                    }
+                    // Carb markers when COB is the right-axis series; secondaryAxisLines has a style for them
+                    if (secondaryCarbs.isNotEmpty())
+                        series(x = secondaryCarbs.map { it.first }, y = secondaryCarbs.map { it.second })
+                    // Normalizer for end axis layer
+                    series(x = normalizerX(maxX), y = NORMALIZER_Y)
+                }
+            }
+
+            // Forces Vico to reprocess this transaction even when the series data above is
+            // identical to last time (see AXIS_SCALE_KEY doc) — otherwise scrolling/zooming
+            // would re-submit the same partials and get silently skipped, never picking up the
+            // updated primaryRangeProvider.
+            extras { it[AXIS_SCALE_KEY] = axisScale }
+        }
+    }
+
     val startAxis = VerticalAxis.rememberStart(
         itemPlacer = startAxisItemPlacer,
         label = rememberTextComponent(
