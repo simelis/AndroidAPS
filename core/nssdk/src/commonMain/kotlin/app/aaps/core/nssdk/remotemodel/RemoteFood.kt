@@ -2,6 +2,7 @@ package app.aaps.core.nssdk.remotemodel
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /**
  * Depending on the type, different other fields are present.
@@ -29,6 +30,8 @@ internal data class RemoteFood(
     @SerialName("portion") val portion: Double = 0.0,
     @SerialName("carbs") val carbs: Int = 0,
     @SerialName("gi") val gi: Int? = null,
+    @SerialName("aapsECarbsRule") val aapsECarbsRule: JsonElement? = null,
+    @SerialName("aapsAskAmount") val aapsAskAmount: Boolean? = null,
     @SerialName("energy") val energy: Int? = null,
     @SerialName("protein") val protein: Int? = null,
     @SerialName("fat") val fat: Int? = null,

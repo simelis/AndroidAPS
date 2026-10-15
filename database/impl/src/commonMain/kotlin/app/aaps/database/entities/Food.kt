@@ -49,7 +49,6 @@ data class Food(
 
 ) : TraceableDBEntry {
 
-    /** Leaves out [eCarbsRuleJson] and [askAmount]: they are not in Nightscout yet, so a download must not change them. */
     fun contentEqualsTo(other: Food): Boolean {
         if (isValid != other.isValid) return false
         if (portion != other.portion) return false
@@ -61,6 +60,8 @@ data class Food(
         if (name != other.name) return false
         if (category != other.category) return false
         if (subCategory != other.subCategory) return false
+        if (eCarbsRuleJson != other.eCarbsRuleJson) return false
+        if (askAmount != other.askAmount) return false
         return unit == other.unit
     }
 
@@ -76,6 +77,8 @@ data class Food(
         energy = other.energy
         unit = other.unit
         gi = other.gi
+        eCarbsRuleJson = other.eCarbsRuleJson
+        askAmount = other.askAmount
         interfaceIDs.nightscoutId = other.interfaceIDs.nightscoutId
     }
 }
