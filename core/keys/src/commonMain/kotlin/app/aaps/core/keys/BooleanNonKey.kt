@@ -41,6 +41,7 @@ enum class BooleanNonKey(
     StatsTirExpanded("stats_tir_expanded", true, exportable = false),
     StatsDexcomTirExpanded("stats_dexcom_tir_expanded", true, exportable = false),
     StatsTddCycleExpanded("stats_tdd_cycle_expanded", false, exportable = false),
+    FoodShowFavouritesOnly("food_show_favourites_only", false, exportable = false),
 
     // Set (committed) right before a startup VACUUM and cleared after it finishes. If it is still
     // set on the next launch, the previous VACUUM died below the JVM (native abort / OOM) — used to

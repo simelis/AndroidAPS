@@ -2,11 +2,20 @@ package app.aaps.ui.compose.wizardDialog
 
 import androidx.lifecycle.SavedStateHandle
 import app.aaps.core.data.model.GV
+import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
+import app.aaps.core.data.model.BolusWizardData
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.pump.defs.PumpDescription
+import app.aaps.core.interfaces.aps.AutosensDataStore
+import app.aaps.core.interfaces.aps.IobTotal
 import app.aaps.core.data.model.SourceSensor
 import app.aaps.core.data.model.TrendArrow
 import app.aaps.core.data.time.T
 import app.aaps.core.interfaces.automation.Automation
 import app.aaps.core.interfaces.bolus.WizardExecutor
+import app.aaps.core.interfaces.clientcontrol.ActionProgress
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
 import app.aaps.core.interfaces.db.PersistenceLayer
@@ -15,7 +24,10 @@ import app.aaps.core.interfaces.iob.IobCobCalculator
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.profile.ProfileFunction
+import app.aaps.core.interfaces.profile.EffectiveProfile
 import app.aaps.core.interfaces.profile.ProfileRepository
+import app.aaps.core.interfaces.profile.ProfileStore
+import app.aaps.core.interfaces.pump.PumpWithConcentration
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
@@ -24,9 +36,12 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.IntKey
+import app.aaps.core.objects.constraints.ConstraintObject
+import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.runningMode.RunningModeGuard
 import app.aaps.core.objects.wizard.BolusWizard
+import app.aaps.ui.UiStrings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +58,15 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.anyVararg
+import org.mockito.kotlin.atLeastOnce
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -71,6 +94,7 @@ internal class WizardDialogViewModelTest {
     private val bolusWizardProvider: () -> BolusWizard = mock()
 
     private lateinit var sut: WizardDialogViewModel
+    private lateinit var savedStateHandle: SavedStateHandle
 
     private val mainDispatcher = StandardTestDispatcher()
 
@@ -85,13 +109,16 @@ internal class WizardDialogViewModelTest {
         // before any test body. With no profile store it returns straight away, which is all these tests need.
         whenever(profileRepository.profile).thenReturn(MutableStateFlow(null))
         Dispatchers.setMain(mainDispatcher)
-        sut = WizardDialogViewModel(
-            SavedStateHandle(), bolusWizardProvider, constraintChecker, profileFunction, profileUtil,
+        savedStateHandle = SavedStateHandle()
+        sut = createViewModel()
+    }
+
+    private fun createViewModel() = WizardDialogViewModel(
+            savedStateHandle, bolusWizardProvider, constraintChecker, profileFunction, profileUtil,
             profileRepository, activePlugin, ch, iobCobCalculator, persistenceLayer, preferences, config,
             rh, dateUtil, decimalFormatter, aapsLogger, runningModeGuard, automation, wizardExecutor, rxBus,
             CoroutineScope(UnconfinedTestDispatcher())
         )
-    }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
@@ -103,6 +130,174 @@ internal class WizardDialogViewModelTest {
 
         assertThat(sut.uiState.value.notes).isEqualTo("wizard note")
         assertThat(sut.uiState.value.alarmChecked).isTrue()
+    }
+
+    private suspend fun stubFoodInitialization(food: FD, rule: FoodECarbsRule? = null) {
+        savedStateHandle["foodId"] = food.id.toString()
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food.copy(eCarbsRule = rule ?: food.eCarbsRule)))
+        val store = mock<ProfileStore>()
+        whenever(store.getProfileList()).thenReturn(arrayListOf<CharSequence>("Test"))
+        whenever(profileRepository.profile).thenReturn(MutableStateFlow(store))
+        whenever(profileFunction.getUnits()).thenReturn(GlucoseUnit.MGDL)
+        whenever(constraintChecker.getMaxCarbsAllowed()).thenReturn(ConstraintObject(100, aapsLogger))
+        whenever(constraintChecker.getMaxBolusAllowed()).thenReturn(ConstraintObject(10.0, aapsLogger))
+        val pump = mock<PumpWithConcentration>()
+        whenever(activePlugin.activePump).thenReturn(pump)
+        whenever(pump.pumpDescription).thenReturn(PumpDescription())
+        whenever(iobCobCalculator.ads).thenReturn(mock<AutosensDataStore>())
+        whenever(iobCobCalculator.calculateIobFromBolus()).thenReturn(IobTotal(NOW))
+        whenever(iobCobCalculator.calculateIobFromTempBasalsIncludingConvertedExtended()).thenReturn(IobTotal(NOW))
+        whenever(preferences.get(IntKey.OverviewBolusPercentage)).thenReturn(100)
+        whenever(rh.gs(CoreUiStrings.active)).thenReturn("Active")
+        // Created after the stubs, so init sees the food and the profile store
+        sut = createViewModel()
+    }
+
+    @Test
+    fun `food navigation applies a saved rule and waits for the amount eaten`() = runTest(mainDispatcher.scheduler) {
+        val meal = FD(id = 7, name = "Pizza & salad? #1", portion = 200.0, carbs = 50, protein = 20, fat = 10)
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
+        stubFoodInitialization(meal, rule)
+        advanceUntilIdle()
+        val state = sut.uiState.value
+        assertThat(state.notes).isEqualTo(meal.name)
+        assertThat(state.carbs).isEqualTo(0)
+        assertThat(state.foodECarbs!!.rule).isEqualTo(rule)
+        assertThat(state.foodECarbs!!.enabled).isTrue()
+        assertThat(state.eCarbs).isEqualTo(0)
+        assertThat(state.foodInputsValid).isFalse()
+        sut.updateFoodAmount(300.0)
+        assertThat(sut.uiState.value.carbs).isEqualTo(75)
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(26)
+    }
+
+    @Test
+    fun `a usual amount starts at the saved amount and scales carbs and eCarbs by the amount eaten`() = runTest(mainDispatcher.scheduler) {
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
+        stubFoodInitialization(FD(id = 7, name = "Two slices", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10, askAmount = false), rule)
+        advanceUntilIdle()
+        val food = sut.uiState.value.foodECarbs!!
+        assertThat(food.amount).isEqualTo(2.0)
+        assertThat(food.enabled).isTrue()
+        assertThat(sut.uiState.value.carbs).isEqualTo(50)
+        assertThat(sut.uiState.value.notes).isEqualTo("Two slices")
+        assertThat(sut.uiState.value.foodInputsValid).isTrue()
+
+        // 4 pieces is twice the saved 2: (4 × 40 + 9 × 20) / 10 = 34
+        sut.updateFoodAmount(4.0)
+        assertThat(sut.uiState.value.carbs).isEqualTo(100)
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(34)
+    }
+
+    @Test
+    fun `serving and method changes clear a one meal override and keep all macros in scale`() = runTest(mainDispatcher.scheduler) {
+        stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10), FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
+        advanceUntilIdle()
+        sut.updateFoodAmount(200.0)
+        sut.updateFoodECarbsGrams(5)
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(5)
+        sut.updateFoodAmount(300.0)
+        assertThat(sut.uiState.value.carbs).isEqualTo(75)
+        assertThat(sut.uiState.value.foodECarbs!!.proteinGrams).isEqualTo(30.0)
+        assertThat(sut.uiState.value.foodECarbs!!.fatGrams).isEqualTo(15.0)
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(26)
+        sut.updateFoodECarbsGrams(5)
+        sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 90, durationHours = 4))
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(5)
+        assertThat(sut.uiState.value.foodECarbs!!.overrideGrams).isEqualTo(5)
+        sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.MODIFIED_FPU, durationHours = 3))
+        assertThat(sut.uiState.value.foodECarbs!!.overrideGrams).isNull()
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(13)
+    }
+
+    @Test
+    fun `switching between food mode and the presets never combines both calculations`() = runTest(mainDispatcher.scheduler) {
+        stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 60, protein = 20, fat = 10), FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
+        advanceUntilIdle()
+        sut.updateFoodAmount(200.0)
+        sut.updateCarbsType(CarbsType.PIZZA)
+        assertThat(sut.uiState.value.carbPlan().carbs).isEqualTo(48)
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(21)
+        sut.toggleFoodECarbs(true)
+        assertThat(sut.uiState.value.carbPlan().carbs).isEqualTo(60)
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(17)
+        sut.updateCarbsType(CarbsType.CAKE)
+        assertThat(sut.uiState.value.foodECarbs!!.enabled).isFalse()
+        assertThat(sut.uiState.value.carbPlan().carbs).isEqualTo(54)
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(12)
+    }
+
+    @Test
+    fun `missing protein fat cannot enable food mode`() = runTest(mainDispatcher.scheduler) {
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.CUSTOM, proteinPercent = 50, durationHours = 3)
+        stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = null, fat = 10), rule)
+        advanceUntilIdle()
+        assertThat(sut.uiState.value.foodECarbs!!.rule.isValid).isTrue()
+        sut.toggleFoodECarbs(true)
+        assertThat(sut.uiState.value.foodECarbs!!.enabled).isFalse()
+    }
+
+    @Test
+    fun `food meal submission sends scaled carbs and eCarbs with carb time added once`() = runTest(mainDispatcher.scheduler) {
+        stubFoodInitialization(
+            FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10),
+            FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3)
+        )
+        whenever(profileFunction.getProfile()).thenReturn(mock<EffectiveProfile>())
+        whenever(profileFunction.getProfileName()).thenReturn("Test")
+        whenever(constraintChecker.applyCarbsConstraints(any())).thenAnswer { it.arguments[0] }
+        val wizard = mock<BolusWizard>()
+        val result = mock<BolusWizardData>()
+        whenever(result.calculatedTotalInsulin).thenReturn(1.0)
+        whenever(wizard.data).thenReturn(result)
+        whenever(bolusWizardProvider.invoke()).thenReturn(wizard)
+        whenever(wizard.doCalc(any(), any(), anyOrNull(), any(), any(), any(), any(), any(), any(), any(),
+            any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(wizard)
+        whenever(rh.gs(CoreUiStrings.clientcontrol_action_deliver_bolus)).thenReturn("Deliver bolus")
+        whenever(wizardExecutor.prepare(any(), any())).thenReturn(ActionProgress.Sending)
+        whenever(rh.gs(UiStrings.food_ecarbs_fpu)).thenReturn("FPU")
+        whenever(rh.gs(eq(UiStrings.food_history_note_ecarbs), anyVararg())).thenReturn("Meal summary")
+        whenever(rh.gs(UiStrings.food_history_ecarbs_label)).thenReturn("eCarbs")
+        advanceUntilIdle()
+        sut.updateCarbsType(CarbsType.PIZZA)
+        sut.updateFoodAmount(300.0)
+        advanceUntilIdle()
+        // Pizza: only the split goes in the note, not the name of the choice
+        verify(rh, atLeastOnce()).gs(UiStrings.food_history_note_ecarbs, "Meal", "300", "g", "eCarbs", 80, 75, 26, 60, 3)
+        sut.toggleFoodECarbs(true)
+        sut.updateCarbTime(15)
+        advanceUntilIdle()
+        sut.deliverManualWizard()
+        advanceUntilIdle()
+
+        val source = argumentCaptor<WizardExecutor.WizardSource>()
+        verify(wizardExecutor).prepare(source.capture(), any())
+        val inputs = (source.firstValue as WizardExecutor.WizardSource.Manual).inputs
+        assertThat(inputs.carbs).isEqualTo(75)
+        assertThat(inputs.eCarbsGrams).isEqualTo(26)
+        assertThat(inputs.carbTime).isEqualTo(15)
+        assertThat(inputs.eCarbsDelayMinutes).isEqualTo(75)
+        assertThat(inputs.eCarbsDurationHours).isEqualTo(3)
+        verify(rh, atLeastOnce()).gs(UiStrings.food_history_note_ecarbs, "Meal", "300", "g", "FPU", 100, 75, 26, 60, 3)
+        assertThat(inputs.notes).isEqualTo("Meal summary")
+    }
+
+    @Test
+    fun `wizard meal edits never overwrite the stored food rule`() = runTest(mainDispatcher.scheduler) {
+        stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10), FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
+        advanceUntilIdle()
+        sut.updateFoodAmount(300.0)
+        sut.updateFoodECarbsGrams(5)
+        verify(persistenceLayer, never()).insertOrUpdateFood(any())
+    }
+
+    @Test
+    fun `deleted food is reported and cannot be submitted`() = runTest(mainDispatcher.scheduler) {
+        stubFoodInitialization(FD(id = 7, name = "Deleted meal", portion = 200.0, carbs = 50, isValid = false))
+        advanceUntilIdle()
+        assertThat(sut.uiState.value.foodUnavailable).isTrue()
+        assertThat(sut.uiState.value.foodInputsValid).isFalse()
+        assertThat(sut.hasAction()).isFalse()
     }
 
     /**

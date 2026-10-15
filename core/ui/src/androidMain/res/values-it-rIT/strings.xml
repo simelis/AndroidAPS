@@ -1031,7 +1031,6 @@
     <string name="name">Nome</string>
     <string name="category">Categoria</string>
     <string name="subcategory">Sottocategoria</string>
-    <string name="portion">Porzione</string>
     <string name="unit_label">Unità</string>
     <string name="undo">Annulla</string>
     <string name="no_data">Nessun dato</string>

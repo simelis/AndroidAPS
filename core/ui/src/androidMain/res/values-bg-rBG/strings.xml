@@ -984,7 +984,6 @@
     <string name="name">Име</string>
     <string name="category">Категория</string>
     <string name="subcategory">Подкатегория</string>
-    <string name="portion">Порция</string>
     <string name="unit_label">Единица</string>
     <string name="undo">Отмяна</string>
     <string name="no_data">Няма данни</string>

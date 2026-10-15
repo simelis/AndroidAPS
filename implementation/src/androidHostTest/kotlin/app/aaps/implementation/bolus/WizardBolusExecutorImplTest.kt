@@ -100,6 +100,89 @@ class WizardBolusExecutorImplTest : TestBaseWithProfile() {
         whenever(profileFunction.getUnits()).thenReturn(GlucoseUnit.MGDL)
     }
 
+    private fun foodWizardInputs(eCarbs: Int = 17, duration: Int = 3) = WizardBolusExecutor.WizardInputs(
+        bg = 100.0, carbs = 0, percentage = 100, directCorrection = 0.0, carbTime = 0,
+        useBg = false, useCob = false, useIob = true, useTt = false, useTrend = false,
+        alarm = false, notes = "Protein meal", eCarbsGrams = eCarbs, eCarbsDelayMinutes = 60, eCarbsDurationHours = duration
+    )
+
+    private suspend fun stubManualFoodWizard(): BolusWizard {
+        whenever(config.appInitialized).thenReturn(true)
+        whenever(runningModeGuard.rejectionMessage(any())).thenReturn(null)
+        whenever(profileFunction.getProfile()).thenReturn(mock<EffectiveProfile>())
+        whenever(profileFunction.getProfileName()).thenReturn("Test")
+        val pump = mock<PumpWithConcentration>()
+        whenever(activePlugin.activePump).thenReturn(pump)
+        whenever(pump.isInitialized()).thenReturn(true)
+        whenever(pump.pumpDescription).thenReturn(PumpDescription())
+        stubPassthroughConstraints()
+        whenever(constraintsChecker.getMaxBolusAllowed()).thenReturn(ConstraintObject(10.0, aapsLogger))
+        val wizard = mock<BolusWizard>()
+        whenever(bolusWizardProvider.invoke()).thenReturn(wizard)
+        whenever(wizard.doCalc(any(), any(), anyOrNull(), any(), any(), any(), any(), any(), any(), any(),
+            any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(wizard)
+        val timestamp = dateUtil.now()
+        val bcr = mock<BCR>()
+        whenever(wizard.timeStamp).thenReturn(timestamp)
+        whenever(wizard.createBolusCalculatorResult()).thenReturn(bcr)
+        whenever(wizard.buildWizardDetail()).thenReturn(EventData.WizardDetail(
+            totalInsulin = 0.0, carbs = 0, insulinFromBG = 0.0, insulinFromTrend = 0.0,
+            insulinFromCOB = 0.0, insulinFromCarbs = 0.0, insulinFromBolusIOB = 0.0, insulinFromBasalIOB = 0.0,
+            includeBolusIOB = true, includeBasalIOB = true, percentageCorrection = 100, cob = 0.0,
+            tempTargetLabel = null, ic = 10.0, sens = 50.0
+        ))
+        whenever(wizard.buildConfirmationLines(any(), anyOrNull(), any(), any(), any(), any())).thenReturn(emptyList())
+        return wizard
+    }
+
+    @Test
+    fun prepareWizard_foodECarbsOnly_canBeConfirmedOnceWithoutImmediateInsulin() = runTest {
+        stubManualFoodWizard()
+        whenever(commandQueue.bolus(anyOrNull())).thenReturn(pumpEnactResultProvider().success(true))
+        val executor = create()
+        val preview = executor.prepareWizard(foodWizardInputs()) as WizardBolusExecutor.PrepareResult.Preview
+        assertThat(preview.insulin).isEqualTo(0.0)
+        assertThat(preview.carbs).isEqualTo(0)
+        var succeeded = false
+        assertThat(executor.confirm(preview.bolusId, Sources.WizardDialog, {}, onSuccess = { succeeded = true }))
+            .isEqualTo(WizardBolusExecutor.ConfirmResult.Delivered)
+        val delivered = argumentCaptor<DetailedBolusInfo>()
+        verify(commandQueue).bolus(delivered.capture())
+        assertThat(delivered.firstValue.insulin).isEqualTo(0.0)
+        assertThat(delivered.firstValue.carbs).isEqualTo(17.0)
+        assertThat(delivered.firstValue.carbsDuration).isEqualTo(T.hours(3).msecs())
+        assertThat(delivered.firstValue.notes).isEqualTo("Protein meal")
+        assertThat(succeeded).isTrue()
+        assertThat(executor.confirm(preview.bolusId, Sources.WizardDialog, {})).isEqualTo(WizardBolusExecutor.ConfirmResult.NoPending)
+    }
+
+    @Test
+    fun prepareWizard_foodECarbsAreCheckedAgainstTheMastersCurrentCarbLimit() = runTest {
+        stubManualFoodWizard()
+        stubCarbsLimit(16)
+        assertThat(create().prepareWizard(foodWizardInputs())).isInstanceOf(WizardBolusExecutor.PrepareResult.Error::class.java)
+        verify(bolusWizardProvider, never()).invoke()
+    }
+
+    @Test
+    fun prepareWizard_foodECarbsWithInvalidTimingAreRefused() = runTest {
+        stubManualFoodWizard()
+        val executor = create()
+        listOf(foodWizardInputs(duration = 0), foodWizardInputs(duration = 11), foodWizardInputs().copy(eCarbsDelayMinutes = 781),
+            foodWizardInputs(eCarbs = -1)).forEach {
+            assertThat(executor.prepareWizard(it)).isInstanceOf(WizardBolusExecutor.PrepareResult.Error::class.java)
+        }
+        verify(bolusWizardProvider, never()).invoke()
+    }
+
+    @Test
+    fun prepareWizard_zeroInsulinAndNoCarbsStillParksNothing() = runTest {
+        val wizard = stubManualFoodWizard()
+        val executor = create()
+        assertThat(executor.prepareWizard(foodWizardInputs(eCarbs = 0))).isInstanceOf(WizardBolusExecutor.PrepareResult.Error::class.java)
+        assertThat(executor.confirm(wizard.timeStamp, Sources.WizardDialog, {})).isEqualTo(WizardBolusExecutor.ConfirmResult.NoPending)
+    }
+
     @Test
     fun deliverWizardBolus_recordsCanonicalBolusWizardAndPersistsBcrOnce() = runTest {
         whenever(runningModeGuard.rejectionMessage(any())).thenReturn(null)
