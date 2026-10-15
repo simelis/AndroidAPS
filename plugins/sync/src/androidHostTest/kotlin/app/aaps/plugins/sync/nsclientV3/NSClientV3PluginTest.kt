@@ -34,6 +34,7 @@ import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.StringNonKey
 import app.aaps.core.nssdk.interfaces.NSAndroidClient
+import app.aaps.core.nssdk.localmodel.food.NSFood
 import app.aaps.core.nssdk.localmodel.treatment.CreateUpdateResponse
 import app.aaps.core.nssdk.remotemodel.LastModified
 import app.aaps.plugins.sync.SyncStringsValues
@@ -63,6 +64,7 @@ import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mock
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -467,6 +469,51 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
         whenever(nsAndroidClient.updateTreatment(anyOrNull())).thenReturn(CreateUpdateResponse(200, "aaa"))
         sut.nsUpdate("treatments", dataPair, "1/3")
         assertThat(storeDataForDb.nsIdProfileSwitches.snapshot()).hasSize(2)
+    }
+
+    @Test
+    fun `a food edit is sent to Nightscout`() = runTest {
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
+        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(200, null))
+
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isTrue()
+
+        val sent = argumentCaptor<NSFood>()
+        verify(nsAndroidClient).updateFood(sent.capture())
+        assertThat(sent.firstValue.carbs).isEqualTo(25)
+        assertThat(sent.firstValue.identifier).isEqualTo("ns-food")
+    }
+
+    @Test
+    fun `a food deleted in Nightscout but restored or edited here is added again`() = runTest {
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-old"))
+        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(410, null))
+        whenever(nsAndroidClient.createFood(any())).thenReturn(CreateUpdateResponse(201, "ns-new"))
+
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isTrue()
+
+        val created = argumentCaptor<NSFood>()
+        verify(nsAndroidClient).createFood(created.capture())
+        assertThat(created.firstValue.identifier).isNull()
+        assertThat(storeDataForDb.nsIdFoods.snapshot().single().ids.nightscoutId).isEqualTo("ns-new")
+    }
+
+    @Test
+    fun `a food edit that Nightscout rejects is not counted as uploaded`() = runTest {
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
+        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(400, null, errorResponse = "Bad request"))
+
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isFalse()
+    }
+
+    @Test
+    fun `a food delete that Nightscout already has is done`() = runTest {
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, isValid = false, ids = IDs(nightscoutId = "ns-old"))
+        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(410, null))
+
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isTrue()
+
+        verify(nsAndroidClient, never()).createFood(any())
     }
 
     @Test

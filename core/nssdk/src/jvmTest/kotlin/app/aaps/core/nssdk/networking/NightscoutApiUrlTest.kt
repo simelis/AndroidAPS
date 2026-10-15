@@ -4,7 +4,11 @@ import app.aaps.core.nssdk.remotemodel.RemoteFood
 import com.google.common.truth.Truth.assertThat
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import org.junit.jupiter.api.AfterEach
@@ -136,19 +140,34 @@ class NightscoutApiUrlTest {
         assertThat(path.removePrefix("/api/v3/settings/")).isEqualTo("a%2Fb%20c")
     }
 
-    // ---------------------------------------------------------------- food is deliberately inert
-
-    /**
-     * Food update and delete must not reach the network. See `NightscoutApi.updateFood` - sending
-     * these would be a collection-wide request against a live Nightscout.
-     */
     @Test
-    fun `food update and delete send nothing`() = runTest {
-        val food = RemoteFood(name = "Apple", portion = 100.0, carbs = 12, identifier = "x", isValid = true, isReadOnly = false)
+    fun `food patches address exactly one encoded identifier and omit immutable fields`() = runTest {
+        val food = RemoteFood(name = "Apple", portion = 100.0, carbs = 12, identifier = "x", isValid = true, isReadOnly = false,
+            date = 123456789L, app = "AAPS")
+        server.enqueue(MockResponse.Builder().code(200).body("{}").build())
+        assertThat(api.updateFood(food, "a/b c").isSuccessful).isTrue()
+        val request = server.takeRequest()
+        assertThat(request.method).isEqualTo("PATCH")
+        assertThat(request.target).isEqualTo("/api/v3/food/a%2Fb%20c")
+        val body = Json.parseToJsonElement(request.body!!.utf8()).jsonObject
+        assertThat(body["carbs"]).isEqualTo(JsonPrimitive(12))
+        assertThat(body["fat"]).isEqualTo(JsonNull)
+        listOf("date", "identifier", "app", "device", "isValid", "srvModified").forEach { assertThat(body).doesNotContainKey(it) }
+    }
 
-        runCatching { api.updateFood(food, identifier = "x") }
-        runCatching { api.deleteFood("x") }
+    @Test
+    fun `food history reads changes since a server time`() = runTest {
+        server.enqueue(MockResponse.Builder().code(200).body("""{"status":200,"result":[]}""").build())
+        api.getFoodsModifiedSince(1234L, 500)
+        assertThat(server.takeRequest().target).isEqualTo("/api/v3/food/history/1234?limit=500")
+    }
 
-        assertThat(server.requestCount).isEqualTo(0)
+    @Test
+    fun `food deletes address one identifier`() = runTest {
+        server.enqueue(MockResponse.Builder().code(200).body("{}").build())
+        api.deleteFood("a/b")
+        val request = server.takeRequest()
+        assertThat(request.method).isEqualTo("DELETE")
+        assertThat(request.target).isEqualTo("/api/v3/food/a%2Fb")
     }
 }

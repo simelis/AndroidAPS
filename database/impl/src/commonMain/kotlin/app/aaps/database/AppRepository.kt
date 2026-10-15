@@ -651,6 +651,9 @@ class AppRepository internal constructor(
     suspend fun getLastFoodId(): Long? =
         database.foodDao.getLastId()
 
+    suspend fun clearUploadedFoodEdits(uploadedUpTo: Long): Int =
+        database.foodDao.clearUploadedEdits(uploadedUpTo)
+
     // BOLUS
     suspend fun getBolusByNSId(nsId: String): Bolus? =
         database.bolusDao.getByNSId(nsId)
