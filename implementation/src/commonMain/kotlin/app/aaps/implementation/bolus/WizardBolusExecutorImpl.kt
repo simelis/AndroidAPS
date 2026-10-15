@@ -329,8 +329,8 @@ class WizardBolusExecutorImpl(
         // through this path — phone wizard dialog, client relay, watch — gets it (it was previously only in the wear handler).
         if (wizard.calculatedTotalInsulin <= 0.0 && wizard.carbs <= 0 && inputs.eCarbsGrams <= 0)
             return WizardBolusExecutor.PrepareResult.Error(rh.gs(CoreUiStrings.wizard_no_insulin_required))
-        // A limit that leaves no insulin at all, and there are no carbs either: nothing would be given.
-        if (capped && insulinAfterConstraints <= 0.0 && wizard.carbs <= 0)
+        // A limit that leaves no insulin at all, and there are no carbs or eCarbs either: nothing would be given.
+        if (capped && insulinAfterConstraints <= 0.0 && wizard.carbs <= 0 && inputs.eCarbsGrams <= 0)
             return WizardBolusExecutor.PrepareResult.Error(rh.gs(CoreUiStrings.wizard_constraint_bolus_size, wizard.calculatedTotalInsulin))
         evictStalePending()
         pending.park(wizard.timeStamp,

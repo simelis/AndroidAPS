@@ -115,6 +115,8 @@ class WizardBolusExecutorImplTest : TestBaseWithProfile() {
         whenever(activePlugin.activePump).thenReturn(pump)
         whenever(pump.isInitialized()).thenReturn(true)
         whenever(pump.pumpDescription).thenReturn(PumpDescription())
+        // The step is the interface default, read from the description; a plain mock would answer 0.0.
+        whenever(pump.bolusStepSize(any())).thenCallRealMethod()
         stubPassthroughConstraints()
         whenever(constraintsChecker.getMaxBolusAllowed()).thenReturn(ConstraintObject(10.0, aapsLogger))
         val wizard = mock<BolusWizard>()

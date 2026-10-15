@@ -193,11 +193,11 @@ class SyncNsFoodTransactionTest {
         val existing = createFood(id = 1, nsId = "ns-123", name = "Meal", carbs = 25).apply { eCarbsRuleJson = rule; askAmount = false }
         whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
 
-        SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 25)))
+        SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 25)), lastUploadedId = 0)
             .apply { database = this@SyncNsFoodTransactionTest.database }.run()
         verify(foodDao, never()).updateExistingEntry(any())
 
-        SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 30)))
+        SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 30)), lastUploadedId = 0)
             .apply { database = this@SyncNsFoodTransactionTest.database }.run()
         assertThat(existing.carbs).isEqualTo(30)
         assertThat(existing.eCarbsRuleJson).isEqualTo(rule)
