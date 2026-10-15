@@ -19,9 +19,9 @@ The amount eaten and changes made for one meal are never saved with the food. Th
 
 ## Storage
 
-- The formula is stored in the food row in the database (`eCarbsRuleJson`, database version 37) and read into a typed `FoodECarbsRule`. A formula that cannot be read, or is not valid, is treated as no formula. The fixed amount is for the saved amount of the food.
-- **Enter the amount every time** is the `askAmount` column (also database version 37). The 36 to 37 migration sets it the way foods were used before: a food in g, gram, grams or kg is asked every time, any other starts at its portion. A food downloaded from Nightscout gets the same rule.
-- **Phone-only.** The formula and the amount setting are not sent to Nightscout. A Nightscout download neither sees them as a change nor overwrites them, so they stay on the phone where they were set (a food from the Nightscout web editor keeps them too).
+- The formula is stored in the food row in the database (`eCarbsRuleJson`, database version 38) and synced as the `aapsECarbsRule` field of the Nightscout food and read into a typed `FoodECarbsRule`. A formula that cannot be read, or is not valid, is treated as no formula. The fixed amount is for the saved amount of the food.
+- **Enter the amount every time** is the `askAmount` column (also database version 38) and the `aapsAskAmount` field in Nightscout. The 37 to 38 migration sets it the way foods were used before: a food in g, gram, grams or kg is asked every time, any other starts at its portion. A food from Nightscout without the field (made in the web editor) gets the same rule.
+- **Sync.** The formula and the amount setting go with the food changes that AAPS uploads, and a download takes them over like the other fields. A missing field in an update keeps the old value on the server, so "no formula" is sent as `aapsECarbsRule: null`. The Nightscout web editor removes unknown fields when it saves a food, so edit foods with a formula in AAPS.
 
 ## Calculation
 
