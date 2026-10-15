@@ -23,6 +23,7 @@ import io.ktor.http.contentType
 import io.ktor.http.takeFrom
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -225,6 +226,8 @@ internal class NightscoutApi(
             put("energy", remoteFood.energy)
             put("protein", remoteFood.protein)
             put("fat", remoteFood.fat)
+            put("aapsECarbsRule", remoteFood.aapsECarbsRule ?: JsonNull)
+            put("aapsAskAmount", remoteFood.aapsAskAmount)
         }
         return call(HttpMethod.Patch, RemoteCreateUpdateResponse.serializer()) {
             nsUrl("v3", "food", identifier); jsonBody(patch)
