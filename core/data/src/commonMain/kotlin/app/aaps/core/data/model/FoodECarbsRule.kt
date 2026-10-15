@@ -3,6 +3,8 @@ package app.aaps.core.data.model
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 
 enum class FoodECarbsMethod { CUSTOM, FPU, MODIFIED_FPU }
 
@@ -50,6 +52,8 @@ data class FoodECarbsRule(
         }
     }
 
+    fun toJson(): JsonElement = json.encodeToJsonElement(serializer(), this)
+
     fun toJsonString(): String = json.encodeToString(serializer(), this)
 
     companion object {
@@ -65,9 +69,17 @@ data class FoodECarbsRule(
         }
 
         /** A rule that cannot be read or is not valid gives null, never a guessed rule. */
+        fun fromJson(element: JsonElement?): FoodECarbsRule? =
+            if (element == null || element == JsonNull) null
+            else readSafely { json.decodeFromJsonElement(serializer(), element) }
+
+        /** Same as [fromJson], for a rule stored as text. */
         fun fromJsonString(text: String?): FoodECarbsRule? =
+            text?.let { readSafely { json.decodeFromString(serializer(), it) } }
+
+        private fun readSafely(read: () -> FoodECarbsRule): FoodECarbsRule? =
             try {
-                text?.let { json.decodeFromString(serializer(), it) }?.takeIf { it.isValid }
+                read().takeIf { it.isValid }
             } catch (_: SerializationException) {
                 null
             } catch (_: IllegalArgumentException) {

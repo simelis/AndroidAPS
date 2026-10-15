@@ -21,7 +21,6 @@ data class FD(
     var energy: Int? = null, // in kJ
     var unit: String = "g",
     var gi: Int? = null, // not used yet
-    // eCarbsRule and askAmount are not in Nightscout yet, so a download does not change them
     var eCarbsRule: FoodECarbsRule? = null,
     var askAmount: Boolean = true // false: the wizard starts at portion, not with an empty amount
 
@@ -38,6 +37,8 @@ data class FD(
         if (name != other.name) return false
         if (category != other.category) return false
         if (subCategory != other.subCategory) return false
+        if (eCarbsRule != other.eCarbsRule) return false
+        if (askAmount != other.askAmount) return false
         return unit == other.unit
     }
 
