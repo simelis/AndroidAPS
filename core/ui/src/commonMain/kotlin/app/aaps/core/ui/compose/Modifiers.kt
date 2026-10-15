@@ -19,6 +19,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.Velocity
 import kotlinx.coroutines.delay
 
 /**
@@ -45,7 +46,7 @@ fun Modifier.clearFocusOnTap(focusManager: FocusManager): Modifier =
     }
 
 /**
- * Consumes leftover scroll so it doesn't reach a parent ModalBottomSheet.
+ * Consumes leftover scroll and fling so they don't reach a parent ModalBottomSheet.
  *
  * Without this, scrolling to the end of content inside a ModalBottomSheet
  * causes the sheet to interpret overscroll as a dismiss gesture, leading to
@@ -53,6 +54,7 @@ fun Modifier.clearFocusOnTap(focusManager: FocusManager): Modifier =
  */
 private val ConsumeOverscrollConnection = object : NestedScrollConnection {
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset = available
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity = available
 }
 
 fun Modifier.consumeOverscroll(): Modifier = this.nestedScroll(ConsumeOverscrollConnection)
