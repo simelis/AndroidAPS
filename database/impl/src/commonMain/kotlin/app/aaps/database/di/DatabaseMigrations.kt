@@ -340,31 +340,39 @@ private val migration35to36 = object : Migration(35, 36) {
 }
 
 /**
- * Back down from the food eCarbs build (simelis/AndroidAPS, branch v4.0-beta1), which is version
- * 37: it added columns to the food table (different ones over time) and changed nothing else.
+ * Back down from the food eCarbs builds (simelis/AndroidAPS): branch v4.0-beta1 is version 37, and
+ * branch v4.0-dev is version 37 or 38. They added columns to the food table (different ones over
+ * time) and changed nothing else.
  *
  * Not part of official AAPS. This fallback build exists so a phone can go back from that build
- * without losing its database. Without this step Room finds no path from 37 and, because of
+ * without losing its database. Without these steps Room finds no path from 37 or 38 and, because of
  * fallbackToDestructiveMigration, drops every table and starts empty.
  *
  * The rules are lost here, but they are also on Nightscout and come back when the food build is
  * installed again.
  */
 private val migration37to36 = object : Migration(37, 36) {
-    override fun migrate(connection: SQLiteConnection) {
-        // Rebuild the food table with only the version 36 columns, like migration32to33 does for
-        // boluses. Whatever columns the food build added (it had different ones at the same version
-        // 37 over time) are left behind, so this does not need to know them.
-        val columns = "id, version, dateCreated, isValid, referenceId, name, category, subCategory, portion, carbs, fat, protein, energy, unit, gi, " +
-            "nightscoutSystemId, nightscoutId, pumpType, pumpSerial, temporaryId, pumpId, startId, endId"
-        connection.execSQL("CREATE TABLE IF NOT EXISTS new_foods (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `version` INTEGER NOT NULL, `dateCreated` INTEGER NOT NULL, `isValid` INTEGER NOT NULL, `referenceId` INTEGER, `name` TEXT NOT NULL, `category` TEXT, `subCategory` TEXT, `portion` REAL NOT NULL, `carbs` INTEGER NOT NULL, `fat` INTEGER, `protein` INTEGER, `energy` INTEGER, `unit` TEXT NOT NULL, `gi` INTEGER, `nightscoutSystemId` TEXT, `nightscoutId` TEXT, `pumpType` TEXT, `pumpSerial` TEXT, `temporaryId` INTEGER, `pumpId` INTEGER, `startId` INTEGER, `endId` INTEGER, FOREIGN KEY(`referenceId`) REFERENCES `foods`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )")
-        connection.execSQL("INSERT INTO new_foods ($columns) SELECT $columns FROM `$TABLE_FOODS` ORDER BY id")
-        connection.execSQL("DROP TABLE `$TABLE_FOODS`")
-        connection.execSQL("ALTER TABLE new_foods RENAME TO `$TABLE_FOODS`")
-        connection.execSQL("CREATE INDEX IF NOT EXISTS `index_foods_nightscoutId` ON `$TABLE_FOODS` (`nightscoutId`)")
-        connection.execSQL("CREATE INDEX IF NOT EXISTS `index_foods_referenceId` ON `$TABLE_FOODS` (`referenceId`)")
-        dropCustomIndexes(connection)
-    }
+    override fun migrate(connection: SQLiteConnection) = rebuildFoodTableAt36(connection)
+}
+
+/** The same step back from version 38 of branch v4.0-dev. */
+private val migration38to36 = object : Migration(38, 36) {
+    override fun migrate(connection: SQLiteConnection) = rebuildFoodTableAt36(connection)
+}
+
+private fun rebuildFoodTableAt36(connection: SQLiteConnection) {
+    // Rebuild the food table with only the version 36 columns, like migration32to33 does for
+    // boluses. Whatever columns the food build added (it had different ones at the same version
+    // 37 over time) are left behind, so this does not need to know them.
+    val columns = "id, version, dateCreated, isValid, referenceId, name, category, subCategory, portion, carbs, fat, protein, energy, unit, gi, " +
+        "nightscoutSystemId, nightscoutId, pumpType, pumpSerial, temporaryId, pumpId, startId, endId"
+    connection.execSQL("CREATE TABLE IF NOT EXISTS new_foods (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `version` INTEGER NOT NULL, `dateCreated` INTEGER NOT NULL, `isValid` INTEGER NOT NULL, `referenceId` INTEGER, `name` TEXT NOT NULL, `category` TEXT, `subCategory` TEXT, `portion` REAL NOT NULL, `carbs` INTEGER NOT NULL, `fat` INTEGER, `protein` INTEGER, `energy` INTEGER, `unit` TEXT NOT NULL, `gi` INTEGER, `nightscoutSystemId` TEXT, `nightscoutId` TEXT, `pumpType` TEXT, `pumpSerial` TEXT, `temporaryId` INTEGER, `pumpId` INTEGER, `startId` INTEGER, `endId` INTEGER, FOREIGN KEY(`referenceId`) REFERENCES `foods`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )")
+    connection.execSQL("INSERT INTO new_foods ($columns) SELECT $columns FROM `$TABLE_FOODS` ORDER BY id")
+    connection.execSQL("DROP TABLE `$TABLE_FOODS`")
+    connection.execSQL("ALTER TABLE new_foods RENAME TO `$TABLE_FOODS`")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS `index_foods_nightscoutId` ON `$TABLE_FOODS` (`nightscoutId`)")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS `index_foods_referenceId` ON `$TABLE_FOODS` (`referenceId`)")
+    dropCustomIndexes(connection)
 }
 
 /** Every migration, in order. Passed to the Room builder by each platform. */
@@ -384,4 +392,5 @@ internal val databaseMigrations: Array<Migration> = arrayOf(
     migration34to35,
     migration35to36,
     migration37to36,
+    migration38to36,
 )

@@ -14,33 +14,46 @@ import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 
 /**
- * Going back from the food eCarbs build (database version 37) to this fallback (36).
+ * Going back from the food eCarbs builds to this fallback (36): branch v4.0-beta1 (version 37) and
+ * branch v4.0-dev (version 37 or 38).
  *
- * The database is made from that build's own Room schema export, so it is the real version 37 file
- * and not a guess of it. There are two: early test versions had two food columns, the current one
- * also has `byWeight`, at the same version number.
+ * The database is made from that build's own Room schema export, so it is the real file and not a
+ * guess of it. v4.0-beta1 had two at the same version 37: early test versions had two food columns,
+ * the later one also has `byWeight`.
  */
 class FoodBuildDowngradeTest {
 
     @Test
     fun `a version 37 database from an early food build keeps all foods when opened here`() =
-        downgradeKeepsFoods("food-ecarbs-build-schema-37.json", byWeight = false)
+        downgradeKeepsFoods("food-ecarbs-build-schema-37.json", 37, BETA_EARLY)
 
     @Test
     fun `a version 37 database from the current food build keeps all foods when opened here`() =
-        downgradeKeepsFoods("food-ecarbs-build-schema-37-by-weight.json", byWeight = true)
+        downgradeKeepsFoods("food-ecarbs-build-schema-37-by-weight.json", 37, BETA_BY_WEIGHT)
 
     /** The step back must not need an update when the food build adds another food column. */
     @Test
     fun `a food column this fallback does not know is dropped too`() =
-        downgradeKeepsFoods("food-ecarbs-build-schema-37-by-weight.json", byWeight = true, futureColumn = true)
+        downgradeKeepsFoods("food-ecarbs-build-schema-37-by-weight.json", 37, BETA_BY_WEIGHT, futureColumn = true)
 
-    private fun downgradeKeepsFoods(schemaFile: String, byWeight: Boolean, futureColumn: Boolean = false) = runTest {
+    @Test
+    fun `a version 37 database from the dev build keeps all foods when opened here`() =
+        downgradeKeepsFoods("food-dev-build-schema-37.json", 37, DEV_37)
+
+    @Test
+    fun `a version 38 database from the dev build keeps all foods when opened here`() =
+        downgradeKeepsFoods("food-dev-build-schema-38.json", 38, DEV_38)
+
+    /**
+     * Inserts three foods into a database made from [schemaFile] at [version]: a pizza, an apple, and an
+     * older version of the pizza kept as history. [extra] gives, for each food column the build added,
+     * its SQL value for those three rows; some of them are NOT NULL without a default.
+     */
+    private fun downgradeKeepsFoods(schemaFile: String, version: Int, extra: Map<String, List<String>>, futureColumn: Boolean = false) = runTest {
         val directory = createTempDirectory("aaps-food-downgrade")
         val fileName = "$directory/aaps.db"
-        // The current schema has byWeight, NOT NULL and without a default
-        val extraColumn = if (byWeight) ", byWeight" else ""
-        fun extraValue(value: Int) = if (byWeight) ", $value" else ""
+        val extraColumns = extra.keys.joinToString("") { ", $it" }
+        fun extraValues(row: Int) = extra.values.joinToString("") { ", ${it[row]}" }
         val schema = Json.parseToJsonElement(File("src/jvmTest/resources/$schemaFile").readText())
             .jsonObject.getValue("database").jsonObject
         BundledSQLiteDriver().open(fileName).use { connection ->
@@ -53,20 +66,20 @@ class FoodBuildDowngradeTest {
                 }
             }
             schema.getValue("setupQueries").jsonArray.forEach { connection.execSQL(it.jsonPrimitive.content) }
-            connection.execSQL("PRAGMA user_version = 37")
+            connection.execSQL("PRAGMA user_version = $version")
             if (futureColumn) connection.execSQL("ALTER TABLE foods ADD COLUMN `somethingNew` TEXT")
             connection.execSQL(
-                "INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, fat, protein, unit, eCarbsRuleJson, isLocallyEdited$extraColumn) " +
-                    "VALUES (7, 1, 1000, 1, 'Pizza', 100, 30, 10, 12, 'g', '{\"method\":\"FPU\",\"durationHours\":3}', 1${extraValue(1)})"
+                "INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, fat, protein, unit$extraColumns) " +
+                    "VALUES (7, 1, 1000, 1, 'Pizza', 100, 30, 10, 12, 'g'${extraValues(0)})"
             )
             connection.execSQL(
-                "INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, unit, isLocallyEdited$extraColumn) " +
-                    "VALUES (8, 0, 1000, 1, 'Apple', 1, 12, 'piece', 0${extraValue(0)})"
+                "INSERT INTO foods (id, version, dateCreated, isValid, name, portion, carbs, unit$extraColumns) " +
+                    "VALUES (8, 0, 1000, 1, 'Apple', 1, 12, 'piece'${extraValues(1)})"
             )
             // An older version of the pizza, kept as history: it points at the current row
             connection.execSQL(
-                "INSERT INTO foods (id, version, dateCreated, isValid, referenceId, name, portion, carbs, unit, isLocallyEdited$extraColumn) " +
-                    "VALUES (9, 0, 900, 1, 7, 'Pizza', 100, 25, 'g', 0${extraValue(1)})"
+                "INSERT INTO foods (id, version, dateCreated, isValid, referenceId, name, portion, carbs, unit$extraColumns) " +
+                    "VALUES (9, 0, 900, 1, 7, 'Pizza', 100, 25, 'g'${extraValues(2)})"
             )
         }
 
@@ -96,5 +109,27 @@ class FoodBuildDowngradeTest {
         } finally {
             directory.toFile().deleteRecursively()
         }
+    }
+
+    private companion object {
+
+        const val RULE = "'{\"method\":\"FPU\",\"durationHours\":3}'"
+        val BETA_EARLY = linkedMapOf(
+            "eCarbsRuleJson" to listOf(RULE, "NULL", "NULL"),
+            "isLocallyEdited" to listOf("1", "0", "0")
+        )
+        val BETA_BY_WEIGHT = linkedMapOf(
+            "eCarbsRuleJson" to listOf(RULE, "NULL", "NULL"),
+            "isLocallyEdited" to listOf("1", "0", "0"),
+            "byWeight" to listOf("1", "0", "1")
+        )
+        val DEV_37 = linkedMapOf(
+            "isLocallyEdited" to listOf("1", "0", "0")
+        )
+        val DEV_38 = linkedMapOf(
+            "isLocallyEdited" to listOf("1", "0", "0"),
+            "eCarbsRuleJson" to listOf(RULE, "NULL", "NULL"),
+            "askAmount" to listOf("1", "0", "1")
+        )
     }
 }
