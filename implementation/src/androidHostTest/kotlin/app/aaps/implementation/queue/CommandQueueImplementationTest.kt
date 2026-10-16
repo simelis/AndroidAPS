@@ -379,6 +379,26 @@ class CommandQueueImplementationTest : TestBaseWithProfile() {
         verify(persistenceLayer, times(1)).insertOrUpdateEffectiveProfileSwitch(any())
     }
 
+    /**
+     * The switches changed while the pump was busy: on a Medtronic a scene ended 40 s into the write and cut this
+     * switch. Its EPS put the scene's percentage in force again until the next pump write. The event for the change
+     * waits behind this one and sets the switch then in force, so this one gets no EPS and no notice.
+     */
+    @Test
+    fun `a PS that is no longer requested when the pump has set it gets no EPS`() = runTest {
+        givenActiveEpsFrom(139)
+        testPumpPlugin.isProfileSet = false
+
+        rxBus.send(EventProfileChangeRequested())
+        assertThat(commandQueue.size()).isEqualTo(1)
+        whenever(profileFunction.getRequestedProfile()).thenReturn(profileSwitch.copy(id = 141))
+        completeQueuedProfileSet()
+
+        verify(persistenceLayer, never()).insertOrUpdateEffectiveProfileSwitch(any())
+        assertThat(roundingNotices()).isEmpty()
+        verifyNoPlainOkPosted()
+    }
+
     // endregion
 
     // region #2454 - the EPS holds the basal the pump really gives
@@ -435,6 +455,39 @@ class CommandQueueImplementationTest : TestBaseWithProfile() {
 
         assertThat(savedEps().basalBlocks).containsExactly(Block(12 * hour, 0.95), Block(12 * hour, 1.05)).inOrder()
         assertThat(roundingNotices()).isEmpty()
+        verifyOkPosted()
+    }
+
+    // #4959 on a Medtronic: a scene ended during a 38 s write, the events queued up, and the write that followed was
+    // made for a Nightscout id arriving, which carries no silent flag. So the scene marks the switch it writes.
+
+    @Test
+    fun `a write of a switch a scene marked posts no notice whichever event led to it`() = runTest {
+        profileSwitchSilentGate.markSilent(140, now)
+
+        setNewPsInPumpThatGives(null)
+
+        assertThat(roundingNotices()).isEmpty()
+        verifyNoPlainOkPosted()
+    }
+
+    @Test
+    fun `a mark for another switch does not make this write silent`() = runTest {
+        profileSwitchSilentGate.markSilent(141, now)
+
+        setNewPsInPumpThatGives(null)
+
+        verifyOkPosted()
+    }
+
+    // A mark lasts as long as the queue waits for one write, so it cannot silence a later write of the same switch,
+    // for example the pump's basal changed by hand hours later.
+    @Test
+    fun `a mark from more than ten minutes ago does not make this write silent`() = runTest {
+        profileSwitchSilentGate.markSilent(140, now - ProfileSwitchSilentGate.SILENT_FOR - 1)
+
+        setNewPsInPumpThatGives(null)
+
         verifyOkPosted()
     }
 

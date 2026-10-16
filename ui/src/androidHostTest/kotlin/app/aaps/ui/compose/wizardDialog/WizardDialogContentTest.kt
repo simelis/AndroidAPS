@@ -5,8 +5,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
@@ -14,6 +16,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -131,6 +134,26 @@ class WizardDialogContentTest {
     fun resultShowsPercentageAndCorrectionInOneText() {
         setWizard(uiState = { loaded().copy(hasResult = true, totalInsulin = 2.0, percentage = 71, directCorrection = 1.0) })
         compose.onNodeWithText(percentageAndCorrection).assertIsDisplayed()
+    }
+
+    /** A tap on the profile row opens the list straight away, and one tap on a name picks it. Before, the list needed a tap more. */
+    @Test
+    fun profileRowOpensTheListAndOneTapPicksAProfile() {
+        var picked = -1
+        setWizard(uiState = { loaded().copy(profileNames = listOf(DAY, NIGHT)) }, onProfileSelect = { picked = it })
+        // The row is one node with the current name in it. Closed, it offers to expand, which is
+        // how a screen reader knows that the list is closed.
+        compose.onNodeWithText(DAY)
+            .performScrollTo()
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsActions.Expand))
+            .performClick()
+        // The current profile is marked in the list, also for a screen reader.
+        compose.onNode(hasText(DAY) and isSelected()).assertExists()
+        compose.onNode(hasText(NIGHT) and isSelected()).assertDoesNotExist()
+        compose.onNodeWithText(NIGHT).performClick()
+        assertThat(picked).isEqualTo(1)
+        // The pick closes the list. The row still shows Day, because this state does not change.
+        compose.onNodeWithText(NIGHT).assertDoesNotExist()
     }
 
     @Test
@@ -257,6 +280,7 @@ class WizardDialogContentTest {
         uiState: () -> WizardDialogUiState,
         onNavigateBack: () -> Unit = {},
         onCarbsTypeChange: (CarbsType) -> Unit = {},
+        onProfileSelect: (Int) -> Unit = {},
         foodActions: FoodECarbsCallbacks = FoodECarbsCallbacks()
     ) {
         compose.setContent {
@@ -273,7 +297,7 @@ class WizardDialogContentTest {
                     onDirectCorrectionChange = {},
                     onCarbTimeChange = {},
                     onNotesChange = {},
-                    onProfileSelect = {},
+                    onProfileSelect = onProfileSelect,
                     onBgToggle = {},
                     onTTToggle = {},
                     onTrendToggle = {},
@@ -293,5 +317,7 @@ class WizardDialogContentTest {
     private companion object {
 
         const val UNITS = "mg/dl"
+        const val DAY = "Day"
+        const val NIGHT = "Night"
     }
 }
