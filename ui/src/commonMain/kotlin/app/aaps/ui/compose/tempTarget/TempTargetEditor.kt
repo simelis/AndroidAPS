@@ -26,6 +26,7 @@ import app.aaps.core.ui.compose.DateTimeSection
 import app.aaps.core.ui.compose.LocalDateUtil
 import app.aaps.core.ui.compose.NumberInputRow
 import app.aaps.core.ui.compose.stringResource
+import app.aaps.ui.UiStrings
 
 /**
  * Editor component for temp target presets with inline activation fields.
@@ -67,7 +68,9 @@ fun TempTargetEditor(
     onDateClick: () -> Unit,
     onTimeClick: () -> Unit,
     onNotesChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    currentTarget: String = "",
+    profileTarget: String = ""
 ) {
     val dateUtil = LocalDateUtil.current
     Column(
@@ -112,6 +115,20 @@ fun TempTargetEditor(
             unitLabel = TextRef.Literal(units.displayLabel),
             modifier = Modifier.fillMaxWidth()
         )
+        if (currentTarget.isNotEmpty()) {
+            Column {
+                Text(
+                    text = stringResource(UiStrings.tt_current_target, currentTarget, units.displayLabel),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (profileTarget.isNotEmpty()) Text(
+                    text = stringResource(UiStrings.tt_profile_target, profileTarget, units.displayLabel),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
 
         // Duration
         NumberInputRow(

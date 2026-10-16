@@ -10,6 +10,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.aaps.core.data.model.TT
 import app.aaps.core.data.model.TTPreset
+import app.aaps.core.interfaces.overview.graph.TempTargetDisplayData
+import app.aaps.core.interfaces.overview.graph.TempTargetState
 import app.aaps.core.ui.compose.ScreenMode
 import app.aaps.ui.compose.testing.AapsScreenFixture
 import app.aaps.ui.compose.testing.TempTargetManagementViewModelFixture
@@ -131,6 +133,14 @@ class TempTargetManagementScreenTest {
                 onRequestEditMode = onRequestEditMode
             )
         }
+    }
+
+    @Test
+    fun theEditorShowsTheTargetInForceNow() {
+        viewModels.overviewDataCache.tempTargetFlow.value = TempTargetDisplayData("100 - 120", TempTargetState.NONE, 0L, 0L)
+        setScreen(viewModels.build(presets = builtIns))
+
+        compose.onNodeWithText(context.getString(app.aaps.ui.R.string.tt_current_target, "100 - 120", "mg/dL")).assertExists()
     }
 
     // ---------------------------------------------------------------------------------------------

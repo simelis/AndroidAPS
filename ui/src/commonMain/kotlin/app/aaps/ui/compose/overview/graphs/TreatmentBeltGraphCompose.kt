@@ -40,6 +40,7 @@ import app.aaps.core.ui.compose.icons.IcCalculator
 import app.aaps.core.ui.compose.icons.IcCarbs
 import app.aaps.core.ui.compose.icons.IcClinicalNotes
 import app.aaps.core.ui.compose.icons.IcNote
+import app.aaps.core.ui.compose.icons.IcProfile
 import app.aaps.core.ui.compose.stringResource
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.VicoScrollState
@@ -78,6 +79,7 @@ private val modeSegmentsKey = ExtraStore.Key<List<Triple<Double, Double, RM.Mode
  * - Running mode background colors (colored rectangles per mode segment)
  * - Therapy event icons (MBG, Finger Stick, Announcement, Exercise, etc.)
  * - Meal markers when [showMeals] (no SMBs)
+ * - Profile switches (on the BG graph they were placed by percentage and could go out of the graph)
  *
  * Architecture:
  * - Fixed Y range (0.0 to 1.0) — all events plotted at Y=0.5
@@ -95,9 +97,10 @@ private val modeSegmentsKey = ExtraStore.Key<List<Triple<Double, Double, RM.Mode
  *   5. Settings Export points (conditional)
  *   6. General event points (conditional)
  *   7. Bolus, carbs, and bolus-with-carbs points (conditional, each)
- *   8. Exercise duration lines (0..M, each = 2-point at Y=1.0, top)
- *   9. General with duration lines (0..K, each = 2-point at Y=1.0, top)
- *  10. Normalizer (always last)
+ *   8. Profile switch points (conditional)
+ *   9. Exercise duration lines (0..M, each = 2-point at Y=1.0, top)
+ *  10. General with duration lines (0..K, each = 2-point at Y=1.0, top)
+ *  11. Normalizer (always last)
  */
 @Composable
 fun TreatmentBeltGraphCompose(
@@ -117,6 +120,7 @@ fun TreatmentBeltGraphCompose(
     // Collect flows independently
     val runningModeData by viewModel.runningModeGraphFlow.collectAsStateWithLifecycle()
     val treatmentGraphData by viewModel.treatmentGraphFlow.collectAsStateWithLifecycle()
+    val epsPoints by viewModel.epsGraphFlow.collectAsStateWithLifecycle()
 
     val hasRealTimeRange = derivedTimeRange != null
     val (minTimestamp, maxTimestamp) = derivedTimeRange ?: run {
@@ -136,6 +140,7 @@ fun TreatmentBeltGraphCompose(
     val insulinColor = elementColors.insulin
     val carbsColor = elementColors.carbs
     val bolusWizardColor = elementColors.bolusWizard
+    val profileSwitchColor = elementColors.profileSwitch
 
     // Icon painters for therapy events
     val bgCheckPainter = rememberVectorPainter(IcBgCheck)
@@ -146,6 +151,7 @@ fun TreatmentBeltGraphCompose(
     val bolusPainter = rememberVectorPainter(IcBolus)
     val carbsPainter = rememberVectorPainter(IcCarbs)
     val calculatorPainter = rememberVectorPainter(IcCalculator)
+    val profilePainter = rememberVectorPainter(IcProfile)
 
     val minX = 0.0
     val maxX = remember(minTimestamp, maxTimestamp) {
@@ -161,6 +167,10 @@ fun TreatmentBeltGraphCompose(
     if (treatmentGraphData.therapyEvents.isNotEmpty()) {
         lastTreatmentData.value = treatmentGraphData
     }
+    val lastEpsPoints = remember { mutableStateOf(epsPoints) }
+    if (epsPoints.isNotEmpty()) {
+        lastEpsPoints.value = epsPoints
+    }
 
     // Track which series are present (for dynamic line matching)
     val renderedModeSegmentsState = remember { mutableStateOf<List<Triple<Double, Double, RM.Mode>>>(emptyList()) }
@@ -173,6 +183,7 @@ fun TreatmentBeltGraphCompose(
     val hasBolusState = remember { mutableStateOf(false) }
     val hasCarbsState = remember { mutableStateOf(false) }
     val hasBolusWithCarbsState = remember { mutableStateOf(false) }
+    val hasProfileSwitchState = remember { mutableStateOf(false) }
     val exerciseDurationCountState = remember { mutableIntStateOf(0) }
     val generalDurationCountState = remember { mutableIntStateOf(0) }
 
@@ -182,10 +193,10 @@ fun TreatmentBeltGraphCompose(
         lastRunningModeData.value = runningModeData
     }
 
-    LaunchedEffect(runningModeData, treatmentGraphData, stableTimeRange, showMeals) {
+    LaunchedEffect(runningModeData, treatmentGraphData, epsPoints, stableTimeRange, showMeals) {
         // Don't skip when hasRealTimeRange is false — always populate model to avoid flicker.
         // Use fallback time range so the chart skeleton (axes/border) always renders.
-        if (!hasRealTimeRange && lastRunningModeData.value.segments.isEmpty() && lastTreatmentData.value.therapyEvents.isEmpty()) {
+        if (!hasRealTimeRange && lastRunningModeData.value.segments.isEmpty() && lastTreatmentData.value.therapyEvents.isEmpty() && lastEpsPoints.value.isEmpty()) {
             // No data at all — just populate normalizer so chart renders
             modelProducer.runTransaction {
                 lineModel { series(x = normalizerX(maxX), y = NORMALIZER_Y) }
@@ -199,6 +210,7 @@ fun TreatmentBeltGraphCompose(
             hasBolusState.value = false
             hasCarbsState.value = false
             hasBolusWithCarbsState.value = false
+            hasProfileSwitchState.value = false
             exerciseDurationCountState.intValue = 0
             generalDurationCountState.intValue = 0
             return@LaunchedEffect
@@ -207,7 +219,10 @@ fun TreatmentBeltGraphCompose(
         val activeRunningModeData = lastRunningModeData.value
         val segments = activeRunningModeData.segments
         val activeTreatmentData = lastTreatmentData.value
-        val therapyEvents = activeTreatmentData.therapyEvents.filter { showMeals || it.eventType !in MEAL_TYPES }
+        val profileSwitchEvents = lastEpsPoints.value.map { eps ->
+            TherapyEventGraphPoint(timestamp = eps.timestamp, eventType = TherapyEventType.PROFILE_SWITCH, label = eps.profileName, duration = 0L)
+        }
+        val therapyEvents = activeTreatmentData.therapyEvents.filter { showMeals || it.eventType !in MEAL_TYPES } + profileSwitchEvents
 
         // Prepare running mode segment series data (all modes get a color)
         val rawModeSegments = segments.mapNotNull { segment ->
@@ -249,6 +264,9 @@ fun TreatmentBeltGraphCompose(
         val bolusWithCarbsPoints = therapyEvents
             .filter { it.eventType == TherapyEventType.BOLUS_WITH_CARBS }
             .map { timestampToX(it.timestamp, minTimestamp) to 0.5 }
+        val profileSwitchPoints = therapyEvents
+            .filter { it.eventType == TherapyEventType.PROFILE_SWITCH }
+            .map { timestampToX(it.timestamp, minTimestamp) to 0.5 }
 
         // Duration events — each gets its own 2-point series
         val exerciseDurationSeries = therapyEvents
@@ -282,6 +300,7 @@ fun TreatmentBeltGraphCompose(
         var hasBolus = false
         var hasCarbs = false
         var hasBolusWithCarbs = false
+        var hasProfileSwitch = false
 
         modelProducer.runTransaction {
             lineModel {
@@ -331,6 +350,11 @@ fun TreatmentBeltGraphCompose(
                     series(x = mealFiltered.map { it.first }, y = mealFiltered.map { it.second })
                     hasBolusWithCarbs = true
                 }
+                val profileSwitchFiltered = filterToRange(profileSwitchPoints, minX, maxX)
+                if (profileSwitchFiltered.isNotEmpty()) {
+                    series(x = profileSwitchFiltered.map { it.first }, y = profileSwitchFiltered.map { it.second })
+                    hasProfileSwitch = true
+                }
 
                 // 3. Duration events — one series per event (top of graph)
                 for ((start, end) in exerciseDurationSeries) {
@@ -368,6 +392,7 @@ fun TreatmentBeltGraphCompose(
         hasBolusState.value = hasBolus
         hasCarbsState.value = hasCarbs
         hasBolusWithCarbsState.value = hasBolusWithCarbs
+        hasProfileSwitchState.value = hasProfileSwitch
         exerciseDurationCountState.intValue = exerciseDurationSeries.size
         generalDurationCountState.intValue = generalDurationSeries.size
     }
@@ -459,6 +484,7 @@ fun TreatmentBeltGraphCompose(
     val bolusLine = remember(insulinColor, bolusPainter) { iconLine(bolusPainter, insulinColor) }
     val carbsLine = remember(carbsColor, carbsPainter) { iconLine(carbsPainter, carbsColor) }
     val bolusWithCarbsLine = remember(bolusWizardColor, calculatorPainter) { iconLine(calculatorPainter, bolusWizardColor) }
+    val profileSwitchLine = remember(profileSwitchColor, profilePainter) { iconLine(profilePainter, profileSwitchColor) }
 
     // Duration event line styles (with icons at endpoints)
     val exerciseDurationLine = remember(exerciseColor, activityPainter) {
@@ -499,14 +525,15 @@ fun TreatmentBeltGraphCompose(
     val hasBolus by hasBolusState
     val hasCarbs by hasCarbsState
     val hasBolusWithCarbs by hasBolusWithCarbsState
+    val hasProfileSwitch by hasProfileSwitchState
     val exerciseDurationCount by exerciseDurationCountState
     val generalDurationCount by generalDurationCountState
 
     val lines = remember(
         modeSegmentCount, renderedModeSegments,
-        hasMbg, hasFingerStick, hasAnnouncement, hasSettingsExport, hasGeneral, hasBolus, hasCarbs, hasBolusWithCarbs,
+        hasMbg, hasFingerStick, hasAnnouncement, hasSettingsExport, hasGeneral, hasBolus, hasCarbs, hasBolusWithCarbs, hasProfileSwitch,
         exerciseDurationCount, generalDurationCount,
-        mbgLine, fingerStickLine, announcementLine, settingsExportLine, generalLine, bolusLine, carbsLine, bolusWithCarbsLine,
+        mbgLine, fingerStickLine, announcementLine, settingsExportLine, generalLine, bolusLine, carbsLine, bolusWithCarbsLine, profileSwitchLine,
         exerciseDurationLine, generalDurationLine, normalizerLine
     ) {
         buildList {
@@ -523,6 +550,7 @@ fun TreatmentBeltGraphCompose(
             if (hasBolus) add(bolusLine)
             if (hasCarbs) add(carbsLine)
             if (hasBolusWithCarbs) add(bolusWithCarbsLine)
+            if (hasProfileSwitch) add(profileSwitchLine)
             // 3. Duration event lines
             repeat(exerciseDurationCount) { add(exerciseDurationLine) }
             repeat(generalDurationCount) { add(generalDurationLine) }

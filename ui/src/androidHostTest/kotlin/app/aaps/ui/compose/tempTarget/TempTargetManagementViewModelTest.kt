@@ -8,6 +8,9 @@ import app.aaps.core.interfaces.bolus.BatchExecutor
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.interfaces.overview.graph.TempTargetDisplayData
+import app.aaps.core.interfaces.overview.graph.TempTargetState
+import app.aaps.core.interfaces.profile.EffectiveProfile
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.interfaces.rx.bus.RxBus
@@ -17,6 +20,7 @@ import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.shared.tests.generatedTextResolver
+import app.aaps.ui.compose.testing.FakeOverviewDataCache
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +43,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -56,6 +61,7 @@ internal class TempTargetManagementViewModelTest {
     @Mock private lateinit var rxBus: RxBus
     @Mock private lateinit var batchExecutor: BatchExecutor
     @Mock private lateinit var config: Config
+    private val overviewDataCache = FakeOverviewDataCache()
 
     private lateinit var sut: TempTargetManagementViewModel
 
@@ -70,12 +76,36 @@ internal class TempTargetManagementViewModelTest {
         whenever(preferences.observe(StringNonKey.TempTargetPresets)).thenReturn(MutableStateFlow("[]"))
         sut = TempTargetManagementViewModel(
             persistenceLayer, profileFunction, profileUtil, preferences, rh, dateUtil, aapsLogger,
-            rxBus, batchExecutor, config, CoroutineScope(UnconfinedTestDispatcher())
+            rxBus, batchExecutor, config, overviewDataCache, CoroutineScope(UnconfinedTestDispatcher())
         )
     }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
+
+    @Test
+    fun `shows the target the overview shows and no profile target without a temp target`() = runTest {
+        overviewDataCache.tempTargetFlow.value = TempTargetDisplayData("100 - 120", TempTargetState.NONE, 0L, 0L)
+        advanceUntilIdle()
+
+        assertThat(sut.uiState.value.currentTarget).isEqualTo("100 - 120")
+        assertThat(sut.uiState.value.profileTarget).isEmpty()
+    }
+
+    @Test
+    fun `shows the profile target too while a temp target is active`() = runTest {
+        val profile: EffectiveProfile = mock()
+        whenever(profile.getTargetLowMgdl()).thenReturn(100.0)
+        whenever(profile.getTargetHighMgdl()).thenReturn(120.0)
+        whenever(profileFunction.getProfile()).thenReturn(profile)
+        whenever(profileFunction.getUnits()).thenReturn(GlucoseUnit.MGDL)
+        whenever(profileUtil.toTargetRangeString(100.0, 120.0, GlucoseUnit.MGDL, GlucoseUnit.MGDL)).thenReturn("100 - 120")
+        overviewDataCache.tempTargetFlow.value = TempTargetDisplayData("80", TempTargetState.ACTIVE, NOW, 3_600_000L)
+        advanceUntilIdle()
+
+        assertThat(sut.uiState.value.currentTarget).isEqualTo("80")
+        assertThat(sut.uiState.value.profileTarget).isEqualTo("100 - 120")
+    }
 
     @Test
     fun `editor setters update the state`() {
