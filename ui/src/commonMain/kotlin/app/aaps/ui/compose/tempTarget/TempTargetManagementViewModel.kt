@@ -19,6 +19,8 @@ import app.aaps.core.interfaces.db.observeChanges
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.navigation.ElementType
+import app.aaps.core.interfaces.overview.graph.OverviewDataCache
+import app.aaps.core.interfaces.overview.graph.TempTargetState
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.interfaces.resources.TextResolver
@@ -82,6 +84,7 @@ class TempTargetManagementViewModel(
     private val rxBus: RxBus,
     private val batchExecutor: BatchExecutor,
     private val config: Config,
+    private val overviewDataCache: OverviewDataCache,
     // Unqualified: @ApplicationScope is a javax qualifier and cannot appear in commonMain. The graph
     // binds the same instance under both names.
     private val appScope: CoroutineScope
@@ -120,6 +123,7 @@ class TempTargetManagementViewModel(
 
     init {
         loadData()
+        observeCurrentTarget()
         observeTempTargetChanges()
         observePresetChanges()
     }
@@ -224,6 +228,18 @@ class TempTargetManagementViewModel(
                 aapsLogger.error(LTag.UI, "Failed to refresh temp target data", e)
             }
         }
+    }
+
+    /** Shows the same target as the overview, so the user can compare it with the new one */
+    private fun observeCurrentTarget() {
+        overviewDataCache.tempTargetFlow
+            .onEach { target ->
+                val profileTarget = if (target?.state == TempTargetState.ACTIVE)
+                    profileFunction.getProfile()?.let { profileUtil.toTargetRangeString(it.getTargetLowMgdl(), it.getTargetHighMgdl(), GlucoseUnit.MGDL, units) }
+                else null
+                _uiState.update { it.copy(currentTarget = target?.targetRangeText.orEmpty(), profileTarget = profileTarget.orEmpty()) }
+            }
+            .launchIn(viewModelScope)
     }
 
     /**

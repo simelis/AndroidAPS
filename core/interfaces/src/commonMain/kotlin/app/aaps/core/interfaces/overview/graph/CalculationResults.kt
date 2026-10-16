@@ -283,7 +283,8 @@ enum class TherapyEventType {
     GENERAL_WITH_DURATION, // General event with duration
     BOLUS,                 // Meal bolus without carbs (no SMB)
     CARBS,                 // Carbs without a bolus, eCarbs included
-    BOLUS_WITH_CARBS       // Meal bolus with the carbs entered with it
+    BOLUS_WITH_CARBS,      // Meal bolus with the carbs entered with it
+    PROFILE_SWITCH         // Profile switch (the label is the profile name with its percentage and time shift)
 }
 
 /**

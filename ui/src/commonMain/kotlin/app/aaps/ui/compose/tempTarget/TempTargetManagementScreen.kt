@@ -499,7 +499,9 @@ fun TempTargetManagementScreen(
                                         onDateClick = { showDatePicker = true },
                                         onTimeClick = { showTimePicker = true },
                                         onNotesChange = viewModel::updateNotes,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        currentTarget = uiState.currentTarget,
+                                        profileTarget = uiState.profileTarget
                                     )
                                     // Space for the floating toolbar, and for the Cancel button stacked above it while a
                                     // target is active

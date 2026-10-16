@@ -411,11 +411,13 @@
     <string name="food_history_fixed_amount">Fixed amount</string>
     <string name="food_history_ecarbs_label" comment="Label in the note of a meal when the carbs were split by the dumplings or pizza choice. Example: Burger: 250 g. eCarbs: 80% of 50 g carbs now, eCarbs 17 g after 60 min over 3 h">eCarbs</string>
     <string name="food_ecarbs_type_desc" comment="Food eCarbs formula in the wizard info. %1$d=percent of the carbs moved from the bolus, %2$d=eCarbs grams, %3$d=delay in minutes, %4$d=duration in hours. Example: Carbs reduced by 20%, added eCarbs 15 g delayed 60min for 3h">Carbs reduced by %1$d%%, added eCarbs %2$d g delayed %3$dmin for %4$dh</string>
-    <string name="food_ecarbs_how_to_change">The food button next to bread, dumplings and pizza turns the formula on or off. To change the eCarbs amount or timing for this meal, tap Change in the eCarbs row next to carb time. The saved formula stays the same.</string>
+    <string name="food_ecarbs_how_to_change">The food button next to bread, dumplings and pizza turns the formula on or off. To change the carbs counted now, the eCarbs amount or the timing for this meal, tap Change in the eCarbs row next to carb time. The saved formula stays the same.</string>
     <string name="food_card_info">About this food calculation</string>
     <string name="food_ecarbs_use_calculated">Use calculated amount</string>
     <string name="food_ecarbs_delay">Delay after carb time</string>
     <string name="food_ecarbs_duration">Spread eCarbs over</string>
     <string name="food_ecarbs_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: 1–10 h">Enter a positive amount eaten. Carbs and eCarbs must each be within the carb limit; the food must have the protein or fat its formula needs. Choose a duration of %1$d–%2$d h when food eCarbs are enabled.</string>
     <string name="food_ecarbs_unavailable">This Food entry could not be loaded. Close the wizard and select the food again.</string>
+    <string name="tt_current_target" comment="%1$s=target or target range, %2$s=glucose unit. Example: Current target: 5.5 mmol/L">Current target: %1$s %2$s</string>
+    <string name="tt_profile_target" comment="%1$s=target or target range of the profile, %2$s=glucose unit. Example: Profile target: 5.5 mmol/L">Profile target: %1$s %2$s</string>
 </resources>

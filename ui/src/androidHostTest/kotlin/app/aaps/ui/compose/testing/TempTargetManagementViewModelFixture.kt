@@ -42,6 +42,7 @@ class TempTargetManagementViewModelFixture(private val screen: AapsScreenFixture
     val aapsLogger: AAPSLogger = mock()
     val rxBus: RxBus = mock()
     val batchExecutor: BatchExecutor = mock()
+    val overviewDataCache = FakeOverviewDataCache()
     val config = screen.config
 
     init {
@@ -73,7 +74,7 @@ class TempTargetManagementViewModelFixture(private val screen: AapsScreenFixture
         // the screen renders the loading spinner and every assertion misses.
         return TempTargetManagementViewModel(
             persistenceLayer, profileFunction, screen.profileUtil, screen.preferences, rh,
-            screen.dateUtil, aapsLogger, rxBus, batchExecutor, config,
+            screen.dateUtil, aapsLogger, rxBus, batchExecutor, config, overviewDataCache,
             CoroutineScope(UnconfinedTestDispatcher())
         )
     }

@@ -24,13 +24,11 @@ import app.aaps.core.interfaces.overview.graph.ActivityGraphData
 import app.aaps.core.interfaces.overview.graph.BasalGraphData
 import app.aaps.core.interfaces.overview.graph.BgDataPoint
 import app.aaps.core.interfaces.overview.graph.BgType
-import app.aaps.core.interfaces.overview.graph.EpsGraphPoint
 import app.aaps.core.interfaces.overview.graph.SeriesType
 import app.aaps.core.interfaces.overview.graph.TargetLineData
 import app.aaps.core.ui.compose.AapsTheme
 import app.aaps.core.ui.compose.LocalDateUtil
 import app.aaps.core.ui.compose.icons.IcBgCheck
-import app.aaps.core.ui.compose.icons.IcProfile
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.VicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.VicoZoomState
@@ -131,7 +129,7 @@ private class MutableYRangeProvider(
  *
  * Layer 0 (start axis): BG readings — regular (outlined circles) + bucketed (filled, range-colored)
  * Layer 1 (end axis, hidden): Basal — profile (dashed step) + actual delivered (solid step + area fill)
- * Layer 5 (start axis): treatment markers — a manual bolus grows up from the reading, carbs down
+ * Layer 4 (start axis): treatment markers — a manual bolus grows up from the reading, carbs down
  * from it, and a measured value (calibration, BG check) sits on its own value. See
  * [treatmentMarkers] for the placement rules.
  *
@@ -172,7 +170,6 @@ fun BgGraphCompose(
     // Keep the layer structure intact (dummy data) to avoid chart restructuring.
     @Suppress("DEPRECATION")
     val basalData = if (showBasalOnBgGraph) rawBasalData else BasalGraphData(emptyList(), emptyList(), 0.0)
-    val epsPoints by viewModel.epsGraphFlow.collectAsStateWithLifecycle()
     val showActivity = SeriesType.ACTIVITY in bgOverlays
     val activityData by viewModel.activityGraphFlow.collectAsStateWithLifecycle()
     val chartConfig by viewModel.chartConfigFlow.collectAsStateWithLifecycle()
@@ -233,11 +230,8 @@ fun BgGraphCompose(
     suspend fun rebuildChart(
         currentBasalData: BasalGraphData,
         currentTargetData: TargetLineData,
-        currentEpsPoints: List<EpsGraphPoint>,
         currentActivityData: ActivityGraphData,
         currentActivityScale: ActivityOverlayScale,
-        currentMinBgY: Double,
-        currentMaxBgY: Double,
         currentMarkers: TreatmentMarkers,
         currentVisibleTimeRange: Pair<Long, Long>?
     ) {
@@ -323,24 +317,7 @@ fun BgGraphCompose(
                 }
             }
 
-            // Block 4 → EPS layer (layer 3, start axis — Y based on profile %, scaled into BG coordinate space)
-            // Same principle as legacy (originalPercentage/100 * baseline); baseline = 75% of the BG axis
-            // height. Anchored at currentMinBgY (not 0) — since the axis floor is no longer fixed at 0,
-            // a 0%-profile point must sit at the axis' actual bottom, not fall below it and disappear.
-            lineModel {
-                if (currentEpsPoints.isNotEmpty()) {
-                    val epsBaseline = (currentMaxBgY - currentMinBgY) * 0.75
-                    val pts = currentEpsPoints
-                        .map { eps -> timestampToX(eps.timestamp, minTimestamp) to (currentMinBgY + eps.originalPercentage / 100.0 * epsBaseline) }
-                        .sortedBy { it.first }
-                    series(x = pts.map { it.first }, y = pts.map { it.second })
-                } else {
-                    // Dummy series - invisible at y=0
-                    series(x = listOf(0.0, 1.0), y = listOf(0.0, 0.0))
-                }
-            }
-
-            // Block 5 → Activity layer (layer 4, start axis — Y-values mapped into BG coordinate space)
+            // Block 4 → Activity layer (layer 3, start axis — Y-values mapped into BG coordinate space)
             // Zero activity is drawn at the low mark, the bottom edge of the green in-range belt:
             // a natural horizontal reference, with the room between it and the BG axis floor left
             // for the rare negative excursion. Scale comes from the visible window only — see
@@ -368,7 +345,7 @@ fun BgGraphCompose(
                 }
             }
 
-            // Block 6 → Treatment markers (layer 5, start axis — drawn at the glucose value of the
+            // Block 5 → Treatment markers (layer 4, start axis — drawn at the glucose value of the
             // moment they happened, see TreatmentMarkers.kt). Insulin grows up from the reading and
             // carbs down from the same value, so a meal entered with its bolus is one diamond; a
             // measured value sits on its own value.
@@ -411,7 +388,7 @@ fun BgGraphCompose(
 
     // Single LaunchedEffect for all data - ensures atomic updates
     LaunchedEffect(
-        bgReadings, bucketedData, predictionsByType, basalData, targetData, epsPoints, activityData, showActivity, chartConfig, stableTimeRange,
+        bgReadings, bucketedData, predictionsByType, basalData, targetData, activityData, showActivity, chartConfig, stableTimeRange,
         visibleTimeRange, treatmentData
     ) {
         seriesRegistry[SERIES_REGULAR] = bgReadings
@@ -419,13 +396,6 @@ fun BgGraphCompose(
         for ((key, points) in predictionsByType) {
             seriesRegistry[key] = points
         }
-        // maxBgY/minBgY clamped against highMark/lowMark (same as legacy GraphData.maxY logic) —
-        // used only for the EPS baseline, NOT the axis range itself (see below for that — windowed,
-        // unlike these full-range values).
-        val allBgValues = (bgReadings + bucketedData).map { it.value }
-        val maxBgY = if (allBgValues.isNotEmpty()) maxOf(allBgValues.max(), chartConfig.highMark) else chartConfig.highMark
-        val minBgY = if (allBgValues.isNotEmpty()) minOf(allBgValues.min(), chartConfig.lowMark) else chartConfig.lowMark
-
         // Windowed axis min/max: BG values within the visible scroll/zoom window (not the full
         // loaded range), floored/ceiled at chartConfig.lowMark/highMark (the "Low mark"/"High mark"
         // target-range preferences) so the axis never shrinks past the configured target range —
@@ -489,7 +459,7 @@ fun BgGraphCompose(
             fallbackY = niceBgScale.min + axisSpan * MARKER_FALLBACK_FRACTION
         )
 
-        rebuildChart(basalData, targetData, epsPoints, activityData, activityScale, minBgY, maxBgY, markers, visibleTimeRange)
+        rebuildChart(basalData, targetData, activityData, activityScale, markers, visibleTimeRange)
     }
 
     // Build lookup map for BUCKETED points: x-value -> BgDataPoint (for PointProvider)
@@ -607,29 +577,7 @@ fun BgGraphCompose(
     val targetLines = remember(targetLine) { listOf(targetLine) }
 
     // =========================================================================
-    // EPS layer lines (layer 3) — profile icon points
-    // =========================================================================
-
-    val profileSwitchColor = AapsTheme.elementColors.profileSwitch
-    val profilePainter = rememberVectorPainter(IcProfile)
-
-    val epsLine = remember(profileSwitchColor, profilePainter) {
-        LineCartesianLayer.Line(
-            fill = LineCartesianLayer.LineFill.single(Fill(Color.Transparent)),
-            areaFill = null,
-            pointProvider = LineCartesianLayer.PointProvider.single(
-                LineCartesianLayer.Point(
-                    component = PainterComponent(profilePainter, tint = profileSwitchColor),
-                    size = 16.dp
-                )
-            )
-        )
-    }
-
-    val epsLines = remember(epsLine) { listOf(epsLine) }
-
-    // =========================================================================
-    // Activity layer lines (layer 4) — solid historical + dashed prediction
+    // Activity layer lines (layer 3) — solid historical + dashed prediction
     // =========================================================================
 
     val activityHistLine = remember(activityColor) {
@@ -658,7 +606,7 @@ fun BgGraphCompose(
     }
 
     // =========================================================================
-    // Treatment marker lines (layer 5) — order must match block 6 in rebuildChart
+    // Treatment marker lines (layer 4) — order must match block 5 in rebuildChart
     // =========================================================================
 
     val bgCheckPainter = rememberVectorPainter(IcBgCheck)
@@ -750,19 +698,13 @@ fun BgGraphCompose(
                 rangeProvider = startAxisRangeProvider,
                 verticalAxisPosition = Axis.Position.Vertical.Start
             ),
-            // Layer 3: EPS (start axis — Y based on profile %, same range as BG layer)
-            rememberLineCartesianLayer(
-                lineProvider = LineCartesianLayer.LineProvider.series(epsLines),
-                rangeProvider = startAxisRangeProvider,
-                verticalAxisPosition = Axis.Position.Vertical.Start
-            ),
-            // Layer 4: Activity (start axis — shares BG Y-axis range, values normalized in rebuildChart)
+            // Layer 3: Activity (start axis — shares BG Y-axis range, values normalized in rebuildChart)
             rememberLineCartesianLayer(
                 lineProvider = LineCartesianLayer.LineProvider.series(activityLines),
                 rangeProvider = startAxisRangeProvider,
                 verticalAxisPosition = Axis.Position.Vertical.Start
             ),
-            // Layer 5: Treatment markers (start axis — drawn last, see block 6)
+            // Layer 4: Treatment markers (start axis — drawn last, see block 5)
             rememberLineCartesianLayer(
                 lineProvider = LineCartesianLayer.LineProvider.series(treatmentLines),
                 rangeProvider = startAxisRangeProvider,

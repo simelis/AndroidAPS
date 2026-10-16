@@ -50,7 +50,11 @@ data class TempTargetManagementUiState(
     /** Whether to show notes field (from preferences) */
     val showNotesField: Boolean = false,
 
-    // ===== Loading/Error state =====
+    /** The target in force now, as the overview shows it (temp target, loop-adjusted or profile), without units */
+    val currentTarget: String = "",
+
+    /** The profile target, only while a temp target is active (empty otherwise), without units */
+    val profileTarget: String = "",
 
     // ===== Screen mode =====
 
