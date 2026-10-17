@@ -280,7 +280,8 @@ enum class TherapyEventType {
     SETTINGS_EXPORT,       // Settings export
     EXERCISE,              // Exercise
     GENERAL,               // General event (no duration)
-    GENERAL_WITH_DURATION  // General event with duration
+    GENERAL_WITH_DURATION, // General event with duration
+    PROFILE_SWITCH         // Profile switch (the label is the profile name with its percentage and time shift)
 }
 
 /**
