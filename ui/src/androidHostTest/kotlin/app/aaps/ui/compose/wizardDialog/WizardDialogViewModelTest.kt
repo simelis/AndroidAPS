@@ -261,6 +261,18 @@ internal class WizardDialogViewModelTest {
     }
 
     @Test
+    fun `changing the carbs counted now for one meal keeps a hand eCarbs amount`() = runTest(mainDispatcher.scheduler) {
+        stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10), FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
+        advanceUntilIdle()
+        sut.updateFoodAmount(200.0)
+        sut.updateFoodECarbsGrams(5)
+        sut.updateFoodECarbsRule(sut.uiState.value.foodECarbs!!.rule.copy(carbsNowPercent = 80))
+        assertThat(sut.uiState.value.foodECarbs!!.overrideGrams).isEqualTo(5)
+        // 80 % of 50 g is 40 g now; the other 10 g join the 5 g set by hand
+        assertThat(sut.uiState.value.carbPlan()).isEqualTo(WizardCarbPlan(40, 15, 0, 3))
+    }
+
+    @Test
     fun `switching between food mode and the presets never combines both calculations`() = runTest(mainDispatcher.scheduler) {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 60, protein = 20, fat = 10), FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
         advanceUntilIdle()

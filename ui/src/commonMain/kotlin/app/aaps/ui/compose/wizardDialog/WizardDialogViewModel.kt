@@ -350,7 +350,9 @@ class WizardDialogViewModel(
     fun updateFoodECarbsRule(rule: FoodECarbsRule) {
         _uiState.update { state ->
             val food = state.foodECarbs ?: return@update state
-            val calculationChanged = food.rule.copy(delayMinutes = rule.delayMinutes, durationHours = rule.durationHours) != rule
+            // Timing and the carbs counted now do not change the protein and fat eCarbs, so a hand amount stays
+            val calculationChanged =
+                food.rule.copy(delayMinutes = rule.delayMinutes, durationHours = rule.durationHours, carbsNowPercent = rule.carbsNowPercent) != rule
             state.copy(foodECarbs = food.copy(rule = rule, overrideGrams = if (calculationChanged) null else food.overrideGrams))
         }
         recalculate()
