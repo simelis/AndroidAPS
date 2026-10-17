@@ -62,8 +62,10 @@ interface NotificationManager {
      * snooze/mute gesture, full-screen acknowledge, app onTerminate). Stops both the
      * internal-notification (`AlarmSoundPlayer.OWNER_INTERNAL`) and full-screen
      * (`AlarmSoundPlayer.OWNER_FULLSCREEN`) audio and cancels their system notifications. The alarms
-     * stay in the registry, marked [AapsNotification.muted], until the user dismisses them.
-     * Non-audible notifications are left untouched.
+     * stay in the registry, marked [AapsNotification.muted]. For the mute snooze time
+     * (`IntKey.AlertsMuteSnoozeTime`) the same alarms stay quiet on this device, also when they are
+     * cleared and posted again; after it, one that is still listed sounds again. Only this device
+     * is changed. Non-audible notifications are left untouched.
      */
     fun muteAllAlarms()
 
