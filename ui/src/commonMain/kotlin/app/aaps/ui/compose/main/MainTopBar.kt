@@ -3,6 +3,7 @@ package app.aaps.ui.compose.main
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
@@ -79,9 +80,11 @@ fun MainTopBar(
         },
         actions = {
             if (showNotificationHistory) IconButton(onClick = onNotificationHistoryClick) {
+                // IcHistory is drawn at 48 dp by default; 24 dp is the Material icon size of Settings next to it
                 Icon(
                     imageVector = IcHistory,
-                    contentDescription = stringResource(UiStrings.notification_history)
+                    contentDescription = stringResource(UiStrings.notification_history),
+                    modifier = Modifier.size(24.dp)
                 )
             }
             IconButton(onClick = onPreferencesClick) {
