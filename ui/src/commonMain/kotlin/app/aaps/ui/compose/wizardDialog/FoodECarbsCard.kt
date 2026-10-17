@@ -42,6 +42,7 @@ import app.aaps.ui.compose.foodManagement.fatKnown
 import app.aaps.ui.compose.foodManagement.formatAmount
 import app.aaps.ui.compose.foodManagement.methodLabel
 import app.aaps.ui.compose.foodManagement.proteinKnown
+import app.aaps.ui.compose.foodManagement.toDoubleRange
 import kotlin.math.roundToInt
 
 internal data class FoodECarbsCallbacks(
@@ -126,6 +127,11 @@ internal fun FoodECarbsRow(state: WizardDialogUiState, actions: FoodECarbsCallba
         }
         AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
             Column(verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
+                NumberInputRow(
+                    labelRef = UiStrings.food_ecarbs_carbs_now, value = food.rule.carbsNowPercent.toDouble(),
+                    onValueChange = { actions.rule(food.rule.copy(carbsNowPercent = it.toInt())) },
+                    valueRange = FoodECarbsRule.CARBS_NOW_PERCENT.toDoubleRange(), step = 5.0, unitLabel = CoreUiStrings.shortpercent
+                )
                 NumberInputRow(
                     labelRef = UiStrings.food_ecarbs_amount, value = food.eCarbsGrams.toDouble(),
                     onValueChange = { actions.grams(it.toInt()) }, valueRange = 0.0..state.maxCarbs.toDouble(),
