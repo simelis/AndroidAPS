@@ -148,12 +148,13 @@ class WizardDialogContentTest {
     }
 
     @Test
-    fun changeOpensTheECarbsAmountAndTiming() {
+    fun changeOpensTheCarbsNowTheECarbsAmountAndTiming() {
         setWizard(uiState = { mealState() })
 
         compose.onNodeWithText(string(UiR.string.food_ecarbs_row_value, 17, 60, 3)).performScrollTo()
         compose.onNode(hasText(string(CoreUiR.string.change)) and hasAnySibling(hasText(string(UiR.string.food_ecarbs_label)))).performClick()
 
+        compose.onNodeWithText(string(UiR.string.food_ecarbs_carbs_now)).assertExists()
         compose.onNodeWithText(string(UiR.string.food_ecarbs_delay)).assertExists()
     }
 
