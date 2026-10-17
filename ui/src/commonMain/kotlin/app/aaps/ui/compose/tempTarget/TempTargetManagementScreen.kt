@@ -493,7 +493,9 @@ fun TempTargetManagementScreen(
                                         onDateClick = { showDatePicker = true },
                                         onTimeClick = { showTimePicker = true },
                                         onNotesChange = viewModel::updateNotes,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        currentTarget = uiState.currentTarget,
+                                        profileTarget = uiState.profileTarget
                                     )
                                     // Extra space for floating toolbar
                                     Spacer(modifier = Modifier.height(80.dp))
