@@ -162,4 +162,4 @@ internal fun methodLabel(method: FoodECarbsMethod): String = stringResource(when
 /** Only an input bound: the wizard checks each meal against the carb limit. */
 private const val MANUAL_GRAMS_INPUT_MAX = 1000.0
 
-private fun IntRange.toDoubleRange(): ClosedFloatingPointRange<Double> = first.toDouble()..last.toDouble()
+internal fun IntRange.toDoubleRange(): ClosedFloatingPointRange<Double> = first.toDouble()..last.toDouble()
