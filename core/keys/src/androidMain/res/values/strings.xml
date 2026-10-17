@@ -238,6 +238,8 @@
     <!-- IntKey: Alert preferences -->
     <string name="pref_title_stale_data_threshold">Stale data threshold</string>
     <string name="pref_title_pump_unreachable_threshold">Pump unreachable threshold</string>
+    <string name="pref_title_alarm_mute_snooze">Snooze time for mute</string>
+    <string name="pref_summary_alarm_mute_snooze">A snooze from the watch or the Mute button on an alarm keeps the same alarms quiet on this phone for this time, even when they come again. After it, an alarm that is still there sounds again. Other phones and Nightscout are not changed.</string>
 
     <!-- IntKey: Insulin preferences -->
 

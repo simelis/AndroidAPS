@@ -39,7 +39,10 @@ class CommonNotificationManager(
     private val aapsLogger: AAPSLogger,
     private val rh: TextResolver,
     private val platform: SystemNotificationPlatform,
-    scope: CoroutineScope
+    scope: CoroutineScope,
+    /** How long [muteAllAlarms] keeps the muted alarms quiet, in minutes. */
+    private val muteSnoozeMinutes: () -> Int,
+    private val clock: Clock = Clock.System
 ) : NotificationManager {
 
     private val _notifications = MutableStateFlow<List<AapsNotification>>(emptyList())
@@ -60,6 +63,13 @@ class CommonNotificationManager(
     /** Only ever touched under [lock], so a plain Int is enough. */
     private var nextInstanceKey = 10_000
 
+    /**
+     * Alarms muted by [muteAllAlarms], and until when they stay quiet. Kept apart from the list,
+     * because an alarm can be cleared and posted again while muted: a Nightscout alarm is cleared by
+     * the next BG and sent again by Nightscout. Only touched under [lock].
+     */
+    private val snoozedUntil = mutableMapOf<NotificationId, Long>()
+
     init {
         platform.onDismissed { instanceKey -> dismiss(NotificationHandle(instanceKey)) }
 
@@ -72,7 +82,10 @@ class CommonNotificationManager(
         }
     }
 
-    override fun cleanUp() = lock.withLock { removeExpired() }
+    override fun cleanUp() = lock.withLock {
+        removeExpired()
+        endSnoozes()
+    }
 
     override fun post(
         id: NotificationId,
@@ -138,10 +151,12 @@ class CommonNotificationManager(
     ): NotificationHandle = lock.withLock {
         // Clean up expired notifications piggyback on writes.
         removeExpired()
+        endSnoozes()
 
         val current = _notifications.value.toMutableList()
 
-        // A repeat of a listed alarm only updates it: no new system notification or sound, so a muted alarm stays quiet
+        // A repeat of a listed alarm only updates it: no new system notification or sound. A muted one stays muted
+        // until its snooze ends (endSnoozes above).
         val listed = if (id.allowMultiple) null else current.firstOrNull { it.id == id }
         if (listed != null && listed.isAudibleAlarm && level == NotificationLevel.URGENT && sound != null) {
             val updated = listed.copy(
@@ -174,18 +189,17 @@ class CommonNotificationManager(
             actions = actions,
             validityCheck = validityCheck
         )
-        current.add(notification)
+        // An alarm that comes again while snoozed is listed, but stays quiet until the snooze ends
+        val snoozed = notification.isAudibleAlarm && isSnoozed(id)
+        current.add(if (snoozed) notification.copy(muted = true) else notification)
         current.sortBy { it.level.priority }
         _notifications.value = current
 
         // The platform gets the whole notification and decides what, if anything, to show.
-        platform.show(
-            notification = notification,
-            title = rh.gs(if (level == NotificationLevel.URGENT) CoreUiStrings.urgent_alarm else CoreUiStrings.info)
-        )
+        if (!snoozed) showOnPlatform(notification)
         refreshAlarmSound()
 
-        aapsLogger.debug(LTag.NOTIFICATION, "Notification posted: [${id.name}] $text")
+        aapsLogger.debug(LTag.NOTIFICATION, "Notification posted${if (snoozed) " (snoozed)" else ""}: [${id.name}] $text")
         NotificationHandle(instanceKey)
     }
 
@@ -206,6 +220,9 @@ class CommonNotificationManager(
      */
     override fun muteAllAlarms() = lock.withLock {
         val current = _notifications.value
+        val until = now() + muteSnoozeMinutes().toLong().minutes.inWholeMilliseconds
+        // A new mute also makes the snooze of an alarm that is muted already longer
+        current.filter { it.isAudibleAlarm }.forEach { snoozedUntil[it.id] = until }
         val audible = current.filter { it.isAudibleAlarm && !it.muted }
         if (audible.isNotEmpty()) {
             audible.forEach { cancelSystemNotification(it) }
@@ -213,8 +230,36 @@ class CommonNotificationManager(
         }
         refreshAlarmSound()
         platform.cancelAll()
-        aapsLogger.debug(LTag.NOTIFICATION, "Muted all alarms")
+        aapsLogger.debug(LTag.NOTIFICATION, "Muted all alarms for ${muteSnoozeMinutes()} min")
     }
+
+    /** Caller must hold [lock]. */
+    private fun isSnoozed(id: NotificationId): Boolean = (snoozedUntil[id] ?: 0L) > now()
+
+    /**
+     * An alarm that is still listed when its snooze ends sounds again.
+     *
+     * Caller must hold [lock].
+     */
+    private fun endSnoozes() {
+        val now = now()
+        val ended = snoozedUntil.filterValues { it <= now }.keys
+        if (ended.isEmpty()) return
+        ended.forEach { snoozedUntil.remove(it) }
+        val again = _notifications.value.filter { it.muted && it.id in ended }
+        if (again.isEmpty()) return
+        _notifications.value = _notifications.value.map { if (it in again) it.copy(muted = false) else it }
+        again.forEach { n ->
+            showOnPlatform(n.copy(muted = false))
+            aapsLogger.debug(LTag.NOTIFICATION, "Snooze ended, alarm again: [${n.id.name}] ${n.text}")
+        }
+        refreshAlarmSound()
+    }
+
+    private fun showOnPlatform(notification: AapsNotification) = platform.show(
+        notification = notification,
+        title = rh.gs(if (notification.level == NotificationLevel.URGENT) CoreUiStrings.urgent_alarm else CoreUiStrings.info)
+    )
 
     /** Caller must hold [lock]. */
     private fun removeMatching(logLine: String, predicate: (AapsNotification) -> Boolean) {
@@ -276,5 +321,5 @@ class CommonNotificationManager(
         }
     }
 
-    private fun now(): Long = Clock.System.now().toEpochMilliseconds()
+    private fun now(): Long = clock.now().toEpochMilliseconds()
 }
