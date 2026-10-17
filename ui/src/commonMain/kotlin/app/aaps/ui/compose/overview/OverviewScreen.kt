@@ -27,6 +27,7 @@ import app.aaps.core.data.model.ActiveSceneState
 import app.aaps.core.data.model.RM
 import app.aaps.core.data.model.TT
 import app.aaps.core.interfaces.notifications.AapsNotification
+import app.aaps.core.interfaces.notifications.NotificationHistoryEntry
 import app.aaps.core.interfaces.overview.graph.TbrState
 import app.aaps.core.interfaces.pump.BolusProgressState
 import app.aaps.core.ui.compose.TABLET_MIN_SW_DP
@@ -82,6 +83,10 @@ fun OverviewScreen(
     onNotificationActionClick: (AapsNotification) -> Unit,
     autoShowNotificationSheet: Boolean,
     onAutoShowConsumed: () -> Unit,
+    notificationHistory: List<NotificationHistoryEntry> = emptyList(),
+    /** True asks to open the sheet for the history, also with no active notification. */
+    showNotificationHistory: Boolean = false,
+    onNotificationHistoryShown: () -> Unit = {},
     activeSceneState: ActiveSceneState? = null,
     sceneExpired: Boolean = false,
     activeSceneChainTargetName: String? = null,
@@ -106,6 +111,8 @@ fun OverviewScreen(
     modifier: Modifier = Modifier
 ) {
     var showNotificationSheet by remember { mutableStateOf(false) }
+    // Opened for the history: it stays open with no active notification
+    var notificationSheetForHistory by remember { mutableStateOf(false) }
     var showPumpActivityDialog by remember { mutableStateOf(false) }
     val showPumpFab = isPumpCommunicating || (bolusState != null && bolusState.isSMB)
 
@@ -124,6 +131,14 @@ fun OverviewScreen(
                 ) ?: 3_000
             )
             showPumpActivityDialog = false
+        }
+    }
+
+    LaunchedEffect(showNotificationHistory) {
+        if (showNotificationHistory) {
+            notificationSheetForHistory = true
+            showNotificationSheet = true
+            onNotificationHistoryShown()
         }
     }
 
@@ -320,12 +335,16 @@ fun OverviewScreen(
         )
     }
 
-    if (showNotificationSheet && notifications.isNotEmpty()) {
+    if (showNotificationSheet && (notifications.isNotEmpty() || (notificationSheetForHistory && notificationHistory.isNotEmpty()))) {
         NotificationBottomSheet(
             notifications = notifications,
-            onDismissSheet = { showNotificationSheet = false },
+            onDismissSheet = {
+                showNotificationSheet = false
+                notificationSheetForHistory = false
+            },
             onDismissNotification = onDismissNotification,
-            onNotificationActionClick = onNotificationActionClick
+            onNotificationActionClick = onNotificationActionClick,
+            history = notificationHistory
         )
     }
 }

@@ -420,4 +420,9 @@
     <string name="food_ecarbs_unavailable">This Food entry could not be loaded. Close the wizard and select the food again.</string>
     <string name="tt_current_target" comment="%1$s=target or target range, %2$s=glucose unit. Example: Current target: 5.5 mmol/L">Current target: %1$s %2$s</string>
     <string name="tt_profile_target" comment="%1$s=target or target range of the profile, %2$s=glucose unit. Example: Profile target: 5.5 mmol/L">Profile target: %1$s %2$s</string>
+    <string name="notification_history">Notification history</string>
+    <string name="notifications_recently_dismissed">Recently dismissed</string>
+    <string name="notification_history_removed" comment="%1$s=time the notification was posted, %2$s=time it was dismissed. Example: 10:20, removed 10:32">%1$s, removed %2$s</string>
+    <string name="notification_history_expired" comment="%1$s=time the notification was posted, %2$s=time it expired. Example: 10:20, expired 11:20">%1$s, expired %2$s</string>
+    <string name="notification_history_muted">The alarm was muted</string>
 </resources>
