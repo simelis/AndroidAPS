@@ -427,7 +427,7 @@
     <string name="food_ecarbs_protein_factor">Protein factor</string>
     <string name="food_ecarbs_fat_factor">Fat factor</string>
     <string name="food_ecarbs_amount">Additional eCarbs for this meal</string>
-    <string name="food_ecarbs_label">eCarbs:</string>
+    <string name="food_ecarbs_label">eCarbs</string>
     <string name="food_ecarbs_row_value" comment="eCarbs of this meal. %1$d=eCarbs in grams, %2$d=delay after carb time in minutes, %3$d=duration in hours. Example: 34 g, after 60 min, over 3 h">%1$d g, after %2$d min, over %3$d h</string>
     <string name="food_history_note" comment="Saved as the note of a meal from a food, in the treatment history. %1$s=food name, %2$s=amount eaten, %3$s=its unit as typed by the user. Example: Pizza: 250 g">%1$s: %2$s %3$s</string>
     <string name="food_history_meal_ecarbs" comment="Saved as the note of a meal with eCarbs, in the treatment history. %1$s=the foods and their amounts, %2$s=where the eCarbs came from (formula name, fixed amount, eCarbs changed, food formulas, or eCarbs for a dumplings or pizza split), %3$d=percent of the carbs counted now, %4$d=meal carbs in grams, %5$d=eCarbs in grams, %6$d=delay after carb time in minutes, %7$d=duration in hours. Example: Pizza: 250 g. Modified FPU (200 kcal): 80% of 50 g carbs now, eCarbs 30 g after 60 min over 3 h">%1$s. %2$s: %3$d%% of %4$d g carbs now, eCarbs %5$d g after %6$d min over %7$d h</string>
@@ -438,7 +438,7 @@
     <string name="food_history_fixed_amount">Fixed amount</string>
     <string name="food_history_ecarbs_label" comment="Label in the note of a meal when the carbs were split by the dumplings or pizza choice. Example: Burger: 250 g. eCarbs: 80% of 50 g carbs now, eCarbs 17 g after 60 min over 3 h">eCarbs</string>
     <string name="food_ecarbs_type_desc" comment="Food eCarbs formula in the wizard info. %1$d=percent of the carbs moved from the bolus, %2$d=eCarbs grams, %3$d=delay in minutes, %4$d=duration in hours. Example: Carbs reduced by 20%, added eCarbs 15 g delayed 60min for 3h">Carbs reduced by %1$d%%, added eCarbs %2$d g delayed %3$dmin for %4$dh</string>
-    <string name="food_ecarbs_how_to_change">The food button next to bread, dumplings and pizza turns the formula on or off. To change the carbs counted now, the eCarbs amount or the timing for this meal, tap Change in the eCarbs row next to carb time. The saved formula stays the same.</string>
+    <string name="food_ecarbs_how_to_change">The food button next to bread, dumplings and pizza turns the formula on or off. To change the carbs counted now, the eCarbs amount or the timing for this meal, open the eCarbs row next to carb time with its arrow. The saved formula stays the same.</string>
     <string name="food_card_info">About this food calculation</string>
     <string name="food_ecarbs_use_calculated">Use calculated amount</string>
     <string name="food_ecarbs_delay">Delay after carb time</string>

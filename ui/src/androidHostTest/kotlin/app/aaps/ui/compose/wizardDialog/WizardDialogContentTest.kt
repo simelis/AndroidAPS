@@ -13,7 +13,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
@@ -180,12 +179,14 @@ class WizardDialogContentTest {
     }
 
     @Test
-    fun changeOpensTheCarbsNowTheECarbsAmountAndTiming() {
+    fun theArrowOpensTheECarbsAmountTheCarbsNowAndTheTiming() {
         setWizard(uiState = { mealState() })
 
         compose.onNodeWithText(string(UiR.string.food_ecarbs_row_value, 17, 60, 3)).performScrollTo()
-        compose.onNode(hasText(string(CoreUiR.string.change)) and hasAnySibling(hasText(string(UiR.string.food_ecarbs_label)))).performClick()
+        // Opened like the other rows of the wizard, not by a button of its own
+        compose.onNodeWithContentDescription(string(CoreUiR.string.a11y_expand_button_description, string(UiR.string.food_ecarbs_label))).performClick()
 
+        compose.onNodeWithText(string(UiR.string.food_ecarbs_amount)).assertExists()
         compose.onNodeWithText(string(UiR.string.food_ecarbs_carbs_now)).assertExists()
         compose.onNodeWithText(string(UiR.string.food_ecarbs_delay)).assertExists()
     }
@@ -216,7 +217,7 @@ class WizardDialogContentTest {
     fun withTheFormulaOffThereIsNoECarbsRow() {
         setWizard(uiState = { mealState(enabled = false) })
 
-        compose.onNodeWithText(string(UiR.string.food_ecarbs_label)).assertDoesNotExist()
+        compose.onNodeWithText(string(CoreUiR.string.label_with_colon, string(UiR.string.food_ecarbs_label))).assertDoesNotExist()
     }
 
     @Test
