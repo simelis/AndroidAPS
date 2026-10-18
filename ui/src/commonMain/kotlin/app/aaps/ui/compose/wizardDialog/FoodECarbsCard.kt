@@ -1,8 +1,5 @@
 package app.aaps.ui.compose.wizardDialog
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,7 +14,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -47,6 +43,7 @@ import app.aaps.core.interfaces.InterfacesStrings
 import app.aaps.core.keys.interfaces.TextRef
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.AapsSpacing
+import app.aaps.core.ui.compose.ExpandableNumberInputRow
 import app.aaps.core.ui.compose.NumberInputRow
 import app.aaps.core.ui.compose.icons.IcPluginFood
 import app.aaps.core.ui.compose.rememberBringIntoViewOnExpand
@@ -187,60 +184,53 @@ private fun FoodPickerSheet(foods: List<FD>, onPick: (FD) -> Unit, onDismiss: ()
     }
 }
 
+/**
+ * The eCarbs of the meal, like the other wizard rows: -/+ change the amount, the arrow opens the
+ * amount with the carbs counted now and the timing.
+ */
 @Composable
 internal fun FoodECarbsRow(state: WizardDialogUiState, actions: FoodECarbsCallbacks, modifier: Modifier = Modifier) {
     if (!state.foodMode) return
     var expanded by rememberSaveable { mutableStateOf(false) }
     val plan = state.carbPlan()
-    Column(modifier = modifier.bringIntoViewRequester(rememberBringIntoViewOnExpand(expanded))) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AapsSpacing.medium),
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    stringResource(UiStrings.food_ecarbs_label),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    stringResource(UiStrings.food_ecarbs_row_value, plan.eCarbs, plan.delayMinutes, plan.durationHours),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+    ExpandableNumberInputRow(
+        labelRef = UiStrings.food_ecarbs_label,
+        value = state.mealECarbsGrams.toDouble(),
+        onValueChange = { actions.grams(it.toInt()) },
+        valueRange = 0.0..state.maxCarbs.toDouble(),
+        step = 1.0,
+        unitLabel = CoreUiStrings.shortgramm,
+        inputLabelRef = UiStrings.food_ecarbs_amount,
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier.bringIntoViewRequester(rememberBringIntoViewOnExpand(expanded)),
+        valueContent = {
+            Text(
+                stringResource(UiStrings.food_ecarbs_row_value, plan.eCarbs, plan.delayMinutes, plan.durationHours),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        expandedContent = {
+            if (state.mealAdjust.eCarbsGrams != null) TextButton(onClick = { actions.grams(null) }) {
+                Text(stringResource(UiStrings.food_ecarbs_use_calculated))
             }
-            if (!expanded) FilledTonalButton(onClick = { expanded = true }) {
-                Text(stringResource(CoreUiStrings.change))
-            }
-        }
-        AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
-            Column(verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    NumberInputRow(
-                        labelRef = UiStrings.food_ecarbs_carbs_now, value = state.mealCarbsNowPercent.roundToInt().toDouble(),
-                        onValueChange = { actions.carbsNow(it.toInt()) },
-                        valueRange = FoodECarbsRule.CARBS_NOW_PERCENT.toDoubleRange(), step = 5.0, unitLabel = CoreUiStrings.shortpercent,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (state.foods.size > 1) InfoTooltipButton(stringResource(UiStrings.food_card_info)) {
-                        Text(stringResource(UiStrings.food_meal_carbs_now_hint))
-                    }
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 NumberInputRow(
-                    labelRef = UiStrings.food_ecarbs_amount, value = state.mealECarbsGrams.toDouble(),
-                    onValueChange = { actions.grams(it.toInt()) }, valueRange = 0.0..state.maxCarbs.toDouble(),
-                    step = 1.0, unitLabel = CoreUiStrings.shortgramm
+                    labelRef = UiStrings.food_ecarbs_carbs_now, value = state.mealCarbsNowPercent.roundToInt().toDouble(),
+                    onValueChange = { actions.carbsNow(it.toInt()) },
+                    valueRange = FoodECarbsRule.CARBS_NOW_PERCENT.toDoubleRange(), step = 5.0, unitLabel = CoreUiStrings.shortpercent,
+                    modifier = Modifier.weight(1f)
                 )
-                if (state.mealAdjust.eCarbsGrams != null) TextButton(onClick = { actions.grams(null) }) {
-                    Text(stringResource(UiStrings.food_ecarbs_use_calculated))
-                }
-                FoodECarbsTiming(FoodECarbsRule(delayMinutes = state.mealDelayMinutes, durationHours = state.mealDurationHours)) {
-                    actions.timing(it.delayMinutes, it.durationHours)
+                if (state.foods.size > 1) InfoTooltipButton(stringResource(UiStrings.food_card_info)) {
+                    Text(stringResource(UiStrings.food_meal_carbs_now_hint))
                 }
             }
+            FoodECarbsTiming(FoodECarbsRule(delayMinutes = state.mealDelayMinutes, durationHours = state.mealDurationHours)) {
+                actions.timing(it.delayMinutes, it.durationHours)
+            }
         }
-    }
+    )
 }
 
 @Composable
