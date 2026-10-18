@@ -2,15 +2,20 @@ package app.aaps.ui.compose.wizardDialog
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,7 +24,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -134,9 +138,13 @@ private fun FoodECarbsCard(state: WizardDialogUiState, index: Int, food: FoodECa
 internal fun AddFoodButton(state: WizardDialogUiState, onAdd: (FD) -> Unit, modifier: Modifier = Modifier) {
     if (state.availableFoods.isEmpty() || state.foods.size >= FoodECarbsState.MAX_FOODS) return
     var showPicker by rememberSaveable { mutableStateOf(false) }
-    OutlinedButton(onClick = { showPicker = true }, modifier = modifier) {
-        Icon(IcPluginFood, contentDescription = null, modifier = Modifier.padding(end = AapsSpacing.medium))
-        Text(stringResource(UiStrings.food_add))
+    // Small, at the end: most meals do not need it, and it must not look like the OK button
+    Box(modifier = modifier, contentAlignment = Alignment.CenterEnd) {
+        TextButton(onClick = { showPicker = true }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
+            Icon(IcPluginFood, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(UiStrings.food_add))
+        }
     }
     if (showPicker) FoodPickerSheet(
         foods = state.availableFoods,
