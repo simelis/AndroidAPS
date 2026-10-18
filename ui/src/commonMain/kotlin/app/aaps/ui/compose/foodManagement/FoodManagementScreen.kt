@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.CardDefaults
@@ -77,6 +78,8 @@ fun FoodManagementScreen(
     viewModel: FoodManagementViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToWizard: (foodId: Long) -> Unit = {},
+    /** Set when the list is opened to add a food to the wizard's meal: the calculator button adds it instead. */
+    onPickFood: ((foodId: Long) -> Unit)? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val filteredFoods by viewModel.filteredFoods.collectAsStateWithLifecycle()
@@ -196,7 +199,8 @@ fun FoodManagementScreen(
                             isFavourite = food.id in state.favouriteIds,
                             onToggleFavourite = { viewModel.toggleFavourite(food) },
                             onEdit = { viewModel.openEditor(food) },
-                            onCalculate = { onNavigateToWizard(food.id) }
+                            onCalculate = { onNavigateToWizard(food.id) },
+                            onPick = onPickFood?.let { pick -> { pick(food.id) } }
                         )
                     }
                 }
@@ -245,6 +249,7 @@ private fun FoodItem(
     onToggleFavourite: () -> Unit,
     onEdit: () -> Unit,
     onCalculate: () -> Unit,
+    onPick: (() -> Unit)? = null,
 ) {
     val basis = stringResource(UiStrings.food_portion_amount, food.portion.formatAmount(), food.unit)
     val rule = food.eCarbsRule
@@ -324,12 +329,12 @@ private fun FoodItem(
             // contentDescription on a merging node is inserted BEFORE its children rather than
             // replacing them, so this reads "Chicken salad, Bolus wizard".
             IconButton(
-                onClick = onCalculate,
+                onClick = onPick ?: onCalculate,
                 modifier = Modifier.semantics { contentDescription = food.name }
             ) {
                 Icon(
-                    imageVector = IcCalculator,
-                    contentDescription = stringResource(CoreUiStrings.boluswizard),
+                    imageVector = if (onPick != null) Icons.Filled.AddCircle else IcCalculator,
+                    contentDescription = stringResource(if (onPick != null) UiStrings.food_add_to_meal else CoreUiStrings.boluswizard),
                     modifier = Modifier.size(AapsSpacing.chipIconSize),
                     tint = MaterialTheme.colorScheme.primary
                 )

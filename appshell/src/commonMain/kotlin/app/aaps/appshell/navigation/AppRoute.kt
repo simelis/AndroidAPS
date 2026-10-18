@@ -122,6 +122,9 @@ sealed class AppRoute(val route: String) {
     }
 
     data object FoodManagement : AppRoute("food_management")
+
+    /** The food list for adding a food to the bolus wizard's meal. The pick goes back to the wizard. */
+    data object FoodPicker : AppRoute("food_picker")
     data object SiteRotationManagement : AppRoute("siteRotationManagement")
     data object SetupWizard : AppRoute("setup_wizard")
     data object AuthorizedClients : AppRoute("authorized_clients")

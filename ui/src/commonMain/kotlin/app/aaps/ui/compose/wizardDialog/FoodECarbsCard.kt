@@ -3,7 +3,6 @@ package app.aaps.ui.compose.wizardDialog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,25 +12,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,9 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import app.aaps.core.data.format.NumberFormat
-import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsRule
-import app.aaps.core.interfaces.InterfacesStrings
 import app.aaps.core.keys.interfaces.TextRef
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.AapsSpacing
@@ -69,7 +59,7 @@ import kotlin.math.roundToInt
 internal data class FoodECarbsCallbacks(
     val amount: (index: Int, amount: Double) -> Unit = { _, _ -> },
     val enabled: (Boolean) -> Unit = {},
-    val add: (FD) -> Unit = {},
+    val add: () -> Unit = {},
     val remove: (index: Int) -> Unit = {},
     val carbsNow: (Int?) -> Unit = {},
     val grams: (Int?) -> Unit = {},
@@ -136,61 +126,16 @@ private fun FoodECarbsCard(state: WizardDialogUiState, index: Int, food: FoodECa
     }
 }
 
-/** Opens the list of foods. A meal of several foods is added one food at a time. */
+/** Opens the food list, with its search and filters. A meal of several foods is added one food at a time. */
 @Composable
-internal fun AddFoodButton(state: WizardDialogUiState, onAdd: (FD) -> Unit, modifier: Modifier = Modifier) {
-    if (state.availableFoods.isEmpty() || state.foods.size >= FoodECarbsState.MAX_FOODS) return
-    var showPicker by rememberSaveable { mutableStateOf(false) }
+internal fun AddFoodButton(state: WizardDialogUiState, onAdd: () -> Unit, modifier: Modifier = Modifier) {
+    if (state.foods.size >= FoodECarbsState.MAX_FOODS) return
     // Small, at the end: most meals do not need it, and it must not look like the OK button
     Box(modifier = modifier, contentAlignment = Alignment.CenterEnd) {
-        TextButton(onClick = { showPicker = true }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
+        TextButton(onClick = onAdd, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
             Icon(IcPluginFood, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
             Spacer(Modifier.width(ButtonDefaults.IconSpacing))
             Text(stringResource(UiStrings.food_add))
-        }
-    }
-    if (showPicker) FoodPickerSheet(
-        foods = state.availableFoods,
-        onPick = {
-            showPicker = false
-            onAdd(it)
-        },
-        onDismiss = { showPicker = false }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FoodPickerSheet(foods: List<FD>, onPick: (FD) -> Unit, onDismiss: () -> Unit) {
-    var query by rememberSaveable { mutableStateOf("") }
-    val shown = remember(foods, query) {
-        val text = query.trim()
-        if (text.isEmpty()) foods else foods.filter { it.name.contains(text, ignoreCase = true) }
-    }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(Modifier.padding(horizontal = AapsSpacing.extraLarge), verticalArrangement = Arrangement.spacedBy(AapsSpacing.medium)) {
-            Text(stringResource(UiStrings.food_add_title), style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text(stringResource(UiStrings.food_add_search)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (shown.isEmpty()) Text(stringResource(UiStrings.food_add_none), style = MaterialTheme.typography.bodyMedium)
-        }
-        LazyColumn {
-            items(shown, key = { it.id }) { food ->
-                ListItem(
-                    headlineContent = { Text(food.name) },
-                    supportingContent = { Text(stringResource(UiStrings.food_portion_amount, food.portion.formatAmount(), food.unit)) },
-                    trailingContent = { Text(stringResource(InterfacesStrings.format_carbs, food.carbs)) },
-                    modifier = Modifier.clickable { onPick(food) }
-                )
-            }
         }
     }
 }
