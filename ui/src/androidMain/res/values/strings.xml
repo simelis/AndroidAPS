@@ -428,9 +428,7 @@
     <string name="notification_history_expired" comment="%1$s=time the notification was posted, %2$s=time it expired. Example: 10:20, expired 11:20">%1$s, expired %2$s</string>
     <string name="notification_history_muted">The alarm was muted</string>
     <string name="food_add">Add food</string>
-    <string name="food_add_title">Add a food to this meal</string>
-    <string name="food_add_search">Search foods</string>
-    <string name="food_add_none">No food found</string>
+    <string name="food_add_to_meal">Add to meal</string>
     <string name="food_remove" comment="Screen-reader name of the button that removes a food from the meal in the bolus wizard. %1$s=food name. Example: Remove Pizza">Remove %1$s</string>
     <string name="food_meal_carbs_now_hint">The value of each food, weighted by its carbs. A food without a formula counts all its carbs now.</string>
     <string name="wizard_cob_hint" comment="Shown in the bolus wizard when COB is off. %1$d=carbs on board in grams, %2$s=bolus insulin still active, with its unit. Example: 35 g of carbs are on board and 2.40 U of bolus insulin is still active.">%1$d g of carbs are on board and %2$s of bolus insulin is still active. The wizard subtracts the insulin, but adds the carbs only with COB on, so this bolus would be too small.</string>
