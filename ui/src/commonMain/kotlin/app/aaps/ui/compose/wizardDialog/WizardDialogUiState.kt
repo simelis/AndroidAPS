@@ -1,7 +1,6 @@
 package app.aaps.ui.compose.wizardDialog
 
 import androidx.compose.runtime.Immutable
-import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.GlucoseUnit
 
 enum class CarbsType(
@@ -60,8 +59,6 @@ data class WizardDialogUiState(
     val carbsButtonIncrement1: Int = 0,
     val carbsButtonIncrement2: Int = 0,
     val carbsButtonIncrement3: Int = 0,
-    /** Foods that "Add food" offers, favourites first. */
-    val availableFoods: List<FD> = emptyList(),
 
     // Calculation results (updated on every recalc)
     val insulinFromBG: Double = 0.0,

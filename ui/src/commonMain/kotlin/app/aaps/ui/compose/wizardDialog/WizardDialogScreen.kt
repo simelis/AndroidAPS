@@ -115,9 +115,21 @@ fun WizardDialogScreen(
     viewModel: WizardDialogViewModel = metroViewModel(),
     wizardSettingsDef: PreferenceSubScreenDef,
     onNavigateBack: () -> Unit,
-    onShowDeliveryError: (String) -> Unit
+    onShowDeliveryError: (String) -> Unit,
+    /** Opens the food list to pick a food for the meal. */
+    onAddFood: () -> Unit = {},
+    /** The food picked in that list, until [onPickedFoodUsed] clears it. */
+    pickedFoodId: Long? = null,
+    onPickedFoodUsed: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(pickedFoodId) {
+        pickedFoodId?.let {
+            onPickedFoodUsed()
+            viewModel.addFoodById(it)
+        }
+    }
 
     // Observe side effects
     LaunchedEffect(Unit) {
@@ -220,7 +232,7 @@ fun WizardDialogScreen(
         foodActions = FoodECarbsCallbacks(
             amount = viewModel::updateFoodAmount,
             enabled = viewModel::toggleFoodECarbs,
-            add = viewModel::addFood,
+            add = onAddFood,
             remove = viewModel::removeFood,
             carbsNow = viewModel::updateMealCarbsNow,
             grams = viewModel::updateMealECarbsGrams,

@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -117,6 +118,7 @@ import app.aaps.ui.compose.treatmentDialog.TreatmentDialogScreen
 import app.aaps.ui.compose.treatments.TreatmentsScreen
 import app.aaps.ui.compose.treatments.viewmodels.TreatmentsViewModel
 import app.aaps.ui.compose.wizardDialog.WizardDialogScreen
+import app.aaps.ui.compose.wizardDialog.WizardDialogViewModel
 import app.aaps.ui.search.BuiltInSearchables
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -387,10 +389,14 @@ fun NavGraphBuilder.appNavGraph(
                 defaultValue = null
             }
         )
-    ) {
+    ) { backStackEntry ->
+        val pickedFood by backStackEntry.savedStateHandle.getStateFlow<String?>(WizardDialogViewModel.PICKED_FOOD_ID, null).collectAsState()
         WizardDialogScreen(
             wizardSettingsDef = builtInSearchables.wizardSettings,
             onNavigateBack = { navController.safePopBackStack() },
+            onAddFood = { navController.navigate(AppRoute.FoodPicker.route) },
+            pickedFoodId = pickedFood?.toLongOrNull(),
+            onPickedFoodUsed = { backStackEntry.savedStateHandle[WizardDialogViewModel.PICKED_FOOD_ID] = null },
             onShowDeliveryError = { comment ->
                 onShowDeliveryError(comment, CoreUiStrings.treatmentdeliveryerror)
             }
@@ -736,6 +742,18 @@ fun NavGraphBuilder.appNavGraph(
                 withProtection(ProtectionCheck.Protection.BOLUS) {
                     navController.navigate(AppRoute.WizardDialog.createRoute(foodId = foodId))
                 }
+            }
+        )
+    }
+
+    composable(AppRoute.FoodPicker.route) {
+        val foodManagementViewModel: FoodManagementViewModel = metroViewModel()
+        app.aaps.ui.compose.foodManagement.FoodManagementScreen(
+            viewModel = foodManagementViewModel,
+            onNavigateBack = { navController.safePopBackStack() },
+            onPickFood = { foodId ->
+                navController.previousBackStackEntry?.savedStateHandle?.set(WizardDialogViewModel.PICKED_FOOD_ID, foodId.toString())
+                navController.safePopBackStack()
             }
         )
     }

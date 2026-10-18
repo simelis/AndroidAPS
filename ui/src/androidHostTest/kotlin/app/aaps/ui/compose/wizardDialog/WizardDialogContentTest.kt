@@ -246,15 +246,13 @@ class WizardDialogContentTest {
         )
 
     @Test
-    fun addFoodOpensTheFoodListAndAddsThePickedFood() {
-        val juice = FD(id = 9, name = "Juice", portion = 200.0, carbs = 20, unit = "ml")
-        var added: FD? = null
-        setWizard(uiState = { loaded().copy(availableFoods = listOf(juice, meal)) }, foodActions = FoodECarbsCallbacks(add = { added = it }))
+    fun addFoodOpensTheFoodList() {
+        var opened = false
+        setWizard(uiState = { loaded() }, foodActions = FoodECarbsCallbacks(add = { opened = true }))
 
         compose.onNodeWithText(string(UiR.string.food_add)).performScrollTo().performClick()
-        compose.onNodeWithText("Juice").performClick()
 
-        assertThat(added).isEqualTo(juice)
+        assertThat(opened).isTrue()
     }
 
     @Test
