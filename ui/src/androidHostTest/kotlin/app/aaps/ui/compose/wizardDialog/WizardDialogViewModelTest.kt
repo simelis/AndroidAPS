@@ -37,7 +37,6 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.IntKey
-import app.aaps.core.keys.StringNonKey
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.keys.interfaces.Preferences
@@ -137,7 +136,6 @@ internal class WizardDialogViewModelTest {
     private suspend fun stubFoodInitialization(food: FD, rule: FoodECarbsRule? = null, otherFoods: List<FD> = emptyList(), cob: Double = 0.0) {
         savedStateHandle["foodId"] = food.id.toString()
         whenever(persistenceLayer.getFoods()).thenReturn(listOf(food.copy(eCarbsRule = rule ?: food.eCarbsRule)) + otherFoods)
-        whenever(preferences.get(StringNonKey.FoodFavourites)).thenReturn("")
         whenever(iobCobCalculator.getCobInfo(any())).thenReturn(CobInfo(NOW, cob, 0.0))
         val store = mock<ProfileStore>()
         whenever(store.getProfileList()).thenReturn(arrayListOf<CharSequence>("Test"))
@@ -234,10 +232,11 @@ internal class WizardDialogViewModelTest {
             otherFoods = listOf(juice)
         )
         advanceUntilIdle()
-        assertThat(sut.uiState.value.availableFoods.map { it.name }).containsExactly("Juice", "Pizza").inOrder()
         // 5 g of bread typed by hand
         sut.updateCarbs(55)
-        sut.addFood(juice)
+        // Picked in the food list, which gives the id only
+        sut.addFoodById(juice.id)
+        advanceUntilIdle()
         assertThat(sut.uiState.value.foods.map { it.food.name }).containsExactly("Pizza", "Juice").inOrder()
         assertThat(sut.uiState.value.carbs).isEqualTo(75)
         assertThat(sut.uiState.value.foodMode).isTrue()
