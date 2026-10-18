@@ -1,6 +1,7 @@
 package app.aaps.ui.compose.wizardDialog
 
 import androidx.lifecycle.SavedStateHandle
+import app.aaps.core.data.iob.CobInfo
 import app.aaps.core.data.model.GV
 import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsMethod
@@ -36,6 +37,7 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.IntKey
+import app.aaps.core.keys.StringNonKey
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.keys.interfaces.Preferences
@@ -132,9 +134,11 @@ internal class WizardDialogViewModelTest {
         assertThat(sut.uiState.value.alarmChecked).isTrue()
     }
 
-    private suspend fun stubFoodInitialization(food: FD, rule: FoodECarbsRule? = null) {
+    private suspend fun stubFoodInitialization(food: FD, rule: FoodECarbsRule? = null, otherFoods: List<FD> = emptyList(), cob: Double = 0.0) {
         savedStateHandle["foodId"] = food.id.toString()
-        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food.copy(eCarbsRule = rule ?: food.eCarbsRule)))
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(food.copy(eCarbsRule = rule ?: food.eCarbsRule)) + otherFoods)
+        whenever(preferences.get(StringNonKey.FoodFavourites)).thenReturn("")
+        whenever(iobCobCalculator.getCobInfo(any())).thenReturn(CobInfo(NOW, cob, 0.0))
         val store = mock<ProfileStore>()
         whenever(store.getProfileList()).thenReturn(arrayListOf<CharSequence>("Test"))
         whenever(profileRepository.profile).thenReturn(MutableStateFlow(store))
@@ -162,11 +166,11 @@ internal class WizardDialogViewModelTest {
         val state = sut.uiState.value
         assertThat(state.notes).isEqualTo(meal.name)
         assertThat(state.carbs).isEqualTo(0)
-        assertThat(state.foodECarbs!!.rule).isEqualTo(rule)
-        assertThat(state.foodECarbs!!.enabled).isTrue()
+        assertThat(state.foods.single().rule).isEqualTo(rule)
+        assertThat(state.foods.single().enabled).isTrue()
         assertThat(state.eCarbs).isEqualTo(0)
         assertThat(state.foodInputsValid).isFalse()
-        sut.updateFoodAmount(300.0)
+        sut.updateFoodAmount(0, 300.0)
         assertThat(sut.uiState.value.carbs).isEqualTo(75)
         assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(26)
     }
@@ -176,7 +180,7 @@ internal class WizardDialogViewModelTest {
         val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
         stubFoodInitialization(FD(id = 7, name = "Two slices", portion = 2.0, unit = "pieces", carbs = 50, protein = 20, fat = 10, askAmount = false), rule)
         advanceUntilIdle()
-        val food = sut.uiState.value.foodECarbs!!
+        val food = sut.uiState.value.foods.single()
         assertThat(food.amount).isEqualTo(2.0)
         assertThat(food.enabled).isTrue()
         assertThat(sut.uiState.value.carbs).isEqualTo(50)
@@ -184,49 +188,95 @@ internal class WizardDialogViewModelTest {
         assertThat(sut.uiState.value.foodInputsValid).isTrue()
 
         // 4 pieces is twice the saved 2: (4 × 40 + 9 × 20) / 10 = 34
-        sut.updateFoodAmount(4.0)
+        sut.updateFoodAmount(0, 4.0)
         assertThat(sut.uiState.value.carbs).isEqualTo(100)
         assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(34)
     }
 
     @Test
-    fun `serving and method changes clear a one meal override and keep all macros in scale`() = runTest(mainDispatcher.scheduler) {
+    fun `an amount change clears a one meal eCarbs amount and keeps all macros in scale`() = runTest(mainDispatcher.scheduler) {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10), FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
         advanceUntilIdle()
-        sut.updateFoodAmount(200.0)
-        sut.updateFoodECarbsGrams(5)
+        sut.updateFoodAmount(0, 200.0)
+        sut.updateMealECarbsGrams(5)
         assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(5)
-        sut.updateFoodAmount(300.0)
+        sut.updateFoodAmount(0, 300.0)
         assertThat(sut.uiState.value.carbs).isEqualTo(75)
-        assertThat(sut.uiState.value.foodECarbs!!.proteinGrams).isEqualTo(30.0)
-        assertThat(sut.uiState.value.foodECarbs!!.fatGrams).isEqualTo(15.0)
+        assertThat(sut.uiState.value.foods.single().proteinGrams).isEqualTo(30.0)
+        assertThat(sut.uiState.value.foods.single().fatGrams).isEqualTo(15.0)
         assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(26)
-        sut.updateFoodECarbsGrams(5)
-        sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 90, durationHours = 4))
-        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(5)
-        assertThat(sut.uiState.value.foodECarbs!!.overrideGrams).isEqualTo(5)
-        sut.updateFoodECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.MODIFIED_FPU, durationHours = 3))
-        assertThat(sut.uiState.value.foodECarbs!!.overrideGrams).isNull()
-        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(13)
+        // The timing for this meal keeps a hand amount
+        sut.updateMealECarbsGrams(5)
+        sut.updateMealTiming(90, 4)
+        assertThat(sut.uiState.value.carbPlan()).isEqualTo(WizardCarbPlan(75, 5, 90, 4))
+        sut.updateMealECarbsGrams(null)
+        assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(26)
     }
 
     @Test
     fun `changing the carbs counted now for one meal keeps a hand eCarbs amount`() = runTest(mainDispatcher.scheduler) {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10), FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
         advanceUntilIdle()
-        sut.updateFoodAmount(200.0)
-        sut.updateFoodECarbsGrams(5)
-        sut.updateFoodECarbsRule(sut.uiState.value.foodECarbs!!.rule.copy(carbsNowPercent = 80))
-        assertThat(sut.uiState.value.foodECarbs!!.overrideGrams).isEqualTo(5)
+        sut.updateFoodAmount(0, 200.0)
+        sut.updateMealECarbsGrams(5)
+        sut.updateMealCarbsNow(80)
+        assertThat(sut.uiState.value.mealAdjust.eCarbsGrams).isEqualTo(5)
         // 80 % of 50 g is 40 g now; the other 10 g join the 5 g set by hand
         assertThat(sut.uiState.value.carbPlan()).isEqualTo(WizardCarbPlan(40, 15, 0, 3))
+    }
+
+    @Test
+    fun `foods added to the meal add their carbs and keep carbs typed by hand`() = runTest(mainDispatcher.scheduler) {
+        val juice = FD(id = 9, name = "Juice", portion = 200.0, carbs = 20, protein = 0, fat = 0, unit = "ml", askAmount = false)
+        stubFoodInitialization(
+            FD(id = 7, name = "Pizza", portion = 200.0, carbs = 50, protein = 20, fat = 10, askAmount = false),
+            FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, carbsNowPercent = 80),
+            otherFoods = listOf(juice)
+        )
+        advanceUntilIdle()
+        assertThat(sut.uiState.value.availableFoods.map { it.name }).containsExactly("Juice", "Pizza").inOrder()
+        // 5 g of bread typed by hand
+        sut.updateCarbs(55)
+        sut.addFood(juice)
+        assertThat(sut.uiState.value.foods.map { it.food.name }).containsExactly("Pizza", "Juice").inOrder()
+        assertThat(sut.uiState.value.carbs).isEqualTo(75)
+        assertThat(sut.uiState.value.foodMode).isTrue()
+        // A changed amount moves the meal total by the difference
+        sut.updateFoodAmount(1, 400.0)
+        assertThat(sut.uiState.value.carbs).isEqualTo(95)
+        sut.removeFood(0)
+        assertThat(sut.uiState.value.carbs).isEqualTo(45)
+        assertThat(sut.uiState.value.foodMode).isFalse()
+    }
+
+    @Test
+    fun `a food added while pizza is chosen keeps pizza`() = runTest(mainDispatcher.scheduler) {
+        val stew = FD(id = 10, name = "Stew", portion = 200.0, carbs = 30, protein = 20, fat = 10, askAmount = false,
+            eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
+        stubFoodInitialization(FD(id = 7, name = "Bread", portion = 100.0, carbs = 50, askAmount = false), otherFoods = listOf(stew))
+        advanceUntilIdle()
+        sut.updateCarbsType(CarbsType.PIZZA)
+        sut.addFood(stew)
+        assertThat(sut.uiState.value.carbsType).isEqualTo(CarbsType.PIZZA)
+        assertThat(sut.uiState.value.foodMode).isFalse()
+    }
+
+    @Test
+    fun `the COB hint shows when COB is off with carbs on board and bolus IOB`() = runTest(mainDispatcher.scheduler) {
+        stubFoodInitialization(FD(id = 7, name = "Dessert", portion = 100.0, carbs = 30, askAmount = false), cob = 35.0)
+        whenever(iobCobCalculator.calculateIobFromBolus()).thenReturn(IobTotal(NOW).also { it.iob = 2.4 })
+        sut = createViewModel()
+        advanceUntilIdle()
+        assertThat(sut.uiState.value.showCobHint).isTrue()
+        sut.toggleCOB(true)
+        assertThat(sut.uiState.value.showCobHint).isFalse()
     }
 
     @Test
     fun `switching between food mode and the presets never combines both calculations`() = runTest(mainDispatcher.scheduler) {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 60, protein = 20, fat = 10), FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
         advanceUntilIdle()
-        sut.updateFoodAmount(200.0)
+        sut.updateFoodAmount(0, 200.0)
         sut.updateCarbsType(CarbsType.PIZZA)
         assertThat(sut.uiState.value.carbPlan().carbs).isEqualTo(48)
         assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(21)
@@ -234,7 +284,7 @@ internal class WizardDialogViewModelTest {
         assertThat(sut.uiState.value.carbPlan().carbs).isEqualTo(60)
         assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(17)
         sut.updateCarbsType(CarbsType.CAKE)
-        assertThat(sut.uiState.value.foodECarbs!!.enabled).isFalse()
+        assertThat(sut.uiState.value.foods.single().enabled).isFalse()
         assertThat(sut.uiState.value.carbPlan().carbs).isEqualTo(54)
         assertThat(sut.uiState.value.carbPlan().eCarbs).isEqualTo(12)
     }
@@ -244,9 +294,9 @@ internal class WizardDialogViewModelTest {
         val rule = FoodECarbsRule(method = FoodECarbsMethod.CUSTOM, proteinPercent = 50, durationHours = 3)
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = null, fat = 10), rule)
         advanceUntilIdle()
-        assertThat(sut.uiState.value.foodECarbs!!.rule.isValid).isTrue()
+        assertThat(sut.uiState.value.foods.single().rule.isValid).isTrue()
         sut.toggleFoodECarbs(true)
-        assertThat(sut.uiState.value.foodECarbs!!.enabled).isFalse()
+        assertThat(sut.uiState.value.foods.single().enabled).isFalse()
     }
 
     @Test
@@ -268,14 +318,16 @@ internal class WizardDialogViewModelTest {
         whenever(rh.gs(CoreUiStrings.clientcontrol_action_deliver_bolus)).thenReturn("Deliver bolus")
         whenever(wizardExecutor.prepare(any(), any())).thenReturn(ActionProgress.Sending)
         whenever(rh.gs(UiStrings.food_ecarbs_fpu)).thenReturn("FPU")
-        whenever(rh.gs(eq(UiStrings.food_history_note_ecarbs), anyVararg())).thenReturn("Meal summary")
+        whenever(rh.gs(eq(UiStrings.food_history_note), anyVararg())).thenReturn("Meal: 300 g")
+        whenever(rh.gs(eq(UiStrings.food_history_meal_ecarbs), anyVararg())).thenReturn("Meal summary")
         whenever(rh.gs(UiStrings.food_history_ecarbs_label)).thenReturn("eCarbs")
         advanceUntilIdle()
         sut.updateCarbsType(CarbsType.PIZZA)
-        sut.updateFoodAmount(300.0)
+        sut.updateFoodAmount(0, 300.0)
         advanceUntilIdle()
         // Pizza: only the split goes in the note, not the name of the choice
-        verify(rh, atLeastOnce()).gs(UiStrings.food_history_note_ecarbs, "Meal", "300", "g", "eCarbs", 80, 75, 26, 60, 3)
+        verify(rh, atLeastOnce()).gs(UiStrings.food_history_note, "Meal", "300", "g")
+        verify(rh, atLeastOnce()).gs(UiStrings.food_history_meal_ecarbs, "Meal: 300 g", "eCarbs", 80, 75, 26, 60, 3)
         sut.toggleFoodECarbs(true)
         sut.updateCarbTime(15)
         advanceUntilIdle()
@@ -290,7 +342,7 @@ internal class WizardDialogViewModelTest {
         assertThat(inputs.carbTime).isEqualTo(15)
         assertThat(inputs.eCarbsDelayMinutes).isEqualTo(75)
         assertThat(inputs.eCarbsDurationHours).isEqualTo(3)
-        verify(rh, atLeastOnce()).gs(UiStrings.food_history_note_ecarbs, "Meal", "300", "g", "FPU", 100, 75, 26, 60, 3)
+        verify(rh, atLeastOnce()).gs(UiStrings.food_history_meal_ecarbs, "Meal: 300 g", "FPU", 100, 75, 26, 60, 3)
         assertThat(inputs.notes).isEqualTo("Meal summary")
     }
 
@@ -298,8 +350,9 @@ internal class WizardDialogViewModelTest {
     fun `wizard meal edits never overwrite the stored food rule`() = runTest(mainDispatcher.scheduler) {
         stubFoodInitialization(FD(id = 7, name = "Meal", portion = 200.0, carbs = 50, protein = 20, fat = 10), FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
         advanceUntilIdle()
-        sut.updateFoodAmount(300.0)
-        sut.updateFoodECarbsGrams(5)
+        sut.updateFoodAmount(0, 300.0)
+        sut.updateMealECarbsGrams(5)
+        sut.updateMealCarbsNow(70)
         verify(persistenceLayer, never()).insertOrUpdateFood(any())
     }
 

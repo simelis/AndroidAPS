@@ -1,6 +1,7 @@
 package app.aaps.ui.compose.wizardDialog
 
 import androidx.compose.runtime.Immutable
+import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.GlucoseUnit
 
 enum class CarbsType(
@@ -27,7 +28,9 @@ data class WizardDialogUiState(
     val bg: Double = 0.0,
     val carbs: Int = 0,
     val carbsType: CarbsType = CarbsType.BREAD,
-    val foodECarbs: FoodECarbsState? = null,
+    /** The foods of the meal, in the order they were added. Empty without foods. */
+    val foods: List<FoodECarbsState> = emptyList(),
+    val mealAdjust: MealAdjust = MealAdjust(),
     val foodUnavailable: Boolean = false,
     val percentage: Int = 100,
     val directCorrection: Double = 0.0,
@@ -57,6 +60,8 @@ data class WizardDialogUiState(
     val carbsButtonIncrement1: Int = 0,
     val carbsButtonIncrement2: Int = 0,
     val carbsButtonIncrement3: Int = 0,
+    /** Foods that "Add food" offers, favourites first. */
+    val availableFoods: List<FD> = emptyList(),
 
     // Calculation results (updated on every recalc)
     val insulinFromBG: Double = 0.0,
@@ -93,6 +98,10 @@ data class WizardDialogUiState(
     val hasBgData: Boolean = false,
     val bgAgeMinutes: Int = 0,
 
+    /** Carbs on board and bolus IOB when the wizard opened, for the hint to count COB too. */
+    val cobOnBoard: Double = 0.0,
+    val bolusIobOnBoard: Double = 0.0,
+
     /** True when the entry must be recorded only (no pump delivery): pump unavailable or the mode forbids bolus. (A client delivers via the master, not record-only.) */
     val forcedRecordOnly: Boolean = false
 )
@@ -105,3 +114,10 @@ val WizardDialogUiState.bgRange: ClosedFloatingPointRange<Double>
 
 val WizardDialogUiState.bgStep: Double
     get() = if (isMgdl) 1.0 else 0.1
+
+/**
+ * The wizard subtracts the bolus IOB, but adds the carbs on board only with COB on. Right after a meal
+ * bolus a second wizard (a dessert) would then take the first meal's insulin off the new bolus.
+ */
+val WizardDialogUiState.showCobHint: Boolean
+    get() = useIOB && !useCOB && cobOnBoard >= 1.0 && bolusIobOnBoard > 0.0
