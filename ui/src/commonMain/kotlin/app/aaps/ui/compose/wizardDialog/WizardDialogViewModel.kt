@@ -39,7 +39,6 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.IntKey
-import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.extensions.round
@@ -163,6 +162,20 @@ class WizardDialogViewModel(
         recalculate()
     }
 
+    /** The food picked in the food list, opened by "Add food". Read again, because it can be new. */
+    fun addFoodById(id: Long) {
+        viewModelScope.launch {
+            val food = try {
+                persistenceLayer.getFoods().find { it.id == id && it.isValid }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                aapsLogger.error(LTag.UI, "Failed to load the picked food", e)
+                null
+            }
+            food?.let { addFood(it) }
+        }
+    }
+
     /**
      * The percentage to start a bolus from: [stored], but 100% when the last glucose value is older
      * than [IntKey.OverviewResetBolusPercentageTime], or when there is none at all. A percentage
@@ -180,20 +193,18 @@ class WizardDialogViewModel(
 
     private suspend fun initialize() {
         val foodId = savedStateHandle.get<String>("foodId")?.toLongOrNull()
-        val allFoods = try {
-            persistenceLayer.getFoods().filter { it.isValid }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            aapsLogger.error(LTag.UI, "Failed to load wizard foods", e)
-            emptyList()
+        val food = foodId?.let { id ->
+            try {
+                persistenceLayer.getFoods().find { it.id == id && it.isValid }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                aapsLogger.error(LTag.UI, "Failed to load wizard food", e)
+                null
+            }
         }
-        val food = foodId?.let { id -> allFoods.find { it.id == id } }
         val foodState = food?.let { FoodECarbsState.of(it) }
 
         val profileStore = profileRepository.profile.value ?: return
-
-        val favourites = preferences.get(StringNonKey.FoodFavourites).split(',').mapNotNull { it.trim().toLongOrNull() }.toSet()
-        val availableFoods = allFoods.sortedWith(compareBy<FD>({ it.id !in favourites }, { it.name.lowercase() }))
 
         val units = profileFunction.getUnits()
 
@@ -267,7 +278,6 @@ class WizardDialogViewModel(
                 carbsButtonIncrement1 = preferences.get(IntKey.OverviewCarbsButtonIncrement1),
                 carbsButtonIncrement2 = preferences.get(IntKey.OverviewCarbsButtonIncrement2),
                 carbsButtonIncrement3 = preferences.get(IntKey.OverviewCarbsButtonIncrement3),
-                availableFoods = availableFoods,
                 // BG card
                 hasBgData = hasBgData,
                 bgAgeMinutes = bgAgeMinutes,
@@ -782,6 +792,12 @@ class WizardDialogViewModel(
      * plain one, so the screen still calls metroViewModel() and nothing at the call site says this
      * view model is built differently.
      */
+    companion object {
+
+        /** Key in the wizard's navigation entry, where the food list puts the id of the food picked for the meal. */
+        const val PICKED_FOOD_ID = "picked_food_id"
+    }
+
     @ContributesIntoMap(AppScope::class, binding = binding<ViewModelAssistedFactory>())
     @ViewModelAssistedFactoryKey(WizardDialogViewModel::class)
     @AssistedFactory
