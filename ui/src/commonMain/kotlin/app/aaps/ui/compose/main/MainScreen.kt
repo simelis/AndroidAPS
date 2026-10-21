@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.aaps.core.interfaces.navigation.ElementType
 import app.aaps.core.interfaces.notifications.AapsNotification
+import app.aaps.core.interfaces.notifications.NotificationHistoryEntry
 import app.aaps.core.interfaces.plugin.PluginBase
 import app.aaps.core.interfaces.pump.BolusProgressState
 import app.aaps.core.ui.CoreUiStrings
@@ -124,6 +125,7 @@ fun MainScreen(
     onNotificationActionClick: (AapsNotification) -> Unit,
     autoShowNotificationSheet: Boolean,
     onAutoShowConsumed: () -> Unit,
+    notificationHistory: List<NotificationHistoryEntry> = emptyList(),
     // Pump setup
     pumpSetupPlugin: PluginBase? = null,
     // BG source shortcut
@@ -160,6 +162,7 @@ fun MainScreen(
     var showTreatmentSheet by remember { mutableStateOf(false) }
     var showAutomationSheet by remember { mutableStateOf(false) }
     var showLoopActionSheet by remember { mutableStateOf(false) }
+    var notificationHistoryRequested by remember { mutableStateOf(false) }
     val automationState by scenesViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = LocalSnackbarHostState.current
 
@@ -291,6 +294,9 @@ fun MainScreen(
                         onNotificationActionClick = onNotificationActionClick,
                         autoShowNotificationSheet = autoShowNotificationSheet,
                         onAutoShowConsumed = onAutoShowConsumed,
+                        notificationHistory = notificationHistory,
+                        showNotificationHistory = notificationHistoryRequested,
+                        onNotificationHistoryShown = { notificationHistoryRequested = false },
                         activeSceneState = activeSceneState,
                         sceneExpired = sceneExpired,
                         activeSceneChainTargetName = activeSceneChainTargetName,
@@ -412,6 +418,8 @@ fun MainScreen(
                             onSearchClear = onSearchClear,
                             onSearchActiveChange = onSearchActiveChange,
                             isSimpleMode = uiState.isSimpleMode,
+                            showNotificationHistory = notificationHistory.isNotEmpty(),
+                            onNotificationHistoryClick = { notificationHistoryRequested = true },
                             // Guard against transient 0 heights during AnimatedVisibility exit:
                             // the resulting contentPadding invalidation can schedule a remeasure
                             // on a node that's losing its owner — crashes in dispatchDraw.
