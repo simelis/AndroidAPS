@@ -2,6 +2,7 @@ package app.aaps.ui.compose.wizardDialog
 
 import androidx.compose.runtime.Immutable
 import app.aaps.core.data.model.CarbsType
+import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.GlucoseUnit
 
 @Immutable
@@ -16,7 +17,9 @@ data class WizardDialogUiState(
     val bg: Double = 0.0,
     val carbs: Int = 0,
     val carbsType: CarbsType = CarbsType.BREAD,
-    val foodECarbs: FoodECarbsState? = null,
+    /** The foods of the meal, in the order they were added. Empty without foods. */
+    val foods: List<FoodECarbsState> = emptyList(),
+    val mealAdjust: MealAdjust = MealAdjust(),
     val foodUnavailable: Boolean = false,
     val percentage: Int = 100,
     val directCorrection: Double = 0.0,
@@ -46,6 +49,8 @@ data class WizardDialogUiState(
     val carbsButtonIncrement1: Int = 0,
     val carbsButtonIncrement2: Int = 0,
     val carbsButtonIncrement3: Int = 0,
+    /** Foods that "Add food" offers, favourites first. */
+    val availableFoods: List<FD> = emptyList(),
 
     // Calculation results (updated on every recalc)
     val insulinFromBG: Double = 0.0,
