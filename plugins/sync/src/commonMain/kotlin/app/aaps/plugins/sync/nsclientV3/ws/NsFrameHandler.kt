@@ -29,6 +29,7 @@ import app.aaps.plugins.sync.nsclientV3.NSClientV3Plugin
 import app.aaps.plugins.sync.nsclientV3.NsIncomingDataProcessor
 import app.aaps.plugins.sync.nsclientV3.SettingsIdentifiers
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.ClientControlPublisher
+import app.aaps.plugins.sync.nsclientV3.clientcontrol.ClientKeyExchange
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.OrphanDetector
 import app.aaps.plugins.sync.nsclientV3.data.NSDeviceStatusHandler
 import app.aaps.plugins.sync.nsclientV3.extensions.toRunningConfiguration
@@ -76,6 +77,7 @@ class NsFrameHandler(
     private val nsIncomingDataProcessor: () -> NsIncomingDataProcessor,
     private val runningConfiguration: () -> RunningConfiguration,
     private val orphanDetector: () -> OrphanDetector,
+    private val clientKeyExchange: () -> ClientKeyExchange,
     private val storeDataForDb: StoreDataForDb,
     private val notificationManager: NotificationManager,
     private val nsClientRepository: NSClientRepository,
@@ -174,6 +176,13 @@ class NsFrameHandler(
             config.AAPSCLIENT && identifier.startsWith(ClientControlPublisher.IDENTIFIER_PROGRESS_PREFIX) ->
                 appScope.launch { nsClientV3Plugin().handleClientControlProgressEvent(doc) }
 
+            // Client: the master's answer to the key exchange in the hello. Same ordering rule as the ACK.
+            config.AAPSCLIENT && identifier.startsWith(ClientControlPublisher.IDENTIFIER_KEY_PREFIX)      ->
+                appScope.launch {
+                    runCatching { clientKeyExchange().onKeyDoc(doc) }
+                        .onFailure { aapsLogger.error(LTag.NSCLIENT, "ClientControl key exchange failed: ${it.message}", it) }
+                }
+
             // Master: inbound client-control envelopes. The plugin gates on the master toggle itself.
             // Guarded by !AAPSCLIENT because Nightscout echoes every write back to its sender, and a
             // client must not process its own outgoing command (an unknown clientId leads to
@@ -197,7 +206,9 @@ class NsFrameHandler(
                 storeDataForDb.requestUpdateDeletedTreatments()
             }
 
-            "entries"    -> {
+            // Only when BG is taken from Nightscout at all: otherwise anyone who can write there could remove
+            // this phone's readings.
+            "entries"    -> if (nsIncomingDataProcessor().acceptsGlucose(doFullSync = false)) {
                 storeDataForDb.addToDeleteGlucoseValue(identifier)
                 storeDataForDb.requestUpdateDeletedGlucoseValues()
             }

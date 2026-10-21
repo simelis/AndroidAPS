@@ -26,6 +26,7 @@ import org.mockito.Mock
 import org.mockito.Mockito.mockingDetails
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -81,6 +82,7 @@ class NSClientV3ServiceHandlersTest : TestBaseWithProfile() {
                 nsIncomingDataProcessor = { nsIncomingDataProcessor },
                 runningConfiguration = { runningConfiguration },
                 orphanDetector = { orphanDetector },
+                clientKeyExchange = { mock() },
                 storeDataForDb = storeDataForDb,
                 notificationManager = notificationManager,
                 nsClientRepository = NSClientRepositoryImpl(rxBus, aapsLogger),
@@ -260,6 +262,9 @@ class NSClientV3ServiceHandlersTest : TestBaseWithProfile() {
 
     @Test
     fun `deleted entry is queued for removal`() = runTest {
+        // Only a phone that takes BG from Nightscout takes BG deletes from there (see NsFrameHandlerTest).
+        whenever(nsIncomingDataProcessor.acceptsGlucose(false)).thenReturn(true)
+
         sut.onDataDelete("""{"colName":"entries","identifier":"e1"}""")
 
         verify(storeDataForDb).addToDeleteGlucoseValue("e1")

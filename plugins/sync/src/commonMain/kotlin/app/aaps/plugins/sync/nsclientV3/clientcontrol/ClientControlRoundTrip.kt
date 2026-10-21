@@ -56,6 +56,8 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -171,8 +173,7 @@ class ClientControlRoundTrip(
         }
         val clientId = pairingRepository.currentPairing()?.clientId ?: return
         if (ack.clientId != clientId) return // ack for a different client sharing this NS
-        val secret = pairingRepository.secretBytesOrNull() ?: return
-        if (!ClientControlCrypto.verifyAck(secret, ack)) {
+        if (!signedByMaster { ClientControlCrypto.verifyAck(it, ack) }) {
             aapsLogger.error(LTag.NSCLIENT, "ClientControl: ACK signature invalid (counter=${ack.commandCounter})")
             return
         }
@@ -214,8 +215,7 @@ class ClientControlRoundTrip(
         }
         val clientId = pairingRepository.currentPairing()?.clientId ?: return
         if (env.clientId != clientId) return // progress for a different client sharing this NS
-        val secret = pairingRepository.secretBytesOrNull() ?: return
-        if (!ClientControlCrypto.verifyProgress(secret, env)) {
+        if (!signedByMaster { ClientControlCrypto.verifyProgress(it, env) }) {
             aapsLogger.error(LTag.NSCLIENT, "ClientControl: progress signature invalid")
             return
         }
@@ -231,7 +231,11 @@ class ClientControlRoundTrip(
             }
 
             ProgressPhase.Complete -> {
-                cancelProgressWatchdog(); bolusProgressData.completeAndAutoClear()
+                cancelProgressWatchdog()
+                // The master's last values. The Active frames are throttled to one per second, so the last
+                // delivered amount often comes only here; without it the dialog ends on the amount before.
+                bolusProgressData.updateProgress(env.percent, TextRef.Literal(env.status), PumpInsulin(env.delivered))
+                bolusProgressData.completeAndAutoClear()
             }
 
             ProgressPhase.Cleared  -> {
@@ -276,6 +280,17 @@ class ClientControlRoundTrip(
     suspend fun sendPing() {
         publisher.publishTracked(ClientControlMessage.Ping, dateUtil.now() + PING_TTL_MS, wantsAck = true)
     }
+
+    /**
+     * The hello with a key exchange, when this pairing's secret is still to be replaced and no exchange is waiting for
+     * its answer: a new pairing (from a QR code too, which could not say hello before it reached Nightscout), or one
+     * made before the key exchange existed. Answered by a key doc, no ACK. Null when none was due. Called on each
+     * connect and before each probe, which can run at the same time: the lock keeps it to one hello.
+     */
+    suspend fun sendHelloIfDue(): ClientControlSendResult? = helloMutex.withLock {
+        if (pairingRepository.needsKeyExchange(dateUtil.now())) publisher.publishHello() else null
+    }
+    private val helloMutex = Mutex()
 
     // The single app-level modal signal (progress + label), fed by every run()/execute() regardless of
     // feature. Hosted once in ComposeMainActivity; round-trips are single-in-flight so at most one shows.
@@ -450,9 +465,23 @@ class ClientControlRoundTrip(
         val ackObj = doc.optJsonObjectCompat("ack") ?: return null
         val ack = runCatching { json.decodeFromJsonElement(AckEnvelope.serializer(), ackObj) }.getOrNull() ?: return null
         if (ack.clientId != clientId || ack.commandCounter != counter || ack.phase != AckPhase.Done) return null
-        val secret = pairingRepository.secretBytesOrNull() ?: return null
-        if (!ClientControlCrypto.verifyAck(secret, ack)) return null
+        if (!signedByMaster { ClientControlCrypto.verifyAck(it, ack) }) return null
         return doneOutcome(ack)
+    }
+
+    /**
+     * True when [verify] passes with the pairing secret, or with the one before the key exchange replaced it: the
+     * master signs with the old one until it has seen this phone use the new one. The first answer signed with the new
+     * secret ends that.
+     */
+    private suspend fun signedByMaster(verify: (ByteArray) -> Boolean): Boolean {
+        val secrets = pairingRepository.verificationSecrets()
+        val current = secrets.firstOrNull() ?: return false
+        if (verify(current)) {
+            if (secrets.size > 1) pairingRepository.forgetPreviousSecret()
+            return true
+        }
+        return secrets.drop(1).any(verify)
     }
 }
 
