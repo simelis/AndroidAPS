@@ -220,8 +220,11 @@ fun WizardDialogScreen(
         foodActions = FoodECarbsCallbacks(
             amount = viewModel::updateFoodAmount,
             enabled = viewModel::toggleFoodECarbs,
-            rule = viewModel::updateFoodECarbsRule,
-            grams = viewModel::updateFoodECarbsGrams
+            add = viewModel::addFood,
+            remove = viewModel::removeFood,
+            carbsNow = viewModel::updateMealCarbsNow,
+            grams = viewModel::updateMealECarbsGrams,
+            timing = viewModel::updateMealTiming
         )
     )
 }
@@ -621,7 +624,8 @@ internal fun WizardDialogContent(
                 }
             }
 
-            FoodECarbsCard(uiState, foodActions)
+            FoodECarbsCards(uiState, foodActions)
+            AddFoodButton(uiState, foodActions.add, modifier = Modifier.fillMaxWidth())
             if (uiState.foodUnavailable) WarningBanner(message = stringResource(UiStrings.food_ecarbs_unavailable))
 
             // --- All inputs in one card (gap-as-divider pattern) ---
@@ -667,9 +671,10 @@ internal fun WizardDialogContent(
                         )
 
                         // Carbs type selector
-                        val food = uiState.foodECarbs?.takeIf { it.food.eCarbsRule != null }
-                        val foodSelected = food?.enabled == true
-                        val choices = CarbsType.entries.size + if (food != null) 1 else 0
+                        val formulaFoods = uiState.foods.filter { it.food.eCarbsRule != null }
+                        val hasFormula = formulaFoods.isNotEmpty()
+                        val foodSelected = uiState.foodMode
+                        val choices = CarbsType.entries.size + if (hasFormula) 1 else 0
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -699,11 +704,11 @@ internal fun WizardDialogContent(
                                         )
                                     }
                                 }
-                                if (food != null) SegmentedButton(
+                                if (hasFormula) SegmentedButton(
                                     selected = foodSelected,
                                     onClick = { foodActions.enabled(true) },
                                     shape = SegmentedButtonDefaults.itemShape(choices - 1, choices),
-                                    enabled = foodSelected || (food.canUseRule && food.rule.isValid),
+                                    enabled = foodSelected || formulaFoods.any { it.canUseRule && it.rule.isValid },
                                     icon = {}
                                 ) {
                                     Icon(
@@ -722,7 +727,7 @@ internal fun WizardDialogContent(
                                     PlainTooltip {
                                         Column {
                                             Text(
-                                                text = if (food != null && foodSelected) food.food.name else when (uiState.carbsType) {
+                                                text = if (foodSelected) uiState.foods.singleOrNull()?.food?.name ?: stringResource(UiStrings.food_history_formulas) else when (uiState.carbsType) {
                                                     CarbsType.BREAD -> stringResource(CoreUiStrings.carbs_type_bread)
                                                     CarbsType.CAKE  -> stringResource(CoreUiStrings.carbs_type_cake)
                                                     CarbsType.PIZZA -> stringResource(CoreUiStrings.carbs_type_pizza)
