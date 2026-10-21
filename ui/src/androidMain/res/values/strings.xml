@@ -354,5 +354,7 @@
     <string name="cal_precheck_delta_too_high">Glucose is changing too fast (Δ %1$s %3$s per 5 min, limit %2$s). Wait for stability.</string>
     <string name="cal_precheck_mark_sensor_change">Mark sensor change</string>
     <string name="graph_therapy_event_bg_with_note" comment="Shown when the user taps a BG check in the overview graph. %1$s = glucose with its unit, %2$s = the note the user wrote. Example: 6.1 mmol/L, before lunch">%1$s, %2$s</string>
+    <string name="wizard_cob_hint" comment="Shown in the bolus wizard when COB is off. %1$d=carbs on board in grams, %2$s=bolus insulin still active, with its unit. Example: 35 g of carbs are on board and 2.40 U of bolus insulin is still active.">%1$d g of carbs are on board and %2$s of bolus insulin is still active. The wizard subtracts the insulin, but adds the carbs only with COB on, so this bolus would be too small.</string>
+    <string name="wizard_cob_hint_action">Count COB</string>
 
 </resources>

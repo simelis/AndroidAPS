@@ -168,7 +168,32 @@ class WizardDialogContentTest {
         )
 
     /** [uiState] is read inside the composition, so a test can change the state after the first frame. */
-    private fun setWizard(uiState: () -> WizardDialogUiState, onNavigateBack: () -> Unit = {}, onProfileSelect: (Int) -> Unit = {}) {
+    @Test
+    fun theCobHintTurnsCobOn() {
+        var cob: Boolean? = null
+        setWizard(uiState = { loaded().copy(useIOB = true, useCOB = false, cobOnBoard = 35.0, bolusIobOnBoard = 2.4) }, onCOBToggle = { cob = it })
+
+        compose.onNodeWithText(RuntimeEnvironment.getApplication().getString(UiR.string.wizard_cob_hint_action)).performScrollTo().performClick()
+
+        assertThat(cob).isTrue()
+    }
+
+    @Test
+    fun noCobHintWithCobOnOrWithoutCarbsOnBoard() {
+        var state by mutableStateOf(loaded().copy(useIOB = true, useCOB = true, cobOnBoard = 35.0, bolusIobOnBoard = 2.4))
+        setWizard(uiState = { state })
+        compose.onNodeWithText(RuntimeEnvironment.getApplication().getString(UiR.string.wizard_cob_hint_action)).assertDoesNotExist()
+
+        state = state.copy(useCOB = false, cobOnBoard = 0.0)
+        compose.onNodeWithText(RuntimeEnvironment.getApplication().getString(UiR.string.wizard_cob_hint_action)).assertDoesNotExist()
+    }
+
+    private fun setWizard(
+        uiState: () -> WizardDialogUiState,
+        onNavigateBack: () -> Unit = {},
+        onProfileSelect: (Int) -> Unit = {},
+        onCOBToggle: (Boolean) -> Unit = {}
+    ) {
         compose.setContent {
             MaterialTheme {
                 WizardDialogContent(
@@ -188,7 +213,7 @@ class WizardDialogContentTest {
                     onTTToggle = {},
                     onTrendToggle = {},
                     onIOBToggle = {},
-                    onCOBToggle = {},
+                    onCOBToggle = onCOBToggle,
                     onAlarmToggle = {},
                     onCalculationExpandToggle = {},
                     onNavigateBack = onNavigateBack,

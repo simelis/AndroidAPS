@@ -91,6 +91,10 @@ data class WizardDialogUiState(
     val hasBgData: Boolean = false,
     val bgAgeMinutes: Int = 0,
 
+    /** Carbs on board and bolus IOB when the wizard opened, for the hint to count COB too. */
+    val cobOnBoard: Double = 0.0,
+    val bolusIobOnBoard: Double = 0.0,
+
     /** True when the entry must be recorded only (no pump delivery): pump unavailable or the mode forbids bolus. (A client delivers via the master, not record-only.) */
     val forcedRecordOnly: Boolean = false
 )
@@ -103,3 +107,10 @@ val WizardDialogUiState.bgRange: ClosedFloatingPointRange<Double>
 
 val WizardDialogUiState.bgStep: Double
     get() = if (isMgdl) 1.0 else 0.1
+
+/**
+ * The wizard subtracts the bolus IOB, but adds the carbs on board only with COB on. Right after a meal
+ * bolus a second wizard (a dessert) would then take the first meal's insulin off the new bolus.
+ */
+val WizardDialogUiState.showCobHint: Boolean
+    get() = useIOB && !useCOB && cobOnBoard >= 1.0 && bolusIobOnBoard > 0.0

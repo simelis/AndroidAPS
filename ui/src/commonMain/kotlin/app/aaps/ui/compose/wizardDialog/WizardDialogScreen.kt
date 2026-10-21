@@ -52,6 +52,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
@@ -117,6 +118,7 @@ import app.aaps.core.ui.compose.stringResource
 import app.aaps.core.ui.compose.stringResourceOrNull
 import app.aaps.ui.UiStrings
 import app.aaps.ui.compose.components.RecordOnlyBanner
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 @Composable
@@ -531,6 +533,8 @@ internal fun WizardDialogContent(
                         }
                     }
 
+                    if (uiState.showCobHint) CobHint(uiState, onCountCob = { onCOBToggle(true) })
+
                     AnimatedVisibility(
                         visible = uiState.calculationExpanded,
                         enter = expandVertically(),
@@ -870,6 +874,30 @@ internal fun WizardDialogContent(
 private fun AnnotatedString.Builder.colorPart(text: String, part: String, color: Color) {
     val start = text.indexOf(part)
     if (start >= 0) addStyle(SpanStyle(color = color), start, start + part.length)
+}
+
+/** Right after a meal bolus, a second wizard without COB would take that meal's insulin off this bolus. */
+@Composable
+private fun CobHint(uiState: WizardDialogUiState, onCountCob: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp)
+    ) {
+        Text(
+            text = stringResource(
+                UiStrings.wizard_cob_hint,
+                uiState.cobOnBoard.roundToInt(),
+                stringResource(InterfacesStrings.format_insulin_units, uiState.bolusIobOnBoard)
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f)
+        )
+        TextButton(onClick = onCountCob) {
+            Text(stringResource(UiStrings.wizard_cob_hint_action))
+        }
+    }
 }
 
 @Composable

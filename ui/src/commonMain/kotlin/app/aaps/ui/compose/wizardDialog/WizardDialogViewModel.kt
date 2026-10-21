@@ -179,6 +179,7 @@ class WizardDialogViewModel(
         val bolusIob = iobCobCalculator.calculateIobFromBolus().round()
         val basalIob = iobCobCalculator.calculateIobFromTempBasalsIncludingConvertedExtended().round()
         val totalIOB = bolusIob.iob + basalIob.basaliob
+        val cobOnBoard = iobCobCalculator.getCobInfo("Wizard COB hint").displayCob ?: 0.0
 
         val cantDeliverBolus = runningModeGuard.rejectionMessage(PumpCommandGate.CommandKind.BOLUS) != null
         // An AAPSCLIENT always delivers via the master (deliverManualWizard), so it is NEVER forced record-only;
@@ -220,6 +221,8 @@ class WizardDialogViewModel(
                 // BG card
                 hasBgData = hasBgData,
                 bgAgeMinutes = bgAgeMinutes,
+                cobOnBoard = cobOnBoard,
+                bolusIobOnBoard = bolusIob.iob,
                 // Initial IOB display
                 totalIOB = -totalIOB,
                 forcedRecordOnly = forcedRecordOnly
