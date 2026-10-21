@@ -116,6 +116,7 @@ fun OverviewScreen(
     val searchState by searchViewModel.uiState.collectAsStateWithLifecycle()
     val calcProgress by mainViewModel.calcProgressFlow.collectAsStateWithLifecycle()
     val notifications by notificationManager.notifications.collectAsStateWithLifecycle()
+    val notificationHistory by notificationManager.history.collectAsStateWithLifecycle()
     val quickLaunchItems by mainViewModel.quickLaunchItems.collectAsStateWithLifecycle()
     val permState by permissionsViewModel.uiState.collectAsStateWithLifecycle()
     val bolusState by bolusProgressData.state.collectAsStateWithLifecycle()
@@ -228,6 +229,7 @@ fun OverviewScreen(
         onNotificationActionClick = onNotificationActionClick,
         autoShowNotificationSheet = autoShowNotificationSheet,
         onAutoShowConsumed = onAutoShowConsumed,
+        notificationHistory = notificationHistory,
         pumpSetupPlugin = pumpSetupPlugin,
         bgSetupPlugin = bgSetupPlugin,
         bgQualityBadgeIcon = bgQualityBadgeIcon,

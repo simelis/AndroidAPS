@@ -1,12 +1,17 @@
 package app.aaps.core.interfaces.notifications
 
 import app.aaps.core.keys.interfaces.TextRef
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlin.time.Clock
 
 interface NotificationManager {
 
     val notifications: StateFlow<List<AapsNotification>>
+
+    /** Notifications that left the list lately, newest first. See [NotificationHistoryEntry]. */
+    val history: StateFlow<List<NotificationHistoryEntry>> get() = NO_HISTORY
 
     /** Remove expired and validity-failed notifications on demand. */
     fun cleanUp()
@@ -68,6 +73,8 @@ interface NotificationManager {
     fun muteAllAlarms()
 
     companion object {
+
+        private val NO_HISTORY: StateFlow<List<NotificationHistoryEntry>> = MutableStateFlow(emptyList<NotificationHistoryEntry>()).asStateFlow()
 
         /**
          * Do not change: Android keeps the user's settings of a channel (sound, importance, Do Not Disturb)
