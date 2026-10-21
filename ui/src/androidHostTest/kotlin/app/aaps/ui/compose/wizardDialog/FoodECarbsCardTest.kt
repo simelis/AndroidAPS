@@ -48,7 +48,7 @@ class FoodECarbsCardTest {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal)), FoodECarbsCallbacks())
+                FoodECarbsCards(WizardDialogUiState(maxCarbs = 100, foods = listOf(FoodECarbsState(meal))), FoodECarbsCallbacks())
             }
         }
         compose.onNode(isFocused()).assert(hasText(context.getString(UiR.string.food_amount_eaten)))
@@ -61,8 +61,8 @@ class FoodECarbsCardTest {
         var portion: Double? = null
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal)),
-                    FoodECarbsCallbacks(amount = { portion = it }))
+                FoodECarbsCards(WizardDialogUiState(maxCarbs = 100, foods = listOf(FoodECarbsState(meal))),
+                    FoodECarbsCallbacks(amount = { _, value -> portion = value }))
             }
         }
         compose.onNode(isFocused()).performTextReplacement("0")
@@ -80,8 +80,8 @@ class FoodECarbsCardTest {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(meal.copy(fat = null),
-                    amount = 200.0, enabled = true, rule = fpu)), FoodECarbsCallbacks())
+                FoodECarbsCards(WizardDialogUiState(carbs = 50, maxCarbs = 100, foods = listOf(FoodECarbsState(meal.copy(fat = null),
+                    amount = 200.0, enabled = true, rule = fpu))), FoodECarbsCallbacks())
             }
         }
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_fat_unknown)).assertExists()
@@ -93,10 +93,10 @@ class FoodECarbsCardTest {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(
-                    WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(
+                FoodECarbsCards(
+                    WizardDialogUiState(carbs = 50, maxCarbs = 100, foods = listOf(FoodECarbsState(
                         meal, amount = 200.0, enabled = true, rule = fpu
-                    )),
+                    ))),
                     FoodECarbsCallbacks()
                 )
             }
@@ -114,7 +114,7 @@ class FoodECarbsCardTest {
         val context = RuntimeEnvironment.getApplication()
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(meal, enabled = true, rule = fpu)), FoodECarbsCallbacks())
+                FoodECarbsCards(WizardDialogUiState(maxCarbs = 100, foods = listOf(FoodECarbsState(meal, enabled = true, rule = fpu))), FoodECarbsCallbacks())
             }
         }
         compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_macros, 0, "0", "0")).assertDoesNotExist()
@@ -154,7 +154,7 @@ class FoodECarbsCardTest {
         val slice = meal.copy(portion = 3.0, unit = "slices", askAmount = false)
         compose.setContent {
             MaterialTheme {
-                FoodECarbsCard(WizardDialogUiState(carbs = 50, maxCarbs = 100, foodECarbs = FoodECarbsState(slice, rule = fpu, enabled = true)),
+                FoodECarbsCards(WizardDialogUiState(carbs = 50, maxCarbs = 100, foods = listOf(FoodECarbsState(slice, rule = fpu, enabled = true))),
                     FoodECarbsCallbacks())
             }
         }
