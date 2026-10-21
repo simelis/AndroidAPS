@@ -168,7 +168,7 @@ class WizardDialogContentTest {
     private val meal = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, protein = 10, fat = 5, eCarbsRule = fpu)
 
     private fun mealState(rule: FoodECarbsRule = fpu, enabled: Boolean = true) =
-        loaded().copy(carbs = 50, foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = rule), amount = 200.0, enabled = enabled, rule = rule))
+        loaded().copy(carbs = 50, foods = listOf(FoodECarbsState(meal.copy(eCarbsRule = rule), amount = 200.0, enabled = enabled, rule = rule)))
 
     @Test
     fun theFoodECarbsAreARowOfTheInputsWithTheirValue() {
@@ -222,21 +222,21 @@ class WizardDialogContentTest {
     @Test
     fun theFoodFormulaIsAFourthChoiceNextToBreadDumplingsAndPizza() {
         var selected = false
-        setWizard(uiState = { loaded().copy(foodECarbs = FoodECarbsState(meal, rule = fpu)) }, foodActions = FoodECarbsCallbacks(enabled = { selected = it }))
+        setWizard(uiState = { loaded().copy(foods = listOf(FoodECarbsState(meal, rule = fpu))) }, foodActions = FoodECarbsCallbacks(enabled = { selected = it }))
         compose.onNodeWithContentDescription(string(UiR.string.food_ecarbs_enable)).performScrollTo().assertIsNotSelected().performClick()
         assertThat(selected).isTrue()
     }
 
     @Test
     fun missingMacrosDisableTheFoodChoiceAndExplainWhatToEnter() {
-        setWizard(uiState = { loaded().copy(foodECarbs = FoodECarbsState(meal.copy(fat = null, protein = null), rule = fpu)) })
+        setWizard(uiState = { loaded().copy(foods = listOf(FoodECarbsState(meal.copy(fat = null, protein = null), rule = fpu))) })
         compose.onNodeWithContentDescription(string(UiR.string.food_ecarbs_enable)).assertIsNotEnabled()
         compose.onNodeWithText(string(UiR.string.food_ecarbs_missing_macros)).assertExists()
     }
 
     @Test
     fun aFoodWithoutASavedFormulaShowsNoFoodChoice() {
-        setWizard(uiState = { loaded().copy(foodECarbs = FoodECarbsState(meal.copy(eCarbsRule = null))) })
+        setWizard(uiState = { loaded().copy(foods = listOf(FoodECarbsState(meal.copy(eCarbsRule = null)))) })
         compose.onNodeWithContentDescription(string(UiR.string.food_ecarbs_enable)).assertDoesNotExist()
         compose.onNodeWithText(string(UiR.string.food_ecarbs_no_rule)).assertExists()
         compose.onNodeWithText(string(UiR.string.food_ecarbs_missing_macros)).assertDoesNotExist()
@@ -245,7 +245,7 @@ class WizardDialogContentTest {
     @Test
     fun fpuWithOneUnknownNutrientCanBeUsedAndSaysItCountsAsZero() {
         var selected = false
-        setWizard(uiState = { loaded().copy(foodECarbs = FoodECarbsState(meal.copy(fat = null), rule = fpu)) }, foodActions = FoodECarbsCallbacks(enabled = { selected = it }))
+        setWizard(uiState = { loaded().copy(foods = listOf(FoodECarbsState(meal.copy(fat = null), rule = fpu))) }, foodActions = FoodECarbsCallbacks(enabled = { selected = it }))
         compose.onNodeWithText(string(UiR.string.food_ecarbs_missing_macros)).assertDoesNotExist()
         compose.onNodeWithContentDescription(string(UiR.string.food_ecarbs_enable)).performScrollTo().performClick()
         assertThat(selected).isTrue()
@@ -255,7 +255,7 @@ class WizardDialogContentTest {
     fun enabledFoodModeCanBeTurnedOffWhileTimingIsInvalid() {
         var chosen: CarbsType? = null
         setWizard(
-            uiState = { loaded().copy(foodECarbs = FoodECarbsState(meal, enabled = true, rule = FoodECarbsRule(durationHours = 0))) },
+            uiState = { loaded().copy(foods = listOf(FoodECarbsState(meal, enabled = true, rule = FoodECarbsRule(durationHours = 0)))) },
             onCarbsTypeChange = { chosen = it }
         )
         compose.onNodeWithContentDescription(string(UiR.string.food_ecarbs_enable)).assertIsSelected()
@@ -276,6 +276,28 @@ class WizardDialogContentTest {
             bgAgeMinutes = bgAgeMinutes,
             forcedRecordOnly = forcedRecordOnly
         )
+
+    @Test
+    fun addFoodOpensTheFoodListAndAddsThePickedFood() {
+        val juice = FD(id = 9, name = "Juice", portion = 200.0, carbs = 20, unit = "ml")
+        var added: FD? = null
+        setWizard(uiState = { loaded().copy(availableFoods = listOf(juice, meal)) }, foodActions = FoodECarbsCallbacks(add = { added = it }))
+
+        compose.onNodeWithText(string(UiR.string.food_add)).performScrollTo().performClick()
+        compose.onNodeWithText("Juice").performClick()
+
+        assertThat(added).isEqualTo(juice)
+    }
+
+    @Test
+    fun eachFoodOfTheMealCanBeRemoved() {
+        var removed: Int? = null
+        setWizard(uiState = { mealState() }, foodActions = FoodECarbsCallbacks(remove = { removed = it }))
+
+        compose.onNodeWithContentDescription(string(UiR.string.food_remove, "Meal")).performScrollTo().performClick()
+
+        assertThat(removed).isEqualTo(0)
+    }
 
     /** [uiState] is read inside the composition, so a test can change the state after the first frame. */
     private fun setWizard(

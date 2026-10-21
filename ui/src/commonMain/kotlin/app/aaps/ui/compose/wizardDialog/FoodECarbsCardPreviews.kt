@@ -9,13 +9,14 @@ import app.aaps.core.data.model.FoodECarbsRule
 
 private val previewRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, carbsNowPercent = 80)
 private val previewFood = FD(id = 1, name = "Pizza", portion = 100.0, carbs = 30, protein = 12, fat = 10, eCarbsRule = previewRule)
+private val previewDrink = FD(id = 2, name = "Juice", portion = 200.0, carbs = 20, protein = 0, fat = 0, unit = "ml")
 
 @Preview(showBackground = true)
 @Composable
 internal fun FoodECarbsCardNewMealPreview() {
     MaterialTheme {
-        FoodECarbsCard(
-            state = WizardDialogUiState(maxCarbs = 100, foodECarbs = FoodECarbsState(previewFood, rule = previewRule, enabled = true)),
+        FoodECarbsCards(
+            state = WizardDialogUiState(maxCarbs = 100, foods = listOf(FoodECarbsState(previewFood, rule = previewRule, enabled = true))),
             actions = FoodECarbsCallbacks()
         )
     }
@@ -25,10 +26,10 @@ internal fun FoodECarbsCardNewMealPreview() {
 @Composable
 internal fun FoodECarbsCardWithWeightPreview() {
     MaterialTheme {
-        FoodECarbsCard(
+        FoodECarbsCards(
             state = WizardDialogUiState(
                 carbs = 75, maxCarbs = 100,
-                foodECarbs = FoodECarbsState(previewFood, amount = 250.0, enabled = true, rule = previewRule)
+                foods = listOf(FoodECarbsState(previewFood, amount = 250.0, enabled = true, rule = previewRule))
             ),
             actions = FoodECarbsCallbacks()
         )
@@ -39,8 +40,25 @@ internal fun FoodECarbsCardWithWeightPreview() {
 @Composable
 internal fun FoodECarbsCardNoFormulaPreview() {
     MaterialTheme {
-        FoodECarbsCard(
-            state = WizardDialogUiState(carbs = 30, maxCarbs = 100, foodECarbs = FoodECarbsState(previewFood.copy(eCarbsRule = null), amount = 100.0)),
+        FoodECarbsCards(
+            state = WizardDialogUiState(carbs = 30, maxCarbs = 100, foods = listOf(FoodECarbsState(previewFood.copy(eCarbsRule = null), amount = 100.0))),
+            actions = FoodECarbsCallbacks()
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+internal fun FoodECarbsCardMealPreview() {
+    MaterialTheme {
+        FoodECarbsCards(
+            state = WizardDialogUiState(
+                carbs = 95, maxCarbs = 100,
+                foods = listOf(
+                    FoodECarbsState(previewFood, amount = 250.0, enabled = true, rule = previewRule),
+                    FoodECarbsState(previewDrink, amount = 200.0)
+                )
+            ),
             actions = FoodECarbsCallbacks()
         )
     }
@@ -53,7 +71,7 @@ internal fun FoodECarbsRowPreview() {
         FoodECarbsRow(
             state = WizardDialogUiState(
                 carbs = 75, maxCarbs = 100,
-                foodECarbs = FoodECarbsState(previewFood, amount = 250.0, enabled = true, rule = previewRule)
+                foods = listOf(FoodECarbsState(previewFood, amount = 250.0, enabled = true, rule = previewRule))
             ),
             actions = FoodECarbsCallbacks()
         )
@@ -64,12 +82,14 @@ internal fun FoodECarbsRowPreview() {
 @Composable
 internal fun FoodECarbsCardAmountPreview() {
     MaterialTheme {
-        FoodECarbsCard(
+        FoodECarbsCards(
             state = WizardDialogUiState(
                 carbs = 30, maxCarbs = 100,
-                foodECarbs = FoodECarbsState(
-                    previewFood.copy(name = "Pizza", portion = 3.0, unit = "slices", askAmount = false),
-                    enabled = true, rule = previewRule
+                foods = listOf(
+                    FoodECarbsState(
+                        previewFood.copy(name = "Pizza", portion = 3.0, unit = "slices", askAmount = false),
+                        enabled = true, rule = previewRule
+                    )
                 )
             ),
             actions = FoodECarbsCallbacks()
