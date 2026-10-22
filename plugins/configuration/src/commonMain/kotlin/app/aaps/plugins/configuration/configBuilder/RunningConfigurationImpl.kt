@@ -9,7 +9,6 @@ import app.aaps.core.interfaces.configuration.RunningConfigurationKeys
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
-import app.aaps.core.interfaces.notifications.NotificationId
 import app.aaps.core.interfaces.notifications.NotificationManager
 import app.aaps.core.interfaces.nsclient.NSClientRepository
 import app.aaps.core.interfaces.plugin.ActivePlugin
@@ -33,7 +32,6 @@ import app.aaps.core.nssdk.interfaces.RunningConfiguration
 import app.aaps.core.nssdk.localmodel.configuration.NSActiveScene
 import app.aaps.core.nssdk.localmodel.configuration.NSEatReminder
 import app.aaps.core.nssdk.localmodel.configuration.NSRunningConfiguration
-import app.aaps.plugins.configuration.ConfigurationStrings
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -187,11 +185,7 @@ class RunningConfigurationImpl(
             return
         }
 
-        configuration.version?.let {
-            nsClientRepository.addLog("◄ VERSION", "Received AAPS version $it")
-            if (config.VERSION_NAME.startsWith(it).not())
-                notificationManager.post(NotificationId.NSCLIENT_VERSION_DOES_NOT_MATCH, ConfigurationStrings.nsclient_version_does_not_match)
-        }
+        configuration.version?.let { nsClientRepository.addLog("◄ VERSION", "Received AAPS version $it") }
         // APS/Sensitivity/Smoothing/Calibration selection is adopted via the synced ActivePlugin* keys
         // (applied below in syncedPrefs → ConfigBuilder's key observer performs the switch).
 
