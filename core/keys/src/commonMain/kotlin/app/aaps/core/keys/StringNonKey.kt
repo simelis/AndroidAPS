@@ -73,6 +73,8 @@ enum class StringNonKey(
     FoodFavourites(key = "food_favourites", defaultValue = "", exportable = false),
     InsulinConfiguration("insulin_configuration", "{}", sync = SyncSpec(SyncChannel.Cold, SyncDirection.Bidirectional)),
     ComposeGraphConfig("compose_graphconfig", ""),
+    // The tab the Statistics screen opens on: the last one used (per-device UI state, not a user-facing preference)
+    StatsTab(key = "stats_tab", defaultValue = "", exportable = false),
 
     // Synthetic mirror of the active plugin per single-select category (value = plugin pluginId, defaults to
     // javaClass.simpleName). Bidirectional for APS/SENSITIVITY/SMOOTHING/CALIBRATION (a client may switch the
@@ -110,5 +112,13 @@ enum class StringNonKey(
     // Client: the key exchange started by the last hello. The public key (not secret) and the private key, wrapped.
     NsClientControlKeyExchangePublic(key = "nsclient_control_key_exchange_public", defaultValue = "", exportable = false),
     NsClientControlKeyExchangePrivateEnc(key = "nsclient_control_key_exchange_private_enc", defaultValue = "", exportable = false),
+    // Master: its key for signing the settings docs (MasterSigningKey). The public key (not secret) and the private key,
+    // wrapped. Not exported: a new phone makes its own, and its clients pair again anyway.
+    NsClientControlSigningPublic(key = "nsclient_control_signing_public", defaultValue = "", exportable = false),
+    NsClientControlSigningPrivateEnc(key = "nsclient_control_signing_private_enc", defaultValue = "", exportable = false),
+    // Client: the master's public key for its settings docs (MasterDocVerifier), from a pong or the QR code, and the
+    // Nightscout address it belongs to: with another address it is not used.
+    NsClientControlMasterSigningKey(key = "nsclient_control_master_signing_key", defaultValue = "", exportable = false),
+    NsClientControlMasterSigningKeyUrl(key = "nsclient_control_master_signing_key_url", defaultValue = "", exportable = false),
 
 }

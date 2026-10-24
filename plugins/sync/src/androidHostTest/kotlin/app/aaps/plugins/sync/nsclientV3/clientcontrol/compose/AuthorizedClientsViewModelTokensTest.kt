@@ -13,12 +13,14 @@ import app.aaps.core.nssdk.localmodel.clientcontrol.ClientSetupCode
 import app.aaps.core.nssdk.localmodel.clientcontrol.ClientState
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.AuthorizedClientsRepository
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.ClientTokens
+import app.aaps.plugins.sync.nsclientV3.clientcontrol.MasterSigningKey
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.PairingOfferPublisher
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -46,6 +48,7 @@ internal class AuthorizedClientsViewModelTokensTest {
     @Mock private lateinit var dateUtil: DateUtil
     @Mock private lateinit var rh: ResourceHelper
     @Mock private lateinit var preferences: Preferences
+    @Mock private lateinit var masterSigningKey: MasterSigningKey
 
     private val now = 1_000_000L
     private val tabletToken = NSAuthSubject(id = "s1", name = "aaps-Tablet", roles = listOf(ClientTokens.ROLE_NAME), accessToken = "aapstablet-0123456789abcdef")
@@ -72,7 +75,8 @@ internal class AuthorizedClientsViewModelTokensTest {
         whenever(clientTokens.ensureRole(false)).thenReturn(ClientTokens.Result.Ok(Unit))
         whenever(clientTokens.subjects()).thenReturn(ClientTokens.Result.Ok(listOf(tabletToken.copy(accessToken = null))))
         whenever(repository.current(now)).thenReturn(emptyList())
-        return AuthorizedClientsViewModel(repository, offerPublisher, clientTokens, dateUtil, rh, preferences)
+        whenever(masterSigningKey.publicKey()).thenReturn("master-key")
+        return AuthorizedClientsViewModel(repository, offerPublisher, clientTokens, dateUtil, rh, preferences, masterSigningKey)
     }
 
     private fun shownCode(sut: AuthorizedClientsViewModel): ClientSetupCode {
@@ -91,6 +95,9 @@ internal class AuthorizedClientsViewModelTokensTest {
         assertThat(code.url).isEqualTo("https://ns.example")
         assertThat(code.token).isEqualTo("aapstablet-0123456789abcdef")
         assertThat(code.pairing).isNull()
+        // A phone that only reads Nightscout has no pong: the code is the only way it gets the master's key.
+        assertThat(code.signingKey).isEqualTo("master-key")
+        assertThat(code.name).isEqualTo("Tablet")
         verify(repository, never()).addPending(any(), any(), any(), any(), anyOrNull())
     }
 
@@ -156,6 +163,30 @@ internal class AuthorizedClientsViewModelTokensTest {
 
         verify(repository).delete("c1")
         verify(clientTokens).deleteByName("aaps-Tablet")
+    }
+
+    /** It writes with another token now, but its own token is still its own: removing the client deletes that too. */
+    @Test
+    fun `removing a client that switched tokens deletes its own token too`() = runTest {
+        val sut = newSut()
+        val client = AuthorizedClient(clientId = "c1", name = "Tablet", encryptedSecret = "enc", state = ClientState.Active, createdAt = 0L, nsSubject = "mujtelefon", ownToken = "aaps-Tablet")
+        whenever(clientTokens.deleteByName(any())).thenReturn(ClientTokens.Result.Ok(1))
+
+        sut.requestDelete(client)
+        sut.confirmDelete()
+
+        verify(clientTokens).deleteByName("aaps-Tablet")
+    }
+
+    /** Its own token is not a token without a client because the client writes with another one for now. */
+    @Test
+    fun `the own token of a client that switched is not listed as not paired`() = runTest {
+        val client = AuthorizedClient(clientId = "c1", name = "Tablet", encryptedSecret = "enc", state = ClientState.Active, createdAt = 0L, nsSubject = "mujtelefon", ownToken = "aaps-Tablet")
+        whenever(repository.observe()).thenReturn(flowOf(listOf(client)))
+        val sut = newSut()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { sut.unpairedTokens.collect {} }
+
+        assertThat(sut.unpairedTokens.value).isEmpty()
     }
 
     @Test

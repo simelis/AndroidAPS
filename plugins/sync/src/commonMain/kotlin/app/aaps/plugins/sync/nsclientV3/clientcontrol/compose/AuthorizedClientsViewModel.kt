@@ -21,6 +21,7 @@ import app.aaps.core.nssdk.utils.ClientControlPairingCrypto
 import app.aaps.plugins.sync.SyncStrings
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.AuthorizedClientsRepository
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.ClientTokens
+import app.aaps.plugins.sync.nsclientV3.clientcontrol.MasterSigningKey
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.PairingOfferPublisher
 import app.aaps.plugins.sync.nsclientV3.clientcontrol.clientRole
 import dev.zacsweers.metro.AppScope
@@ -50,7 +51,8 @@ class AuthorizedClientsViewModel(
     private val clientTokens: ClientTokens,
     private val dateUtil: DateUtil,
     private val rh: TextResolver,
-    private val preferences: Preferences
+    private val preferences: Preferences,
+    private val masterSigningKey: MasterSigningKey
 ) : ViewModel() {
 
     companion object {
@@ -116,7 +118,7 @@ class AuthorizedClientsViewModel(
     /** Client tokens that no client in the list writes with: phones set up to read Nightscout, not paired. */
     val unpairedTokens: StateFlow<List<NSAuthSubject>> = combine(clients, _tokens) { list, state ->
         if (state !is TokensState.Ready) emptyList()
-        else state.subjects.filter { subject -> clientTokens.isClientToken(subject) && list.none { it.nsSubject == subject.name } }
+        else state.subjects.filter { subject -> clientTokens.isClientToken(subject) && list.none { it.nsSubject == subject.name || it.ownToken == subject.name } }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
     /** For each client id: is the token it writes with a client token, another (stronger) token, or not known yet. */
@@ -212,7 +214,7 @@ class AuthorizedClientsViewModel(
             val url = preferences.get(StringKey.NsClientUrl)
             if (role == null) {
                 _qrDialog.value = QrDialog.Shown(
-                    text = ClientSetupCode.encode(ClientSetupCode(url = url, token = token, name = clientName)),
+                    text = ClientSetupCode.encode(ClientSetupCode(url = url, token = token, name = clientName, signingKey = masterSigningKey.publicKey())),
                     clientName = clientName,
                     pairs = false,
                     expiresAt = null,
@@ -228,7 +230,7 @@ class AuthorizedClientsViewModel(
                     role = role.name
                 )
                 _qrDialog.value = QrDialog.Shown(
-                    text = ClientSetupCode.encode(ClientSetupCode(url = url, token = token, pairing = pairing, name = clientName)),
+                    text = ClientSetupCode.encode(ClientSetupCode(url = url, token = token, pairing = pairing, name = clientName, signingKey = masterSigningKey.publicKey())),
                     clientName = clientName,
                     pairs = true,
                     expiresAt = result.entry.pairExpiresAt,
@@ -244,10 +246,11 @@ class AuthorizedClientsViewModel(
         val id = subject.id ?: return
         _qrDialog.value = QrDialog.Working
         qrJob = viewModelScope.launch {
+            val signingKey = masterSigningKey.publicKey()
             _qrDialog.value = when (val result = clientTokens.token(id)) {
                 is ClientTokens.Result.Ok -> result.value.accessToken?.let { token ->
                     QrDialog.Shown(
-                        text = ClientSetupCode.encode(ClientSetupCode(url = preferences.get(StringKey.NsClientUrl), token = token, name = displayName(subject))),
+                        text = ClientSetupCode.encode(ClientSetupCode(url = preferences.get(StringKey.NsClientUrl), token = token, name = displayName(subject), signingKey = signingKey)),
                         clientName = displayName(subject),
                         pairs = false,
                         expiresAt = null,
@@ -401,8 +404,8 @@ class AuthorizedClientsViewModel(
             offerPublisher.deleteKeyExchange(client.clientId)
             // Its token goes too, so the phone cannot read Nightscout any more. Only a client token: a token with
             // other roles is the user's own. If Nightscout cannot be reached now, the token stays and is listed as a
-            // token without a client, to delete later.
-            client.nsSubject?.let { clientTokens.deleteByName(it) }
+            // token without a client, to delete later. Its own token as well, when it writes with another one now.
+            listOfNotNull(client.nsSubject, client.ownToken).distinct().forEach { clientTokens.deleteByName(it) }
             refreshTokens()
         }
     }
@@ -457,6 +460,8 @@ class AuthorizedClientsViewModel(
 
     private fun tokenKind(client: AuthorizedClient, state: TokensState): TokenKind {
         val name = client.nsSubject ?: return TokenKind.Unknown
+        // Bound to its own token and now writing with another: its commands are refused. Known without Nightscout.
+        if (client.ownToken != null && name != client.ownToken) return TokenKind.NotItsOwn
         if (state !is TokensState.Ready) return TokenKind.Unknown
         val sameName = state.subjects.filter { it.name == name }
         return when {
@@ -524,7 +529,10 @@ class AuthorizedClientsViewModel(
         ClientToken,
 
         /** A token with more rights than a client needs, for example the user's admin token. */
-        OtherToken
+        OtherToken,
+
+        /** Not the client's own token, which it used before: the master refuses its commands. */
+        NotItsOwn
     }
 
     sealed interface QrDialog {

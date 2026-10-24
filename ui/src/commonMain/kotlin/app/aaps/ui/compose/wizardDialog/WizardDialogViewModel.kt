@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import app.aaps.core.data.model.CarbsType
 import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.time.T
@@ -529,11 +530,11 @@ class WizardDialogViewModel(
         }
 
         // Carbs type split: effective carbs for wizard, eCarbs for later scheduling
-        val plan = state.carbPlan()
-        val effectiveCarbs = plan.carbs
-        val eCarbs = plan.eCarbs
-        if (state.foodMode &&
-            constraintChecker.applyCarbsConstraints(ConstraintObject(eCarbs, aapsLogger)).value() != eCarbs) return clearResult()
+        val plan = state.carbPlan()
+        val effectiveCarbs = plan.carbs
+        val eCarbs = plan.eCarbs
+        if (state.foodMode &&
+            constraintChecker.applyCarbsConstraints(ConstraintObject(eCarbs, aapsLogger)).value() != eCarbs) return clearResult()
 
         // Carbs constraint check (on effective carbs only)
         val carbsAfterConstraint = constraintChecker.applyCarbsConstraints(ConstraintObject(effectiveCarbs, aapsLogger)).value()
@@ -710,8 +711,8 @@ class WizardDialogViewModel(
      */
     fun deliverManualWizard() {
         val state = uiState.value
-        if (!state.foodInputsValid) return
-        val effectiveCarbs = state.carbPlan().carbs
+        if (!state.foodInputsValid) return
+        val effectiveCarbs = state.carbPlan().carbs
         // null → recompute on the master's active profile (index 0 = "Active"); else the selected stored profile by name.
         val profileName = if (state.selectedProfileIndex == 0) null else state.profileNames.getOrNull(state.selectedProfileIndex)
         val inputs = MasterActionExecutor.WizardInputs(

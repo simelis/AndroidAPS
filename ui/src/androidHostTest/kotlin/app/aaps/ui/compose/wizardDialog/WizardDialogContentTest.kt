@@ -23,6 +23,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import app.aaps.core.data.model.CarbsType
 import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.model.FoodECarbsRule
@@ -87,7 +88,7 @@ class WizardDialogContentTest {
             CoreUiR.string.value_in_parentheses,
             ctx.getString(
                 UiR.string.wizard_percentage_and_correction,
-                ctx.getString(CoreUiR.string.format_percent, 71),
+                ctx.getString(CoreUiR.string.units_format_percent, 71),
                 ctx.getString(CoreUiR.string.format_insulin_units_signed, 1.0)
             )
         )

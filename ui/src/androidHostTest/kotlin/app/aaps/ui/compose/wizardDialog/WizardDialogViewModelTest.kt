@@ -2,6 +2,7 @@ package app.aaps.ui.compose.wizardDialog
 
 import androidx.lifecycle.SavedStateHandle
 import app.aaps.core.data.iob.CobInfo
+import app.aaps.core.data.model.CarbsType
 import app.aaps.core.data.model.GV
 import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsMethod

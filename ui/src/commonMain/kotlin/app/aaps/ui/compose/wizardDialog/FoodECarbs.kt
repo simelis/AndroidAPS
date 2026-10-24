@@ -77,7 +77,7 @@ fun WizardDialogUiState.carbPlan(): WizardCarbPlan =
         val carbsNow = (carbs * part / whole).toInt()
         WizardCarbPlan(carbsNow, mealECarbsGrams + carbs - carbsNow, mealDelayMinutes, mealDurationHours)
     } else {
-        WizardCarbPlan(carbs * carbsType.carbsPercent / 100, carbs * carbsType.eCarbsPercent / 100, carbsType.eCarbsDelayMinutes, carbsType.eCarbsDurationHours)
+        WizardCarbPlan(carbsType.carbsNow(carbs), carbsType.eCarbs(carbs), carbsType.eCarbsDelayMinutes, carbsType.eCarbsDurationHours)
     }
 
 private val WizardDialogUiState.mealAdjustValid: Boolean

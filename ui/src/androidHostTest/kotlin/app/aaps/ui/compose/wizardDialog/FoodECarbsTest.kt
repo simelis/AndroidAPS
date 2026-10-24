@@ -1,5 +1,6 @@
 package app.aaps.ui.compose.wizardDialog
 
+import app.aaps.core.data.model.CarbsType
 import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.model.FoodECarbsRule
