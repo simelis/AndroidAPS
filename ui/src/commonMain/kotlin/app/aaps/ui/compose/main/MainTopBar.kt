@@ -3,6 +3,7 @@ package app.aaps.ui.compose.main
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
@@ -17,14 +18,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.aaps.core.ui.CoreUiStrings
+import app.aaps.core.ui.compose.icons.IcHistory
 import app.aaps.core.ui.compose.icons.IcSettingsOff
 import app.aaps.core.ui.compose.stringResource
+import app.aaps.ui.UiStrings
 import app.aaps.ui.search.M3SearchBar
 import app.aaps.ui.search.SearchUiState
 
 /**
  * Main top bar with M3-style search bar.
- * Layout: [Menu] [----Search Bar----] [SimpleMode?] [Settings]
+ * Layout: [Menu] [----Search Bar----] [History?] [SimpleMode?] [Settings]
  *
  * @param searchUiState Current search UI state
  * @param onMenuClick Called when menu button is clicked
@@ -33,6 +36,8 @@ import app.aaps.ui.search.SearchUiState
  * @param onSearchClear Called when search query is cleared
  * @param onSearchActiveChange Called when search active state changes
  * @param isSimpleMode When true, shows a non-interactive simple-mode indicator next to Settings
+ * @param showNotificationHistory When true, shows a button that opens the recently dismissed notifications
+ * @param onNotificationHistoryClick Called when the notification history button is clicked
  * @param modifier Modifier for the component
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +50,8 @@ fun MainTopBar(
     onSearchClear: () -> Unit,
     onSearchActiveChange: (Boolean) -> Unit,
     isSimpleMode: Boolean = false,
+    showNotificationHistory: Boolean = false,
+    onNotificationHistoryClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     TopAppBar(
@@ -72,6 +79,14 @@ fun MainTopBar(
             }
         },
         actions = {
+            if (showNotificationHistory) IconButton(onClick = onNotificationHistoryClick) {
+                // IcHistory is drawn at 48 dp by default; 24 dp is the Material icon size of Settings next to it
+                Icon(
+                    imageVector = IcHistory,
+                    contentDescription = stringResource(UiStrings.notification_history),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             IconButton(onClick = onPreferencesClick) {
                 // In simple mode the gear shows "crossed" (IcSettingsOff) to signal the mode;
                 // the button action (open settings) is unchanged.

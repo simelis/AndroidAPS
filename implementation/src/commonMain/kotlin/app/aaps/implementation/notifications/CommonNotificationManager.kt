@@ -9,6 +9,7 @@ import app.aaps.core.interfaces.notifications.AlarmSound
 import app.aaps.core.interfaces.notifications.NotificationAction
 import app.aaps.core.interfaces.notifications.NotificationHandle
 import app.aaps.core.interfaces.notifications.NotificationId
+import app.aaps.core.interfaces.notifications.NotificationHistoryEntry
 import app.aaps.core.interfaces.notifications.NotificationLevel
 import app.aaps.core.interfaces.notifications.NotificationManager
 import app.aaps.core.interfaces.notifications.SystemNotificationPlatform
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -47,6 +49,9 @@ class CommonNotificationManager(
 
     private val _notifications = MutableStateFlow<List<AapsNotification>>(emptyList())
     override val notifications: StateFlow<List<AapsNotification>> = _notifications.asStateFlow()
+
+    private val _history = MutableStateFlow<List<NotificationHistoryEntry>>(emptyList())
+    override val history: StateFlow<List<NotificationHistoryEntry>> = _history.asStateFlow()
 
     /**
      * Guards every read-modify-write of [_notifications].
@@ -85,6 +90,7 @@ class CommonNotificationManager(
     override fun cleanUp() = lock.withLock {
         removeExpired()
         endSnoozes()
+        pruneHistory()
     }
 
     override fun post(
@@ -268,6 +274,7 @@ class CommonNotificationManager(
         if (removed.isEmpty()) return
         removed.forEach { cancelSystemNotification(it) }
         _notifications.value = current - removed.toSet()
+        addToHistory(removed, expired = false)
         refreshAlarmSound()
         aapsLogger.debug(LTag.NOTIFICATION, logLine)
     }
@@ -285,7 +292,24 @@ class CommonNotificationManager(
             aapsLogger.debug(LTag.NOTIFICATION, "Notification expired: ${n.text}")
         }
         _notifications.value = current - expired.toSet()
+        addToHistory(expired, expired = true)
         refreshAlarmSound()
+    }
+
+    /** Caller must hold [lock]. */
+    private fun addToHistory(gone: List<AapsNotification>, expired: Boolean) {
+        val removed = now()
+        val entries = gone.map { NotificationHistoryEntry(it.id, it.text, it.level, it.date, removed, expired, it.muted) }
+        // Only the newest of the same notification, so one that comes and goes on every loop run cannot push the others out
+        val older = _history.value.filter { old -> entries.none { it.id == old.id && it.text == old.text } }
+        _history.value = (entries + older).take(HISTORY_SIZE)
+        pruneHistory()
+    }
+
+    /** Caller must hold [lock]. */
+    private fun pruneHistory() {
+        val oldest = now() - HISTORY_HOURS.hours.inWholeMilliseconds
+        if (_history.value.any { it.removed < oldest }) _history.value = _history.value.filter { it.removed >= oldest }
     }
 
     private fun cancelSystemNotification(n: AapsNotification) = platform.cancel(n.instanceKey)
@@ -322,4 +346,10 @@ class CommonNotificationManager(
     }
 
     private fun now(): Long = clock.now().toEpochMilliseconds()
+
+    private companion object {
+
+        const val HISTORY_SIZE = 20
+        const val HISTORY_HOURS = 24
+    }
 }

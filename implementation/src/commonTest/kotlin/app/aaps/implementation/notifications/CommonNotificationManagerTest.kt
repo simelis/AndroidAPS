@@ -406,6 +406,79 @@ class CommonNotificationManagerTest {
         assertTrue(!sut.notifications.value.single().muted)
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // History
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    fun `a dismissed notification goes to the history, newest first`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.SCENE_ENDED, "first", level = NotificationLevel.INFO)
+        sut.post(NotificationId.TOAST_ALARM, "second", sound = AlarmSound.ERROR)
+        minutesLater(1)
+
+        sut.dismiss(NotificationId.SCENE_ENDED)
+        minutesLater(1)
+        sut.dismiss(NotificationId.TOAST_ALARM)
+
+        assertEquals(listOf("second", "first"), sut.history.value.map { it.text })
+        assertEquals(clock.nowMs, sut.history.value.first().removed)
+        assertTrue(sut.history.value.none { it.expired })
+    }
+
+    @Test
+    fun `an expired notification goes to the history marked expired`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.SCENE_ENDED, "short", level = NotificationLevel.INFO, validMinutes = 5)
+        minutesLater(6)
+
+        sut.cleanUp()
+
+        assertTrue(sut.history.value.single().expired)
+    }
+
+    @Test
+    fun `the history keeps whether the alarm was muted`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.TOAST_ALARM, "low", sound = AlarmSound.ERROR)
+        sut.muteAllAlarms()
+
+        sut.dismiss(NotificationId.TOAST_ALARM)
+
+        assertTrue(sut.history.value.single().muted)
+    }
+
+    @Test
+    fun `the same notification coming and going keeps only its newest entry`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.TOAST_ALARM, "low", sound = AlarmSound.ERROR)
+        sut.dismiss(NotificationId.TOAST_ALARM)
+        repeat(30) {
+            minutesLater(1)
+            sut.post(NotificationId.SCENE_ENDED, "loop warning", level = NotificationLevel.INFO)
+            sut.dismiss(NotificationId.SCENE_ENDED)
+        }
+
+        assertEquals(listOf("loop warning", "low"), sut.history.value.map { it.text })
+        assertEquals(clock.nowMs, sut.history.value.first().removed)
+    }
+
+    @Test
+    fun `the history keeps the last 20 for 24 hours`() = runTest {
+        val sut = createSut()
+        repeat(25) { i ->
+            sut.post(NotificationId.SCENE_ENDED, "n$i", level = NotificationLevel.INFO)
+            sut.dismiss(NotificationId.SCENE_ENDED)
+        }
+        assertEquals(20, sut.history.value.size)
+        assertEquals("n24", sut.history.value.first().text)
+
+        minutesLater(24 * 60 + 1)
+        sut.cleanUp()
+
+        assertTrue(sut.history.value.isEmpty())
+    }
+
     /** A different or worse alarm is not held back by the snooze of another one. */
     @Test
     fun `the snooze holds only the alarms that were muted`() = runTest {
