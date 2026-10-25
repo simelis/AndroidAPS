@@ -1034,7 +1034,6 @@
     <string name="name">Tên</string>
     <string name="category">Danh mục</string>
     <string name="subcategory">Danh mục con</string>
-    <string name="portion">Phần</string>
     <string name="unit_label">Đơn vị</string>
     <string name="undo">Hoàn tác</string>
     <string name="no_data">Không có dữ liệu</string>

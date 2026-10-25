@@ -1,6 +1,8 @@
 package app.aaps.database.persistence.converters
 
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.model.IDs
 import app.aaps.database.entities.Food
 import app.aaps.database.entities.embedments.InterfaceIDs
@@ -37,7 +39,8 @@ internal class FoodExtensionTest {
             protein = 5,
             energy = 600,
             unit = "ml",
-            gi = 40
+            gi = 40,
+            eCarbsRule = FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGrams = 7.5)
         )
 
     private fun sampleEntity(): Food =
@@ -92,6 +95,7 @@ internal class FoodExtensionTest {
         assertEquals(600, back.energy)
         assertEquals("ml", back.unit)
         assertEquals(40, back.gi)
+        assertEquals(FoodECarbsRule(method = FoodECarbsMethod.FPU, delayMinutes = 60, durationHours = 3, manualGrams = 7.5), back.eCarbsRule)
 
         // Nested IDs round-trips too.
         assertEquals("nsSys", back.ids.nightscoutSystemId)
@@ -152,7 +156,21 @@ internal class FoodExtensionTest {
         assertNull(back.protein)
         assertNull(back.energy)
         assertNull(back.gi)
+        assertNull(back.eCarbsRule)
         assertNull(back.referenceId)
         assertEquals("g", back.unit)
+    }
+
+    @Test
+    fun howAFoodIsCountedIsStored() {
+        val slice = FD(name = "Slice", portion = 30.0, unit = "g", carbs = 15, askAmount = false)
+        assertEquals(false, slice.toDb().askAmount)
+        assertEquals(false, slice.toDb().fromDb().askAmount)
+        assertEquals(true, slice.copy(askAmount = true).toDb().fromDb().askAmount)
+    }
+
+    @Test
+    fun aBrokenFixedAmountIsReadAsNoRule() {
+        assertNull(sampleEntity().copy(eCarbsRuleJson = "{\"durationHours\":3,\"manualGrams\":\"invalid\"}").fromDb().eCarbsRule)
     }
 }

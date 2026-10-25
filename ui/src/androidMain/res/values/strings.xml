@@ -208,6 +208,7 @@
     <string name="wizard_calc_carbs_with_ic" comment="Line of the bolus wizard calculation for the carbs eaten now. %1$s=Carbs, %2$s=amount with unit, %3$s=insulin to carb ratio used. Example: Carbs 20 g (IC: 10.0)">%1$s %2$s (IC: %3$s)</string>
     <string name="wizard_carbs_type_bread_desc">100% immediate carbs, no extended carbs</string>
     <string name="wizard_carbs_type_desc" comment="What the cake or pizza carb type does. %1$d=percent the carbs are reduced by, %2$d=percent added as eCarbs, %3$d=minutes until the eCarbs start, %4$d=hours they are spread over. Example: Carbs reduced by 10%, added eCarbs 20% delayed 60 min for 2 h">Carbs reduced by %1$d%%, added eCarbs %2$d%% delayed %3$d min for %4$d h</string>
+    <string name="wizard_carbs_split" comment="Under the carbs field of the wizard. %1$d=carbs counted in the bolus now in grams, %2$d=eCarbs that come later in grams. Example: 26 g in the bolus now · 18 g eCarbs later">%1$d g in the bolus now · %2$d g eCarbs later</string>
     <string name="wizard_include_info">Tap to include/exclude from calculation:\n• BG — blood glucose (ON at start)\n• TT — temp target (ON at start)\n• Trend — BG trend (last state remembered)\n• IOB — insulin on board (ON at start)\n• COB — carbs on board (last state remembered)</string>
 
     <!-- Treatments -->
@@ -387,4 +388,70 @@
     <string name="notification_history_removed" comment="%1$s=time the notification was posted, %2$s=time it was dismissed. Example: 10:20, removed 10:32">%1$s, removed %2$s</string>
     <string name="notification_history_expired" comment="%1$s=time the notification was posted, %2$s=time it expired. Example: 10:20, expired 11:20">%1$s, expired %2$s</string>
     <string name="notification_history_muted">The alarm was muted</string>
+    <string name="food_favourite">Favourite</string>
+    <string name="food_favourites">Favourites</string>
+    <string name="food_value_unknown" comment="Shown instead of a nutrient amount that is not known">—</string>
+    <string name="food_details_category" comment="Food list line. %1$s=amount and unit of the food, like 100 g or 3 pieces, %2$s=category. Example: 100 g · Snacks">%1$s · %2$s</string>
+    <string name="food_details_subcategory" comment="Food list line. %1$s=amount and unit of the food, like 100 g or 3 pieces, %2$s=category, %3$s=subcategory. Example: 100 g · Snacks / Sweet">%1$s · %2$s / %3$s</string>
+    <string name="food_favourites_empty">No favourite foods yet. Tap the star on a food to add it.</string>
+    <string name="food_portion_amount" comment="%1$s=portion size, %2$s=unit as typed by the user. Example: 250 ml">%1$s %2$s</string>
+    <string name="food_fat_protein" comment="Short food list line. F=fat, P=protein. %1$s=fat grams, %2$s=protein grams, — when unknown. Example: F: 4 g · P: 5 g">F: %1$s g · P: %2$s g</string>
+    <string name="food_fat_protein_energy" comment="Short food list line. F=fat, P=protein. %1$s=fat grams, %2$s=protein grams, %3$s=energy in kJ. Example: F: 4 g · P: 5 g · 600 kJ">F: %1$s g · P: %2$s g · %3$s kJ</string>
+    <string name="food_ecarbs_amount_hint">The amount eaten scales all nutrients and the eCarbs formula. Changing the carbs field below changes only the meal carbs.</string>
+    <string name="food_amount_eaten">Amount eaten</string>
+    <string name="food_amount">Amount</string>
+    <string name="food_ask_amount">Enter the amount every time</string>
+    <string name="food_ask_amount_info">The nutrients are always for the amount saved here, for example 100 g from a label, or 3 pieces.\nOn: the wizard starts with an empty amount, so you weigh or count the food every time.\nOff: the wizard starts at the amount saved here, for a meal you usually eat the same way. You can still change it.</string>
+    <string name="food_nutrient_more_than_food" comment="%1$s=amount of the food, %2$s=its unit. Example: A nutrient cannot weigh more than the food (25 g).">A nutrient cannot weigh more than the food (%1$s %2$s).</string>
+    <string name="food_ecarbs_amount_calculated" comment="%1$s=amount saved with the food, %2$s=its unit, %3$s=grams with one decimal. Example: Formula result for 100 g: 7.5 g eCarbs">Formula result for %1$s %2$s: %3$s g eCarbs</string>
+    <string name="food_ecarbs_amount_fixed" comment="%1$s=amount saved with the food, %2$s=its unit. Example: Saved eCarbs for 100 g">Saved eCarbs for %1$s %2$s</string>
+    <string name="food_more_info">More information</string>
+    <string name="food_editor_invalid">Enter a name and a positive amount. Nutrients cannot be negative. Blank fat or protein means unknown. An enabled eCarbs formula needs the protein or fat it uses.</string>
+    <string name="food_save_failed">Could not save the food and its formula. Please try again.</string>
+    <string name="food_ecarbs_macros" comment="Nutrients of this meal. %1$d=carbs in grams, %2$s=protein grams, %3$s=fat grams, — when unknown. Example: 75 g carbs · 30 g protein · 25 g fat">%1$d g carbs · %2$s g protein · %3$s g fat</string>
+    <string name="food_ecarbs_enable">Use the eCarbs formula of this food for this meal</string>
+    <string name="food_ecarbs_no_rule">No eCarbs formula is saved for this food.</string>
+    <string name="food_ecarbs_rule_enable">Save an eCarbs formula for this food</string>
+    <string name="food_ecarbs_saved_method" comment="%1$s=name of the calculation method. Example: Saved formula: Custom factors">Saved formula: %1$s</string>
+    <string name="food_ecarbs_saved_manual_amount" comment="%1$s=grams with one decimal, %2$s=amount saved with the food, %3$s=its unit as typed by the user. Example: Fixed amount: 7.5 g eCarbs per 3 pieces">Fixed amount: %1$s g eCarbs per %2$s %3$s</string>
+    <string name="food_ecarbs_list" comment="Short food list line, for the amount shown next to it. %1$s=eCarbs grams. Example: eCarbs: 7.5 g">eCarbs: %1$s g</string>
+    <string name="food_ecarbs_rule_hint">Saved with this food and applied automatically in the wizard. A value changed by hand is a fixed eCarbs amount for the saved amount of the food; use the calculated amount to go back to the formula.</string>
+    <string name="food_ecarbs_rule_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: Choose a duration of 1–10 h">Choose a duration of %1$d–%2$d h and a valid eCarbs formula before saving.</string>
+    <string name="food_ecarbs_missing_macros">This formula needs protein or fat values that the food does not have. Enter them in the Food entry (0 for none), or save a fixed eCarbs amount.</string>
+    <string name="food_ecarbs_protein_unknown">Protein is not known and is counted as 0 g.</string>
+    <string name="food_ecarbs_fat_unknown">Fat is not known and is counted as 0 g.</string>
+    <string name="food_ecarbs_carbs_now">Carbs counted in the bolus now</string>
+    <string name="food_ecarbs_carbs_now_hint">The rest of the carbs is added to the eCarbs, so the meal total stays the same. 100% counts all carbs now.</string>
+    <string name="food_ecarbs_method">eCarbs calculation method</string>
+    <string name="food_ecarbs_custom">Custom factors</string>
+    <string name="food_ecarbs_fpu">Original FPU (100 kcal)</string>
+    <string name="food_ecarbs_modified_fpu">Modified FPU (200 kcal)</string>
+    <string name="food_ecarbs_custom_description">eCarbs = protein grams × protein factor + fat grams × fat factor. Set the factors and timing agreed with your diabetes team.</string>
+    <string name="food_ecarbs_fpu_description">Reference estimate: (4 × protein grams + 9 × fat grams) ÷ 10. Original FPU methods have been associated with increased hypoglycemia. This is not a pediatric dosing recommendation.</string>
+    <string name="food_ecarbs_modified_description">Reference estimate: (4 × protein grams + 9 × fat grams) ÷ 20. Studied in adults using injections; not established as a pediatric AAPS dosing method.</string>
+    <string name="food_ecarbs_protein_factor">Protein factor</string>
+    <string name="food_ecarbs_fat_factor">Fat factor</string>
+    <string name="food_ecarbs_amount">Additional eCarbs for this meal</string>
+    <string name="food_ecarbs_label">eCarbs</string>
+    <string name="food_ecarbs_row_value" comment="eCarbs of this meal. %1$d=eCarbs in grams, %2$d=delay after carb time in minutes, %3$d=duration in hours. Example: 34 g, after 60 min, over 3 h">%1$d g, after %2$d min, over %3$d h</string>
+    <string name="food_history_note" comment="Saved as the note of a meal from a food, in the treatment history. %1$s=food name, %2$s=amount eaten, %3$s=its unit as typed by the user. Example: Pizza: 250 g">%1$s: %2$s %3$s</string>
+    <string name="food_history_meal_ecarbs" comment="Saved as the note of a meal with eCarbs, in the treatment history. %1$s=the foods and their amounts, %2$s=where the eCarbs came from (formula name, fixed amount, eCarbs changed, food formulas, or eCarbs for a dumplings or pizza split), %3$d=percent of the carbs counted now, %4$d=meal carbs in grams, %5$d=eCarbs in grams, %6$d=delay after carb time in minutes, %7$d=duration in hours. Example: Pizza: 250 g. Modified FPU (200 kcal): 80% of 50 g carbs now, eCarbs 30 g after 60 min over 3 h">%1$s. %2$s: %3$d%% of %4$d g carbs now, eCarbs %5$d g after %6$d min over %7$d h</string>
+    <string name="food_history_note_join" comment="Joins the foods of one meal in its note. %1$s=the foods so far, %2$s=the next food. Example: Soup: 300 ml, Pizza: 250 g">%1$s, %2$s</string>
+    <string name="food_history_formulas" comment="Label in the note of a meal of several foods, each with its own eCarbs formula. Example: Soup: 300 ml, Pizza: 250 g. Food formulas: 85% of 70 g carbs now, eCarbs 35 g after 30 min over 4 h">Food formulas</string>
+    <string name="food_history_note_with_own" comment="The food summary of a meal followed by the note the user typed. %1$s=food summary, %2$s=user note. Example: Pizza: 250 g. Birthday">%1$s. %2$s</string>
+    <string name="food_history_changed_for_meal">eCarbs changed</string>
+    <string name="food_history_fixed_amount">Fixed amount</string>
+    <string name="food_history_ecarbs_label" comment="Label in the note of a meal when the carbs were split by the dumplings or pizza choice. Example: Burger: 250 g. eCarbs: 80% of 50 g carbs now, eCarbs 17 g after 60 min over 3 h">eCarbs</string>
+    <string name="food_ecarbs_type_desc" comment="Food eCarbs formula in the wizard info. %1$d=percent of the carbs moved from the bolus, %2$d=eCarbs grams, %3$d=delay in minutes, %4$d=duration in hours. Example: Carbs reduced by 20%, added eCarbs 15 g delayed 60min for 3h">Carbs reduced by %1$d%%, added eCarbs %2$d g delayed %3$dmin for %4$dh</string>
+    <string name="food_ecarbs_how_to_change">The food button next to bread, dumplings and pizza turns the formula on or off. To change the carbs counted now, the eCarbs amount or the timing for this meal, open the eCarbs row next to carb time with its arrow. The saved formula stays the same.</string>
+    <string name="food_card_info">About this food calculation</string>
+    <string name="food_ecarbs_use_calculated">Use calculated amount</string>
+    <string name="food_ecarbs_delay">Delay after carb time</string>
+    <string name="food_ecarbs_duration">Spread eCarbs over</string>
+    <string name="food_ecarbs_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: 1–10 h">Enter a positive amount eaten. Carbs and eCarbs must each be within the carb limit; the food must have the protein or fat its formula needs. Choose a duration of %1$d–%2$d h when food eCarbs are enabled.</string>
+    <string name="food_ecarbs_unavailable">This Food entry could not be loaded. Close the wizard and select the food again.</string>
+    <string name="food_add">Add food</string>
+    <string name="food_add_to_meal">Add to meal</string>
+    <string name="food_remove" comment="Screen-reader name of the button that removes a food from the meal in the bolus wizard. %1$s=food name. Example: Remove Pizza">Remove %1$s</string>
+    <string name="food_meal_carbs_now_hint">The value of each food, weighted by its carbs. A food without a formula counts all its carbs now.</string>
 </resources>

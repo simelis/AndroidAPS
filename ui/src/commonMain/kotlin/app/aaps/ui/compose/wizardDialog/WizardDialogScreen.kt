@@ -99,6 +99,7 @@ import app.aaps.core.ui.compose.ExpandableRowHeader
 import app.aaps.core.ui.compose.NumberInputRow
 import app.aaps.core.ui.compose.QuickAddButtons
 import app.aaps.core.ui.compose.TimeOffsetRow
+import app.aaps.core.ui.compose.banner.WarningBanner
 import app.aaps.core.ui.compose.bottomBarSafeArea
 import app.aaps.core.ui.compose.clearFocusOnTap
 import app.aaps.core.ui.compose.consumeOverscroll
@@ -106,6 +107,7 @@ import app.aaps.core.ui.compose.dialogs.ElementConfirmationDialog
 import app.aaps.core.ui.compose.icons.IcBread
 import app.aaps.core.ui.compose.icons.IcCake
 import app.aaps.core.ui.compose.icons.IcPizza
+import app.aaps.core.ui.compose.icons.IcPluginFood
 import app.aaps.core.ui.compose.icons.IcTtManual
 import app.aaps.core.ui.compose.metroViewModel
 import app.aaps.core.ui.compose.navigation.color
@@ -126,9 +128,21 @@ fun WizardDialogScreen(
     viewModel: WizardDialogViewModel = metroViewModel(),
     wizardSettingsDef: PreferenceSubScreenDef,
     onNavigateBack: () -> Unit,
-    onShowDeliveryError: (String) -> Unit
+    onShowDeliveryError: (String) -> Unit,
+    /** Opens the food list to pick a food for the meal. */
+    onAddFood: () -> Unit = {},
+    /** The food picked in that list, until [onPickedFoodUsed] clears it. */
+    pickedFoodId: Long? = null,
+    onPickedFoodUsed: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(pickedFoodId) {
+        pickedFoodId?.let {
+            onPickedFoodUsed()
+            viewModel.addFoodById(it)
+        }
+    }
 
     // Observe side effects
     LaunchedEffect(Unit) {
@@ -227,7 +241,16 @@ fun WizardDialogScreen(
         onCalculationExpandToggle = viewModel::toggleCalculationExpanded,
         onNavigateBack = onNavigateBack,
         onConfirmClick = { showConfirmation = true },
-        onSettingsClick = { showSettings = true }
+        onSettingsClick = { showSettings = true },
+        foodActions = FoodECarbsCallbacks(
+            amount = viewModel::updateFoodAmount,
+            enabled = viewModel::toggleFoodECarbs,
+            add = onAddFood,
+            remove = viewModel::removeFood,
+            carbsNow = viewModel::updateMealCarbsNow,
+            grams = viewModel::updateMealECarbsGrams,
+            timing = viewModel::updateMealTiming
+        )
     )
 }
 
@@ -255,7 +278,8 @@ internal fun WizardDialogContent(
     onCalculationExpandToggle: () -> Unit,
     onNavigateBack: () -> Unit,
     onConfirmClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    foodActions: FoodECarbsCallbacks = FoodECarbsCallbacks()
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -297,7 +321,7 @@ internal fun WizardDialogContent(
                     focusManager.clearFocus()
                     onConfirmClick()
                 },
-                enabled = uiState.okVisible && !uiState.waitsForSmb,
+                enabled = uiState.okVisible && !uiState.waitsForSmb && uiState.foodInputsValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .bottomBarSafeArea()
@@ -378,7 +402,7 @@ internal fun WizardDialogContent(
                             itemVerticalAlignment = Alignment.CenterVertically
                         ) {
                             // Result summary (always visible)
-                            if (uiState.hasResult && (uiState.totalInsulin > 0.0 || uiState.carbs > 0)) {
+                            if (uiState.hasResult && (uiState.totalInsulin > 0.0 || uiState.carbs > 0 || uiState.eCarbs > 0)) {
                                 if (uiState.totalInsulin > 0.0) {
                                     Text(
                                         text = stringResource(InterfacesStrings.format_insulin_units, uiState.totalInsulin),
@@ -640,6 +664,10 @@ internal fun WizardDialogContent(
                 }
             }
 
+            FoodECarbsCards(uiState, foodActions)
+            AddFoodButton(uiState, foodActions.add, modifier = Modifier.fillMaxWidth())
+            if (uiState.foodUnavailable) WarningBanner(message = stringResource(UiStrings.food_ecarbs_unavailable))
+
             // --- All inputs in one card (gap-as-divider pattern) ---
             val itemModifier = Modifier
                 .fillMaxWidth()
@@ -674,6 +702,7 @@ internal fun WizardDialogContent(
                             step = 1.0,
                             unitLabel = TextRef.Literal("g")
                         )
+                        CarbsSplitLine(uiState)
                         QuickAddButtons(
                             increment1 = uiState.carbsButtonIncrement1,
                             increment2 = uiState.carbsButtonIncrement2,
@@ -682,6 +711,10 @@ internal fun WizardDialogContent(
                         )
 
                         // Carbs type selector
+                        val formulaFoods = uiState.foods.filter { it.food.eCarbsRule != null }
+                        val hasFormula = formulaFoods.isNotEmpty()
+                        val foodSelected = uiState.foodMode
+                        val choices = CarbsType.entries.size + if (hasFormula) 1 else 0
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -693,9 +726,9 @@ internal fun WizardDialogContent(
                             ) {
                                 CarbsType.entries.forEachIndexed { index, type ->
                                     SegmentedButton(
-                                        selected = uiState.carbsType == type,
+                                        selected = !foodSelected && uiState.carbsType == type,
                                         onClick = { onCarbsTypeChange(type) },
-                                        shape = SegmentedButtonDefaults.itemShape(index, CarbsType.entries.size),
+                                        shape = SegmentedButtonDefaults.itemShape(index, choices),
                                         icon = {}
                                     ) {
                                         Icon(
@@ -711,6 +744,19 @@ internal fun WizardDialogContent(
                                         )
                                     }
                                 }
+                                if (hasFormula) SegmentedButton(
+                                    selected = foodSelected,
+                                    onClick = { foodActions.enabled(true) },
+                                    shape = SegmentedButtonDefaults.itemShape(choices - 1, choices),
+                                    enabled = foodSelected || formulaFoods.any { it.canUseRule && it.rule.isValid },
+                                    icon = {}
+                                ) {
+                                    Icon(
+                                        imageVector = IcPluginFood,
+                                        contentDescription = stringResource(UiStrings.food_ecarbs_enable),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
 
                             val tooltipState = rememberTooltipState()
@@ -721,7 +767,7 @@ internal fun WizardDialogContent(
                                     PlainTooltip {
                                         Column {
                                             Text(
-                                                text = when (uiState.carbsType) {
+                                                text = if (foodSelected) uiState.foods.singleOrNull()?.food?.name ?: stringResource(UiStrings.food_history_formulas) else when (uiState.carbsType) {
                                                     CarbsType.BREAD -> stringResource(CoreUiStrings.carbs_type_bread)
                                                     CarbsType.CAKE  -> stringResource(CoreUiStrings.carbs_type_cake)
                                                     CarbsType.PIZZA -> stringResource(CoreUiStrings.carbs_type_pizza)
@@ -729,7 +775,7 @@ internal fun WizardDialogContent(
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
-                                                text = carbsTypeEffect(uiState.carbsType),
+                                                text = if (foodSelected) foodFormulaEffect(uiState) else carbsTypeEffect(uiState.carbsType),
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
@@ -772,6 +818,8 @@ internal fun WizardDialogContent(
                         onAlarmChange = onAlarmToggle,
                         modifier = itemModifier
                     )
+                    // Food eCarbs (collapsible, only with the food formula)
+                    FoodECarbsRow(uiState, foodActions, modifier = itemModifier)
                     // BG (collapsible, auto-expand when old/missing)
                     val bgExpandRequester = rememberBringIntoViewOnExpand(bgExpandedByUser)
                     ExpandableNumberInputRow(

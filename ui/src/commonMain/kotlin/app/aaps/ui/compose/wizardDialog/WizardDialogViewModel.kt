@@ -7,6 +7,8 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import app.aaps.core.data.model.CarbsType
+import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.time.T
 import app.aaps.core.data.ue.Sources
 import app.aaps.core.data.ui.ConfirmationLine
@@ -21,6 +23,7 @@ import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.insulin.ConcentrationHelper
 import app.aaps.core.interfaces.iob.IobCobCalculator
 import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.profile.ProfileRepository
@@ -47,6 +50,8 @@ import app.aaps.core.objects.wizard.BolusWizard
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.clientcontrol.failText
 import app.aaps.core.ui.compose.icons.IcCalculator
+import app.aaps.ui.UiStrings
+import app.aaps.ui.compose.foodManagement.formatAmount
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
@@ -56,6 +61,7 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.viewmodel.ViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ViewModelAssistedFactoryKey
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,6 +72,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.time.TimeSource
 
 @Stable
@@ -155,6 +162,20 @@ class WizardDialogViewModel(
         recalculate()
     }
 
+    /** The food picked in the food list, opened by "Add food". Read again, because it can be new. */
+    fun addFoodById(id: Long) {
+        viewModelScope.launch {
+            val food = try {
+                persistenceLayer.getFoods().find { it.id == id && it.isValid }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                aapsLogger.error(LTag.UI, "Failed to load the picked food", e)
+                null
+            }
+            food?.let { addFood(it) }
+        }
+    }
+
     /**
      * The percentage to start a bolus from: [stored], but 100% when the last glucose value is older
      * than [IntKey.OverviewResetBolusPercentageTime], or when there is none at all. A percentage
@@ -171,8 +192,17 @@ class WizardDialogViewModel(
     }
 
     private suspend fun initialize() {
-        val initialCarbs = savedStateHandle.get<String>("carbs")?.toIntOrNull()
-        val initialNotes = savedStateHandle.get<String>("notes")
+        val foodId = savedStateHandle.get<String>("foodId")?.toLongOrNull()
+        val food = foodId?.let { id ->
+            try {
+                persistenceLayer.getFoods().find { it.id == id && it.isValid }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                aapsLogger.error(LTag.UI, "Failed to load wizard food", e)
+                null
+            }
+        }
+        val foodState = food?.let { FoodECarbsState.of(it) }
 
         val profileStore = profileRepository.profile.value ?: return
 
@@ -219,11 +249,13 @@ class WizardDialogViewModel(
                 initialized = true,
                 // User inputs
                 bg = currentBg,
-                carbs = initialCarbs ?: 0,
+                carbs = foodState?.carbsGrams ?: 0,
+                foods = listOfNotNull(foodState),
+                foodUnavailable = foodId != null && food == null,
                 percentage = percentage,
                 directCorrection = 0.0,
                 carbTime = 0,
-                notes = initialNotes ?: "",
+                notes = food?.name ?: "",
                 selectedProfileIndex = 0,
                 // Toggles
                 useBg = true,
@@ -302,7 +334,86 @@ class WizardDialogViewModel(
     }
 
     fun updateCarbsType(value: CarbsType) {
-        _uiState.update { it.copy(carbsType = value) }
+        _uiState.update { state ->
+            state.copy(carbsType = value, foods = state.foods.map { it.copy(enabled = false) }, mealAdjust = state.mealAdjust.copy(eCarbsGrams = null))
+        }
+        recalculate()
+    }
+
+    /**
+     * The carbs field is the whole meal: a food's carbs are added to it, so carbs typed by hand for
+     * something that is not in the food list stay.
+     */
+    fun addFood(food: FD) {
+        _uiState.update { state ->
+            if (state.foods.size >= FoodECarbsState.MAX_FOODS) return@update state
+            val added = FoodECarbsState.of(food)
+            // Its formula is on unless dumplings or pizza were chosen for this meal
+            val useFormula = added.enabled && (state.foodMode || state.carbsType == CarbsType.BREAD)
+            val foods = state.foods.map { if (useFormula) it.copy(enabled = it.canUseRule && it.food.eCarbsRule != null) else it } + added.copy(enabled = useFormula)
+            state.copy(
+                foods = foods,
+                carbs = state.carbs + added.carbsGrams,
+                carbsType = if (useFormula) CarbsType.BREAD else state.carbsType,
+                // The meal changed, so the changes made for it no longer fit
+                mealAdjust = MealAdjust()
+            )
+        }
+        recalculate()
+    }
+
+    fun removeFood(index: Int) {
+        _uiState.update { state ->
+            val removed = state.foods.getOrNull(index) ?: return@update state
+            state.copy(
+                foods = state.foods.filterIndexed { i, _ -> i != index },
+                carbs = (state.carbs - removed.carbsGrams).coerceAtLeast(0),
+                mealAdjust = MealAdjust()
+            )
+        }
+        recalculate()
+    }
+
+    fun updateFoodAmount(index: Int, value: Double) {
+        val max = uiState.value.foods.getOrNull(index)?.maxAmount ?: return
+        if (!value.isFinite() || value !in 0.0..max) return
+        _uiState.update { state ->
+            val old = state.foods.getOrNull(index) ?: return@update state
+            val food = old.copy(amount = value)
+            state.copy(
+                carbs = (state.carbs + food.carbsGrams - old.carbsGrams).coerceAtLeast(0),
+                foods = state.foods.mapIndexed { i, f -> if (i == index) food else f },
+                mealAdjust = state.mealAdjust.copy(eCarbsGrams = null)
+            )
+        }
+        recalculate()
+    }
+
+    fun toggleFoodECarbs(enabled: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                carbsType = CarbsType.BREAD,
+                foods = state.foods.map { it.copy(enabled = enabled && it.food.eCarbsRule != null && it.canUseRule && it.rule.isValid) },
+                mealAdjust = state.mealAdjust.copy(eCarbsGrams = null)
+            )
+        }
+        recalculate()
+    }
+
+    /** Only moves meal carbs between the bolus and the eCarbs, so a hand eCarbs amount stays. */
+    fun updateMealCarbsNow(percent: Int?) {
+        _uiState.update { it.copy(mealAdjust = it.mealAdjust.copy(carbsNowPercent = percent)) }
+        recalculate()
+    }
+
+    fun updateMealECarbsGrams(value: Int?) {
+        if (value != null && value !in 0..uiState.value.maxCarbs) return
+        _uiState.update { it.copy(mealAdjust = it.mealAdjust.copy(eCarbsGrams = value)) }
+        recalculate()
+    }
+
+    fun updateMealTiming(delayMinutes: Int, durationHours: Int) {
+        _uiState.update { it.copy(mealAdjust = it.mealAdjust.copy(delayMinutes = delayMinutes, durationHours = durationHours)) }
         recalculate()
     }
 
@@ -407,8 +518,15 @@ class WizardDialogViewModel(
         viewModelScope.launch { recalculateSuspend() }
     }
 
+    /** Food values that cannot be calculated must not keep the old result. */
+    private fun clearResult() {
+        wizard = null
+        _uiState.update { it.copy(okVisible = false, hasResult = false) }
+    }
+
     private suspend fun recalculateSuspend() {
         val state = uiState.value
+        if (!state.foodInputsValid) return clearResult()
         val profileStore = profileRepository.profile.value ?: return
 
         // Resolve profile
@@ -438,9 +556,11 @@ class WizardDialogViewModel(
         }
 
         // Carbs type split: effective carbs for wizard, eCarbs for later scheduling
-        val carbsType = state.carbsType
-        val effectiveCarbs = carbsType.carbsNow(state.carbs)
-        val eCarbs = carbsType.eCarbs(state.carbs)
+        val plan = state.carbPlan()
+        val effectiveCarbs = plan.carbs
+        val eCarbs = plan.eCarbs
+        if (state.foodMode &&
+            constraintChecker.applyCarbsConstraints(ConstraintObject(eCarbs, aapsLogger)).value() != eCarbs) return clearResult()
 
         // Carbs constraint check (on effective carbs only)
         val carbsAfterConstraint = constraintChecker.applyCarbsConstraints(ConstraintObject(effectiveCarbs, aapsLogger)).value()
@@ -468,7 +588,7 @@ class WizardDialogViewModel(
             state.useTT,
             state.useTrend,
             state.alarmChecked,
-            state.notes,
+            mealNotes(state),
             state.carbTime
         )
 
@@ -510,14 +630,54 @@ class WizardDialogViewModel(
                 targetBGLow = 0.0, // not exposed directly
                 targetBGHigh = 0.0,
                 hasResult = true,
-                okVisible = w.data.calculatedTotalInsulin > 0.0 || carbsAfterConstraint > 0,
+                okVisible = w.data.calculatedTotalInsulin > 0.0 || carbsAfterConstraint > 0 || eCarbs > 0,
                 hasTempTarget = hasTT,
                 effectiveCarbs = effectiveCarbs,
                 eCarbs = eCarbs,
-                eCarbsDelayMinutes = carbsType.eCarbsDelayMinutes,
-                eCarbsDurationHours = carbsType.eCarbsDurationHours
+                eCarbsDelayMinutes = plan.delayMinutes,
+                eCarbsDurationHours = plan.durationHours
             )
         }
+    }
+
+    /**
+     * The food values go into the note, so they stay in the history.
+     * Dumplings and pizza are only a rough split, so the note has the split, not their name.
+     */
+    private fun mealNotes(state: WizardDialogUiState): String {
+        if (state.foods.isEmpty()) return state.notes
+        val foodsText = state.foods
+            .map { rh.gs(UiStrings.food_history_note, it.food.name, it.amount.formatAmount(), it.food.unit) }
+            .reduce { text, next -> rh.gs(UiStrings.food_history_note_join, text, next) }
+        val plan = state.carbPlan()
+        val label = when {
+            state.foodMode  -> eCarbsSource(state)
+            plan.eCarbs > 0 -> rh.gs(UiStrings.food_history_ecarbs_label)
+            else            -> null
+        }
+        val carbsNowPercent = if (state.foodMode) state.mealCarbsNowPercent.roundToInt() else state.carbsType.carbsPercent
+        val summary =
+            if (label == null) foodsText
+            else rh.gs(UiStrings.food_history_meal_ecarbs, foodsText, label, carbsNowPercent, state.carbs, plan.eCarbs, plan.delayMinutes, plan.durationHours)
+        // The note starts as the first food's name, which the summary already has
+        val own = state.notes.trim()
+        return if (own.isEmpty() || own == state.foods.first().food.name) summary else rh.gs(UiStrings.food_history_note_with_own, summary, own)
+    }
+
+    private fun eCarbsSource(state: WizardDialogUiState): String {
+        val food = state.foods.filter { it.enabled }.singleOrNull()
+        return rh.gs(
+            when {
+                state.mealAdjust.eCarbsGrams != null -> UiStrings.food_history_changed_for_meal
+                food == null                         -> UiStrings.food_history_formulas
+                food.rule.manualGrams != null        -> UiStrings.food_history_fixed_amount
+                else                                 -> when (food.rule.method) {
+                    FoodECarbsMethod.CUSTOM       -> UiStrings.food_ecarbs_custom
+                    FoodECarbsMethod.FPU          -> UiStrings.food_ecarbs_fpu
+                    FoodECarbsMethod.MODIFIED_FPU -> UiStrings.food_ecarbs_modified_fpu
+                }
+            }
+        )
     }
 
     // --- Action methods ---
@@ -577,13 +737,14 @@ class WizardDialogViewModel(
      */
     fun deliverManualWizard() {
         val state = uiState.value
-        val effectiveCarbs = state.carbsType.carbsNow(state.carbs)
+        if (!state.foodInputsValid) return
+        val effectiveCarbs = state.carbPlan().carbs
         // null → recompute on the master's active profile (index 0 = "Active"); else the selected stored profile by name.
         val profileName = if (state.selectedProfileIndex == 0) null else state.profileNames.getOrNull(state.selectedProfileIndex)
         val inputs = MasterActionExecutor.WizardInputs(
             bg = state.bg, carbs = effectiveCarbs, percentage = state.percentage, directCorrection = state.directCorrection,
             carbTime = state.carbTime, useBg = state.useBg, useCob = state.useCOB, useIob = state.useIOB,
-            useTt = state.useTT, useTrend = state.useTrend, alarm = state.alarmChecked, notes = state.notes,
+            useTt = state.useTT, useTrend = state.useTrend, alarm = state.alarmChecked, notes = mealNotes(state),
             eCarbsGrams = state.eCarbs, eCarbsDelayMinutes = state.eCarbsDelayMinutes + state.carbTime, eCarbsDurationHours = state.eCarbsDurationHours,
             profileName = profileName
         )
@@ -631,6 +792,12 @@ class WizardDialogViewModel(
      * plain one, so the screen still calls metroViewModel() and nothing at the call site says this
      * view model is built differently.
      */
+    companion object {
+
+        /** Key in the wizard's navigation entry, where the food list puts the id of the food picked for the meal. */
+        const val PICKED_FOOD_ID = "picked_food_id"
+    }
+
     @ContributesIntoMap(AppScope::class, binding = binding<ViewModelAssistedFactory>())
     @ViewModelAssistedFactoryKey(WizardDialogViewModel::class)
     @AssistedFactory
