@@ -8,11 +8,10 @@ import app.aaps.core.objects.workflow.MetroBroadcastReceiver
 import dev.zacsweers.metro.Inject
 
 /**
- * Handles the "Mute" action on the background alarm notification: silences every audible alarm
- * (the looping [app.aaps.core.interfaces.notifications.AlarmSoundPlayer] plus the alarm
- * notifications) via [UiInteraction.stopAlarm], without the user having to open the alarm screen.
- * Primary use: the case where `ErrorActivity` could not be brought to the foreground (another app on
- * top) so the user's only lock-screen surface is the notification.
+ * Handles the "Mute" action on the alarm notifications: silences every audible alarm (the looping
+ * [app.aaps.core.interfaces.notifications.AlarmSoundPlayer] plus the alarm notifications) via
+ * [UiInteraction.stopAlarm], without the user having to unlock the phone or open the alarm screen.
+ * The alarms then stay quiet on this phone for the snooze time set in the alarm settings.
  *
  * A manifest [BroadcastReceiver] is not injected by the system, so it asks the graph itself - the
  * same way the other receivers in this module do.

@@ -22,6 +22,7 @@ import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.ui.IconsProvider
 import app.aaps.core.interfaces.ui.UiInteraction
 import app.aaps.core.keys.BooleanKey
+import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.ui.rawRes
 import app.aaps.implementation.R
@@ -288,14 +289,6 @@ class AlarmNotificationManager(
         // is audible from the notification regardless of whether the alarm activity ever launches.
         val channelId = channelIdForSound(sound ?: AlarmSound.ERROR, overrideDnd)
 
-        // Mute action so the user can silence the looping alarm straight from the lock-screen
-        // notification when ErrorActivity isn't in the foreground (see AlarmMuteReceiver).
-        val mutePendingIntent = PendingIntent.getBroadcast(
-            context, MUTE_REQUEST_CODE,
-            Intent(context, AlarmMuteReceiver::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(iconsProvider.getNotificationIcon())
             .setContentTitle(title)
@@ -306,7 +299,7 @@ class AlarmNotificationManager(
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(pendingIntent)
-            .addAction(0, rh.gs(app.aaps.core.ui.R.string.mute), mutePendingIntent)
+            .addAction(muteAction())
             .build()
 
         try {
@@ -390,6 +383,21 @@ class AlarmNotificationManager(
      * @param notificationKey unique-per-AAPS-notification identifier (the `AapsNotification.instanceKey`)
      * @param urgent          true for URGENT-level alerts (stronger vibration)
      */
+    /**
+     * The Mute button of both alarm notifications, so an alarm can be silenced from the lock screen
+     * without unlocking (see [AlarmMuteReceiver]). Mute snoozes the alarms on this phone for the time
+     * set in the alarm settings, and the label says how long.
+     */
+    private fun muteAction(): NotificationCompat.Action {
+        val intent = PendingIntent.getBroadcast(
+            context, MUTE_REQUEST_CODE,
+            Intent(context, AlarmMuteReceiver::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val time = rh.gs(app.aaps.core.ui.R.string.format_mins, preferences.get(IntKey.AlertsMuteSnoozeTime))
+        return NotificationCompat.Action(0, rh.gs(R.string.alarm_mute_for, time), intent)
+    }
+
     fun postSilentAlarmNotification(
         notificationKey: Int,
         title: String,
@@ -408,6 +416,7 @@ class AlarmNotificationManager(
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(notificationHolderProvider().openAppIntent())
+            .addAction(muteAction())
 
         val systemId = SOUND_ID_OFFSET + notificationKey
         try {
