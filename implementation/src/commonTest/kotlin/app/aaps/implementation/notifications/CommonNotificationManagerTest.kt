@@ -20,6 +20,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * Covers the notification registry, which is the part that is the same on every platform.
@@ -99,10 +101,19 @@ class CommonNotificationManagerTest {
         override fun error(className: String, methodName: String, lineNumber: Int, tag: LTag, message: String) {}
     }
 
-    private val platform = RecordingPlatform()
+    private class FakeClock(var nowMs: Long = 1_700_000_000_000L) : Clock {
+        override fun now(): Instant = Instant.fromEpochMilliseconds(nowMs)
+    }
 
-    private fun createSut() =
-        CommonNotificationManager(SilentLogger, FakeTextResolver, platform, TestScope(UnconfinedTestDispatcher()))
+    private val platform = RecordingPlatform()
+    private val clock = FakeClock()
+
+    private fun createSut(muteSnoozeMinutes: Int = 30) =
+        CommonNotificationManager(SilentLogger, FakeTextResolver, platform, TestScope(UnconfinedTestDispatcher()), { muteSnoozeMinutes }, clock)
+
+    private fun minutesLater(minutes: Int) {
+        clock.nowMs += minutes * 60_000L
+    }
 
     private fun texts(sut: CommonNotificationManager) = sut.notifications.value.map { it.text }
 
@@ -301,16 +312,110 @@ class CommonNotificationManagerTest {
     }
 
     @Test
-    fun `mute all clears audible alarms but leaves quiet notifications`() = runTest {
+    fun `mute all silences audible alarms and keeps them listed`() = runTest {
         val sut = createSut()
-        sut.post(NotificationId.TOAST_ALARM, "loud", sound = AlarmSound.ERROR)
+        val loud = sut.post(NotificationId.TOAST_ALARM, "loud", sound = AlarmSound.ERROR)
         sut.post(NotificationId.SCENE_ENDED, "quiet", level = NotificationLevel.INFO)
 
         sut.muteAllAlarms()
 
-        assertEquals(listOf("quiet"), texts(sut))
+        assertEquals(listOf("loud", "quiet"), texts(sut))
+        assertTrue(sut.notifications.value.first { it.text == "loud" }.muted)
         assertNull(platform.audibleKey)
+        assertContains(platform.calls, "cancel:${loud.instanceKey}")
         assertContains(platform.calls, "cancelAll")
+    }
+
+    /** A repeat of a muted alarm stays quiet. */
+    @Test
+    fun `a repeat of a muted alarm stays quiet`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.TOAST_ALARM, "missed readings", sound = AlarmSound.ERROR)
+        sut.muteAllAlarms()
+        platform.calls.clear()
+
+        sut.post(NotificationId.TOAST_ALARM, "missed readings", sound = AlarmSound.ERROR)
+
+        assertNull(platform.audibleKey)
+        assertTrue(platform.calls.none { it.startsWith("show:") || it.startsWith("audible:") })
+        assertTrue(sut.notifications.value.single().muted)
+    }
+
+    /** A repeat of an alarm that is still ringing does not post a new system notification. */
+    @Test
+    fun `a repeat of a listed alarm updates it without a new notification`() = runTest {
+        val sut = createSut()
+        val first = sut.post(NotificationId.TOAST_ALARM, "low", sound = AlarmSound.ERROR)
+        platform.calls.clear()
+
+        val again = sut.post(NotificationId.TOAST_ALARM, "lower", sound = AlarmSound.ERROR)
+
+        assertEquals(first.instanceKey, again.instanceKey)
+        assertEquals(listOf("lower"), texts(sut))
+        assertEquals(first.instanceKey, platform.audibleKey)
+        assertTrue(platform.calls.none { it.startsWith("show:") || it.startsWith("cancel:") || it.startsWith("audible:") })
+    }
+
+    /** A Nightscout alarm is cleared by the next BG and sent again; during the snooze it stays quiet. */
+    @Test
+    fun `a muted alarm cleared and posted again during the snooze stays quiet`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.TOAST_ALARM, "low", sound = AlarmSound.ERROR)
+        sut.muteAllAlarms()
+        sut.dismiss(NotificationId.TOAST_ALARM)
+        minutesLater(5)
+        platform.calls.clear()
+
+        sut.post(NotificationId.TOAST_ALARM, "low", sound = AlarmSound.ERROR)
+
+        assertNull(platform.audibleKey)
+        assertTrue(platform.calls.none { it.startsWith("show:") || it.startsWith("audible:") })
+        assertTrue(sut.notifications.value.single().muted)
+    }
+
+    @Test
+    fun `after the snooze a dismissed alarm that comes again rings`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.TOAST_ALARM, "low", sound = AlarmSound.ERROR)
+        sut.muteAllAlarms()
+        sut.dismiss(NotificationId.TOAST_ALARM)
+        minutesLater(31)
+
+        val next = sut.post(NotificationId.TOAST_ALARM, "low", sound = AlarmSound.ERROR)
+
+        assertEquals(next.instanceKey, platform.audibleKey)
+        assertTrue(!sut.notifications.value.single().muted)
+    }
+
+    /** Missed readings stays listed while the data is missing; it must ring again after the snooze. */
+    @Test
+    fun `a muted alarm still listed when the snooze ends sounds again`() = runTest {
+        val sut = createSut(muteSnoozeMinutes = 10)
+        val alarm = sut.post(NotificationId.TOAST_ALARM, "missed readings", sound = AlarmSound.ERROR)
+        sut.muteAllAlarms()
+
+        minutesLater(9)
+        sut.cleanUp()
+        assertNull(platform.audibleKey)
+
+        minutesLater(2)
+        platform.calls.clear()
+        sut.cleanUp()
+        assertEquals(alarm.instanceKey, platform.audibleKey)
+        assertContains(platform.calls, "show:${alarm.instanceKey}:missed readings:urgent=true")
+        assertTrue(!sut.notifications.value.single().muted)
+    }
+
+    /** A different or worse alarm is not held back by the snooze of another one. */
+    @Test
+    fun `the snooze holds only the alarms that were muted`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.NS_ALARM, "low", sound = AlarmSound.ALARM)
+        sut.muteAllAlarms()
+
+        val urgent = sut.post(NotificationId.NS_URGENT_ALARM, "urgent low", sound = AlarmSound.URGENT_ALARM)
+
+        assertEquals(urgent.instanceKey, platform.audibleKey)
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -413,6 +413,15 @@ enum class IntKey(
         dependency = BooleanKey.AlertPumpUnreachable,
         unitType = UnitType.MIN
     ),
+    AlertsMuteSnoozeTime(
+        key = "alarm_mute_snooze_minutes",
+        defaultValue = 30,
+        min = 5,
+        max = 120,
+        title = KeysStrings.pref_title_alarm_mute_snooze,
+        summary = KeysStrings.pref_summary_alarm_mute_snooze,
+        unitType = UnitType.MIN
+    ),
 
     AutotuneDefaultTuneDays(key = "autotune_default_tune_days", defaultValue = 5, min = 1, max = 30, title = KeysStrings.pref_title_autotune_days, summary = KeysStrings.autotune_default_tune_days_summary, unitType = UnitType.DAYS),
 

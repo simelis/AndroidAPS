@@ -30,6 +30,7 @@ import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.interfaces.workflow.CalculationSignalsEmitter
 import app.aaps.core.interfaces.workflow.CalculationWorkflow
+import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.ui.compose.pump.PumpCommunicationStatus
 import app.aaps.implementation.maintenance.LocalImportExportPrefs
@@ -178,8 +179,9 @@ object ClientGraphBindings {
         logger: AAPSLogger,
         textResolver: TextResolver,
         platform: SystemNotificationPlatform,
+        preferences: Preferences,
         scope: CoroutineScope
-    ): NotificationManager = CommonNotificationManager(logger, textResolver, platform, scope)
+    ): NotificationManager = CommonNotificationManager(logger, textResolver, platform, scope, { preferences.get(IntKey.AlertsMuteSnoozeTime) })
 
     // ---- Plugins that cannot annotate themselves ----
 
