@@ -2,6 +2,7 @@ package app.aaps.core.nssdk.localmodel.food
 
 import app.aaps.core.nssdk.localmodel.entry.NsUnits
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class NSFood(
@@ -28,5 +29,7 @@ data class NSFood(
     var protein: Int? = null, // in grams
     var energy: Int? = null, // in kJ
     var unit: String = "g",
-    var gi: Int? = null // not used yet
+    var gi: Int? = null, // not used yet
+    var aapsECarbsRule: JsonElement? = null, // FoodECarbsRule as JSON
+    var aapsAskAmount: Boolean? = null // null when the food does not say, like one from the web editor
 )

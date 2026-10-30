@@ -42,7 +42,10 @@ data class Food(
     var protein: Int? = null, // in grams
     var energy: Int? = null, // in kJ
     var unit: String = "g",
-    var gi: Int? = null // not used yet
+    var gi: Int? = null, // not used yet
+    var isLocallyEdited: Boolean = false, // changed in AAPS: NS must not overwrite it until uploaded
+    var eCarbsRuleJson: String? = null, // FoodECarbsRule as JSON
+    var askAmount: Boolean = true // false: the wizard starts at the portion, not with an empty amount
 
 ) : TraceableDBEntry {
 
@@ -57,6 +60,8 @@ data class Food(
         if (name != other.name) return false
         if (category != other.category) return false
         if (subCategory != other.subCategory) return false
+        if (eCarbsRuleJson != other.eCarbsRuleJson) return false
+        if (askAmount != other.askAmount) return false
         return unit == other.unit
     }
 
@@ -72,6 +77,8 @@ data class Food(
         energy = other.energy
         unit = other.unit
         gi = other.gi
+        eCarbsRuleJson = other.eCarbsRuleJson
+        askAmount = other.askAmount
         interfaceIDs.nightscoutId = other.interfaceIDs.nightscoutId
     }
 }

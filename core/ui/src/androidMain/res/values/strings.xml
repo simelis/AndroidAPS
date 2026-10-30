@@ -1133,7 +1133,6 @@
     <string name="name">Name</string>
     <string name="category">Category</string>
     <string name="subcategory">Subcategory</string>
-    <string name="portion">Portion</string>
     <string name="unit_label">Unit</string>
     <string name="undo">Undo</string>
     <string name="no_data">No data</string>
@@ -1275,4 +1274,5 @@
     <string name="units_years">y</string>
     <string name="prefs_range_title">Range for visualization</string>
     <string name="secrets_not_protected">No system key store was found on this computer. The keys that protect your settings and the pairing with the master are kept in files next to the data, so anyone who gets a copy of your files gets them too. On Linux, install and start a keyring (for example GNOME Keyring or KWallet), then start AAPS again.</string>
+    <string name="wizard_ecarbs_invalid" comment="%1$d=shortest duration, %2$d=longest duration, in hours. Example: Choose a duration of 1–10 h">Invalid eCarbs timing. Choose a duration of %1$d–%2$d h and a supported delay.</string>
 </resources>

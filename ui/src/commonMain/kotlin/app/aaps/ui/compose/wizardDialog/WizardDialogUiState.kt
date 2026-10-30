@@ -16,6 +16,10 @@ data class WizardDialogUiState(
     val bg: Double = 0.0,
     val carbs: Int = 0,
     val carbsType: CarbsType = CarbsType.BREAD,
+    /** The foods of the meal, in the order they were added. Empty without foods. */
+    val foods: List<FoodECarbsState> = emptyList(),
+    val mealAdjust: MealAdjust = MealAdjust(),
+    val foodUnavailable: Boolean = false,
     val percentage: Int = 100,
     val directCorrection: Double = 0.0,
     val carbTime: Int = 0,

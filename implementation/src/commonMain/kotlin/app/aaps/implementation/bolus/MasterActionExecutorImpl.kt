@@ -3,6 +3,7 @@ package app.aaps.implementation.bolus
 import app.aaps.core.data.configuration.Constants
 import app.aaps.core.data.model.BCR
 import app.aaps.core.data.model.BS
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.model.GlucoseUnit
 import app.aaps.core.data.model.ICfg
 import app.aaps.core.data.model.RM
@@ -369,6 +370,15 @@ class MasterActionExecutorImpl(
         val cob = if (inputs.useCob) iobCobCalculator.getCobInfo("WizardPrepare").displayCob ?: 0.0 else 0.0
         val carbsAfterConstraints = constraintChecker.applyCarbsConstraints(ConstraintObject(inputs.carbs, aapsLogger)).value()
         if (carbsAfterConstraints != inputs.carbs) return MasterActionExecutor.PrepareResult.Error(rh.gs(CoreUiStrings.wizard_carbs_constraint))
+        // eCarbs are inputs too: recheck them on the master's limits
+        if (inputs.eCarbsGrams < 0 || constraintChecker.applyCarbsConstraints(ConstraintObject(inputs.eCarbsGrams, aapsLogger)).value() != inputs.eCarbsGrams)
+            return MasterActionExecutor.PrepareResult.Error(rh.gs(CoreUiStrings.wizard_carbs_constraint))
+        // Food rule delay plus the wizard carb time, which is -60..+60 min
+        val delayRange = (FoodECarbsRule.DELAY_MINUTES.first - 60)..(FoodECarbsRule.DELAY_MINUTES.last + 60)
+        if (inputs.eCarbsGrams > 0 && (inputs.eCarbsDurationHours !in FoodECarbsRule.DURATION_HOURS || inputs.eCarbsDelayMinutes !in delayRange))
+            return MasterActionExecutor.PrepareResult.Error(
+                rh.gs(CoreUiStrings.wizard_ecarbs_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last)
+            )
         val pause = pauseSmb() ?: return smbBeingDelivered()
         fun refused(message: String): MasterActionExecutor.PrepareResult {
             smbPause.end(pause)
@@ -388,10 +398,10 @@ class MasterActionExecutorImpl(
         // Nothing to deliver (e.g. BG below target + high IOB, no carbs): reject so the caller shows the standard
         // "no insulin required" instead of an empty confirmation. The guard lives here so every surface that recomputes
         // through this path — phone wizard dialog, client relay, watch — gets it (it was previously only in the wear handler).
-        if (wizard.calculatedTotalInsulin <= 0.0 && wizard.carbs <= 0)
+        if (wizard.calculatedTotalInsulin <= 0.0 && wizard.carbs <= 0 && inputs.eCarbsGrams <= 0)
             return refused(rh.gs(CoreUiStrings.wizard_no_insulin_required))
-        // A limit that leaves no insulin at all, and there are no carbs either: nothing would be given.
-        if (capped && insulinAfterConstraints <= 0.0 && wizard.carbs <= 0)
+        // A limit that leaves no insulin at all, and there are no carbs or eCarbs either: nothing would be given.
+        if (capped && insulinAfterConstraints <= 0.0 && wizard.carbs <= 0 && inputs.eCarbsGrams <= 0)
             return refused(rh.gs(CoreUiStrings.wizard_constraint_bolus_size, wizard.calculatedTotalInsulin))
         // Carbs only: nothing goes to the pump, so nothing to hold back.
         val givesInsulin = baseInsulin > 0.0
@@ -830,7 +840,10 @@ class MasterActionExecutorImpl(
             correctedInsulin, p.carbs, carbTimeOffset.toInt(), p.bcr?.glucoseValue, correctedBcr, notes, source, onError,
             withEatReminder(useAlarm && p.carbs > 0, carbTimeOffset.toInt(), onSuccess)
         )
-        if (carbs2 > 0) deliverECarbs(carbs2, eventTime, duration, eCarbsDelay, notes, source, onError)
+        if (carbs2 > 0) {
+            val eCarbsSuccess: () -> Unit = if (correctedInsulin <= 0.0 && p.carbs == 0) onSuccess else ({})
+            deliverECarbs(carbs2, eventTime, duration, eCarbsDelay, notes, source, onError, eCarbsSuccess)
+        }
         p.entry?.markAsUsed()
         return MasterActionExecutor.ConfirmResult.Delivered
     }
