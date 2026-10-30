@@ -382,4 +382,8 @@
     <string name="cal_precheck_mark_sensor_change">Mark sensor change</string>
     <string name="graph_therapy_event_bg_with_note" comment="Shown when the user taps a BG check in the overview graph. %1$s = glucose with its unit, %2$s = the note the user wrote. Example: 6.1 mmol/L, before lunch">%1$s, %2$s</string>
 
+    <string name="notification_history">Notification history</string>
+    <string name="notifications_recently_dismissed">Recently dismissed</string>
+    <string name="notification_history_removed" comment="%1$s=time the notification was posted, %2$s=time it was dismissed. Example: 10:20, removed 10:32">%1$s, removed %2$s</string>
+    <string name="notification_history_expired" comment="%1$s=time the notification was posted, %2$s=time it expired. Example: 10:20, expired 11:20">%1$s, expired %2$s</string>
 </resources>

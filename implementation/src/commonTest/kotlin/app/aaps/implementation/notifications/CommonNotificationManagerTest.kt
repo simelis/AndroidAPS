@@ -27,6 +27,8 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.reflect.KClass
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * Covers the notification registry, which is the part that is the same on every platform.
@@ -118,13 +120,22 @@ class CommonNotificationManagerTest {
         override fun <T : Event> toFlow(eventType: KClass<T>): Flow<T> = emptyFlow()
     }
 
+    private class FakeClock(var nowMs: Long = 1_700_000_000_000L) : Clock {
+        override fun now(): Instant = Instant.fromEpochMilliseconds(nowMs)
+    }
+
     private val platform = RecordingPlatform()
     private val rxBus = RecordingRxBus()
+    private val clock = FakeClock()
 
     private fun createSut() =
-        CommonNotificationManager(SilentLogger, FakeTextResolver, platform, rxBus, TestScope(UnconfinedTestDispatcher()))
+        CommonNotificationManager(SilentLogger, FakeTextResolver, platform, rxBus, TestScope(UnconfinedTestDispatcher()), clock)
 
     private fun toWear() = rxBus.sent.filterIsInstance<EventMobileToWear>().map { it.payload }
+
+    private fun minutesLater(minutes: Int) {
+        clock.nowMs += minutes * 60_000L
+    }
 
     private fun texts(sut: CommonNotificationManager) = sut.notifications.value.map { it.text }
 
@@ -384,6 +395,68 @@ class CommonNotificationManagerTest {
         sut.dismiss(NotificationId.SCENE_ENDED)
 
         assertTrue(toWear().isEmpty())
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // History
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    fun `a dismissed notification goes to the history, newest first`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.SCENE_ENDED, "first", level = NotificationLevel.INFO)
+        sut.post(NotificationId.TOAST_ALARM, "second", sound = AlarmSound.ERROR)
+        minutesLater(1)
+
+        sut.dismiss(NotificationId.SCENE_ENDED)
+        minutesLater(1)
+        sut.dismiss(NotificationId.TOAST_ALARM)
+
+        assertEquals(listOf("second", "first"), sut.history.value.map { it.text })
+        assertEquals(clock.nowMs, sut.history.value.first().removed)
+        assertTrue(sut.history.value.none { it.expired })
+    }
+
+    @Test
+    fun `an expired notification goes to the history marked expired`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.SCENE_ENDED, "short", level = NotificationLevel.INFO, validMinutes = 5)
+        minutesLater(6)
+
+        sut.cleanUp()
+
+        assertTrue(sut.history.value.single().expired)
+    }
+
+    @Test
+    fun `the same notification coming and going keeps only its newest entry`() = runTest {
+        val sut = createSut()
+        sut.post(NotificationId.TOAST_ALARM, "low", sound = AlarmSound.ERROR)
+        sut.dismiss(NotificationId.TOAST_ALARM)
+        repeat(30) {
+            minutesLater(1)
+            sut.post(NotificationId.SCENE_ENDED, "loop warning", level = NotificationLevel.INFO)
+            sut.dismiss(NotificationId.SCENE_ENDED)
+        }
+
+        assertEquals(listOf("loop warning", "low"), sut.history.value.map { it.text })
+        assertEquals(clock.nowMs, sut.history.value.first().removed)
+    }
+
+    @Test
+    fun `the history keeps the last 20 for 24 hours`() = runTest {
+        val sut = createSut()
+        repeat(25) { i ->
+            sut.post(NotificationId.SCENE_ENDED, "n$i", level = NotificationLevel.INFO)
+            sut.dismiss(NotificationId.SCENE_ENDED)
+        }
+        assertEquals(20, sut.history.value.size)
+        assertEquals("n24", sut.history.value.first().text)
+
+        minutesLater(24 * 60 + 1)
+        sut.cleanUp()
+
+        assertTrue(sut.history.value.isEmpty())
     }
 
     // ---------------------------------------------------------------------------------------------

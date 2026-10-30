@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import app.aaps.core.interfaces.notifications.AapsNotification
 import app.aaps.core.interfaces.notifications.NotificationCategory
+import app.aaps.core.interfaces.notifications.NotificationHistoryEntry
 import app.aaps.core.interfaces.notifications.NotificationLevel
 import app.aaps.core.keys.interfaces.TextRef
 import app.aaps.core.ui.CoreUiStrings
@@ -42,6 +43,7 @@ import app.aaps.core.ui.compose.icons.IcPluginVirtualPump
 import app.aaps.core.ui.compose.icons.IcProfile
 import app.aaps.core.ui.compose.stringResource
 import app.aaps.core.ui.compose.stringResourceOrNull
+import app.aaps.ui.UiStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +51,9 @@ fun NotificationBottomSheet(
     notifications: List<AapsNotification>,
     onDismissSheet: () -> Unit,
     onDismissNotification: (AapsNotification) -> Unit,
-    onNotificationActionClick: (AapsNotification) -> Unit
+    onNotificationActionClick: (AapsNotification) -> Unit,
+    /** Notifications that left the list lately, so one dismissed by mistake can still be read. */
+    history: List<NotificationHistoryEntry> = emptyList()
 ) {
     LocalDateUtil.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -80,6 +84,18 @@ fun NotificationBottomSheet(
                         onActionClick = { onNotificationActionClick(notification) }
                     )
                 }
+            }
+
+            if (history.isNotEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(UiStrings.notifications_recently_dismissed),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                    )
+                }
+                items(history) { entry -> HistoryItem(entry) }
             }
         }
     }
@@ -141,6 +157,39 @@ private fun NotificationItem(
             }
         }
     }
+}
+
+@Composable
+private fun HistoryItem(entry: NotificationHistoryEntry) {
+    val dateUtil = LocalDateUtil.current
+    val levelState = stringResourceOrNull(entry.level.toDescription())
+    val posted = dateUtil.timeString(entry.date)
+    val removed = dateUtil.timeString(entry.removed)
+    ListItem(
+        leadingContent = {
+            Icon(
+                imageVector = entry.id.category.toIcon(),
+                contentDescription = null,
+                tint = entry.level.toColor()
+            )
+        },
+        headlineContent = {
+            Text(text = entry.text, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
+        supportingContent = {
+            Text(
+                text = stringResource(
+                    if (entry.expired) UiStrings.notification_history_expired else UiStrings.notification_history_removed,
+                    posted, removed
+                )
+            )
+        },
+        modifier = if (levelState != null) {
+            Modifier.semantics { stateDescription = levelState }
+        } else {
+            Modifier
+        }
+    )
 }
 
 @Composable
