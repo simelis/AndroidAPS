@@ -32,7 +32,7 @@ class SyncNsFoodTransactionTest {
 
         whenever(foodDao.findByNSId("ns-123")).thenReturn(null)
 
-        val transaction = SyncNsFoodTransaction(listOf(food))
+        val transaction = SyncNsFoodTransaction(listOf(food), lastUploadedId = 0)
         transaction.database = database
         val result = transaction.run()
 
@@ -51,7 +51,7 @@ class SyncNsFoodTransactionTest {
 
         whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
 
-        val transaction = SyncNsFoodTransaction(listOf(food))
+        val transaction = SyncNsFoodTransaction(listOf(food), lastUploadedId = 0)
         transaction.database = database
         val result = transaction.run()
 
@@ -71,7 +71,7 @@ class SyncNsFoodTransactionTest {
 
         whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
 
-        val transaction = SyncNsFoodTransaction(listOf(food))
+        val transaction = SyncNsFoodTransaction(listOf(food), lastUploadedId = 0)
         transaction.database = database
         val result = transaction.run()
 
@@ -90,7 +90,7 @@ class SyncNsFoodTransactionTest {
 
         whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
 
-        val transaction = SyncNsFoodTransaction(listOf(food))
+        val transaction = SyncNsFoodTransaction(listOf(food), lastUploadedId = 0)
         transaction.database = database
         val result = transaction.run()
 
@@ -103,6 +103,76 @@ class SyncNsFoodTransactionTest {
     }
 
     @Test
+    fun `food edited in AAPS is not overwritten by Nightscout before it is uploaded`() = runTest {
+        val existing = createFood(id = 7, nsId = "ns-123", name = "Local meal", carbs = 25)
+            .apply { isLocallyEdited = true }
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
+
+        val result = SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 50)), lastUploadedId = 0)
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+
+        assertThat(existing.name).isEqualTo("Local meal")
+        assertThat(existing.carbs).isEqualTo(25)
+        assertThat(result.updated).isEmpty()
+        assertThat(result.inserted).isEmpty()
+        verify(foodDao, never()).updateExistingEntry(any())
+        verify(foodDao, never()).insertNewEntry(any())
+    }
+
+    @Test
+    fun `food deleted in AAPS is not restored or deleted again by Nightscout`() = runTest {
+        val existing = createFood(id = 7, nsId = "ns-123", name = "Apple", carbs = 15, isValid = false)
+            .apply { isLocallyEdited = true }
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
+
+        SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Apple", carbs = 15)), lastUploadedId = 0)
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+
+        assertThat(existing.isValid).isFalse()
+        verify(foodDao, never()).updateExistingEntry(any())
+    }
+
+    @Test
+    fun `food edited in AAPS follows Nightscout again once its newest change is uploaded`() = runTest {
+        val existing = createFood(id = 7, nsId = "ns-123", name = "Meal", carbs = 25).apply { isLocallyEdited = true }
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
+        whenever(foodDao.getLastChangeId(7)).thenReturn(40)
+
+        SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 30)), lastUploadedId = 39)
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        assertThat(existing.carbs).isEqualTo(25)
+
+        val result = SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 30)), lastUploadedId = 40)
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        assertThat(existing.carbs).isEqualTo(30)
+        assertThat(existing.isLocallyEdited).isFalse()
+        assertThat(result.updated).containsExactly(existing)
+    }
+
+    @Test
+    fun `a delete with only an id marks the food deleted and copies nothing`() = runTest {
+        val existing = createFood(id = 7, nsId = "ns-123", name = "Apple", carbs = 15)
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
+        val deleteOnly = Food(name = "", portion = 0.0, carbs = 0, isValid = false, interfaceIDs_backing = InterfaceIDs(nightscoutId = "ns-123"))
+
+        val result = SyncNsFoodTransaction(listOf(deleteOnly), lastUploadedId = 0).apply { database = this@SyncNsFoodTransactionTest.database }.run()
+
+        assertThat(existing.isValid).isFalse()
+        assertThat(existing.name).isEqualTo("Apple")
+        assertThat(existing.carbs).isEqualTo(15)
+        assertThat(result.invalidated).containsExactly(existing)
+    }
+
+    @Test
+    fun `a delete of a food this device never had is not stored`() = runTest {
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(null)
+        val result = SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Apple", carbs = 15, isValid = false)), lastUploadedId = 0)
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        assertThat(result.inserted).isEmpty()
+        verify(foodDao, never()).insertNewEntry(any())
+    }
+
+    @Test
     fun `handles multiple foods`() = runTest {
         val food1 = createFood(id = 0, nsId = "ns-1", name = "Apple", carbs = 15)
         val food2 = createFood(id = 0, nsId = "ns-2", name = "Banana", carbs = 25)
@@ -110,11 +180,28 @@ class SyncNsFoodTransactionTest {
         whenever(foodDao.findByNSId("ns-1")).thenReturn(null)
         whenever(foodDao.findByNSId("ns-2")).thenReturn(null)
 
-        val transaction = SyncNsFoodTransaction(listOf(food1, food2))
+        val transaction = SyncNsFoodTransaction(listOf(food1, food2), lastUploadedId = 0)
         transaction.database = database
         val result = transaction.run()
 
         assertThat(result.inserted).hasSize(2)
+    }
+
+    @Test
+    fun `a download takes the eCarbs formula and the amount setting from Nightscout`() = runTest {
+        val rule = """{"method":"FPU","durationHours":3}"""
+        val existing = createFood(id = 1, nsId = "ns-123", name = "Meal", carbs = 25).apply { eCarbsRuleJson = rule; askAmount = false }
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(existing)
+
+        val same = createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 25).apply { eCarbsRuleJson = rule; askAmount = false }
+        SyncNsFoodTransaction(listOf(same), lastUploadedId = 0)
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        verify(foodDao, never()).updateExistingEntry(any())
+
+        SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Meal", carbs = 25)), lastUploadedId = 0)
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+        assertThat(existing.eCarbsRuleJson).isNull()
+        assertThat(existing.askAmount).isTrue()
     }
 
     private fun createFood(

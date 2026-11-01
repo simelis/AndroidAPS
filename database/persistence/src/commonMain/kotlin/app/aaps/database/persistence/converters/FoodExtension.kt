@@ -1,6 +1,7 @@
 package app.aaps.database.persistence.converters
 
 import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.database.entities.Food
 
 fun Food.fromDb(): FD =
@@ -20,6 +21,8 @@ fun Food.fromDb(): FD =
         energy = this.energy,
         unit = this.unit,
         gi = this.gi,
+        eCarbsRule = FoodECarbsRule.fromJsonString(this.eCarbsRuleJson),
+        askAmount = this.askAmount,
         ids = this.interfaceIDs.fromDb()
     )
 
@@ -40,5 +43,7 @@ fun FD.toDb(): Food =
         energy = this.energy,
         unit = this.unit,
         gi = this.gi,
+        eCarbsRuleJson = this.eCarbsRule?.toJsonString(),
+        askAmount = this.askAmount,
         interfaceIDs_backing = this.ids.toDb()
     )

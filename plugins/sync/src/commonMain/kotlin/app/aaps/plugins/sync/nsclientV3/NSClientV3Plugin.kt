@@ -1000,13 +1000,34 @@ class NSClientV3Plugin(
                     }
 
                     201  -> nsClientRepository.addLog("◄ ADDED", "OK ${dataPair.value::class.simpleName}")
-                    400  -> nsClientRepository.addLog("◄ FAIL", "${dataPair.value::class.simpleName} ${result.errorResponse}")
+
+                    // Keep the cursor: moving on would let the next download put the older NS copy back
+                    400  -> {
+                        nsClientRepository.addLog("◄ FAIL", "${dataPair.value::class.simpleName} ${result.errorResponse}")
+                        return config.isEnabled(ExternalOptions.IGNORE_NS_V3_ERRORS)
+                    }
 
                     404  -> {
                         nsClientRepository.addLog("◄ NOT_FOUND", "${dataPair.value::class.simpleName} ${result.errorResponse}")
                         if (!config.isEnabled(ExternalOptions.IGNORE_NS_V3_ERRORS) &&
                             retryUpdateLater(operation, id, isDeletion = !dataPair.value.isValid)
                         ) return false
+                    }
+
+                    // A client's token may be allowed to write to settings only. A client moves on, so the food
+                    // follows NS again and is not kept back from downloads forever. Its change is not uploaded.
+                    401, 403 -> {
+                        nsClientRepository.addLog("◄ FAIL", "${dataPair.value::class.simpleName} not allowed for this token ${result.errorResponse}")
+                        return config.AAPSCLIENT || config.isEnabled(ExternalOptions.IGNORE_NS_V3_ERRORS)
+                    }
+
+                    // NS cannot change a deleted food. A valid one was restored or edited here, so add it again
+                    410  -> {
+                        nsClientRepository.addLog("◄ GONE", "${dataPair.value::class.simpleName} $id")
+                        if (operation == Operation.UPDATE && dataPair.value.isValid) {
+                            val again = dataPair.value.copy(ids = dataPair.value.ids.copy(nightscoutId = null))
+                            return dbOperationFood(collection, DataSyncSelector.PairFood(again, dataPair.id), progress, Operation.CREATE)
+                        }
                     }
 
                     else -> {

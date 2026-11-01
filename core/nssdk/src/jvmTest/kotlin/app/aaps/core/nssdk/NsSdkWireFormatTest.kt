@@ -81,7 +81,7 @@ class NsSdkWireFormatTest {
             nsSdkJson.encodeToString(LastModified.serializer(), LastModified(LastModified.Collections()))
         ).jsonObject["collections"]!!.jsonObject
 
-        assertThat(json.keys).containsExactly("devicestatus", "entries", "profile", "treatments", "foods", "settings")
+        assertThat(json.keys).containsExactly("devicestatus", "entries", "profile", "treatments", "foods", "food", "settings")
         assertThat(json["devicestatus"]?.jsonPrimitive?.content).isEqualTo("0")
         assertThat(json["treatments"]?.jsonPrimitive?.content).isEqualTo("0")
     }

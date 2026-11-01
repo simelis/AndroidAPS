@@ -1577,6 +1577,13 @@ interface PersistenceLayer {
     suspend fun getLastFoodId(): Long?
 
     /**
+     * Let foods edited in AAPS follow NS again once their newest change is uploaded
+     *
+     * @param uploadedUpTo food upload cursor
+     */
+    suspend fun clearUploadedFoodEdits(uploadedUpTo: Long)
+
+    /**
      * Insert or update a food record
      *
      * @param food record to insert or update
@@ -1598,9 +1605,10 @@ interface PersistenceLayer {
      * Store records coming from NS to database
      *
      * @param foods list of records
+     * @param lastUploadedId food upload cursor. Foods edited in AAPS after it are not overwritten
      * @return List of inserted/updated/invalidated records
      */
-    suspend fun syncNsFood(foods: List<FD>): TransactionResult<FD>
+    suspend fun syncNsFood(foods: List<FD>, lastUploadedId: Long): TransactionResult<FD>
 
     /**
      * Update NS id' in database

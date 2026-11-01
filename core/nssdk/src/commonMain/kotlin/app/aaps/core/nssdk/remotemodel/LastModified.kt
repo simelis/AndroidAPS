@@ -19,7 +19,8 @@ data class LastModified(
         @SerialName("entries") var entries: Long = 0,           // entries collection
         @SerialName("profile") var profile: Long = 0,           // profile collection
         @SerialName("treatments") var treatments: Long = 0,     // treatments collection
-        @SerialName("foods") var foods: Long = 0,               // foods collection
+        @SerialName("foods") var foods: Long = 0,               // not a time: counts food loads
+        @SerialName("food") var food: Long = 0,                 // food collection, moved only by LoadFoodsRunner
         @SerialName("settings") var settings: Long = 0          // settings collection
     )
 

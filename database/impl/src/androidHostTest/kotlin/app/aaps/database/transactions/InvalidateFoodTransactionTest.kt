@@ -37,6 +37,7 @@ class InvalidateFoodTransactionTest {
         val result = transaction.run()
 
         assertThat(food.isValid).isFalse()
+        assertThat(food.isLocallyEdited).isTrue()
         assertThat(result.invalidated).hasSize(1)
 
         verify(foodDao).updateExistingEntry(food)
