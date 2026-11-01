@@ -34,6 +34,8 @@ import app.aaps.core.ui.compose.AapsSpacing
 import app.aaps.core.ui.compose.NumberInputRow
 import app.aaps.core.ui.compose.stringResource
 import app.aaps.ui.UiStrings
+import app.aaps.ui.compose.wizardDialog.FoodECarbsState
+import app.aaps.ui.compose.wizardDialog.carbPlan
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,7 +115,19 @@ internal fun FoodECarbsRuleEditor(
                 stringResource(UiStrings.food_ecarbs_rule_invalid, FoodECarbsRule.DURATION_HOURS.first, FoodECarbsRule.DURATION_HOURS.last),
                 color = MaterialTheme.colorScheme.error
             )
+            else if (food.canUse(rule)) FoodECarbsPlanSummary(food, rule)
         }
+    }
+}
+
+/** What the bolus wizard does with this food at its saved amount, with the same numbers. */
+@Composable
+private fun FoodECarbsPlanSummary(food: FD, rule: FoodECarbsRule) {
+    val plan = FoodECarbsState(food, amount = food.portion, enabled = true, rule = rule).carbPlan
+    Column(verticalArrangement = Arrangement.spacedBy(AapsSpacing.extraSmall)) {
+        Text(stringResource(UiStrings.food_ecarbs_plan_for, food.portion.formatAmount(), food.unit), style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(UiStrings.wizard_carbs_split, plan.carbs, plan.eCarbs))
+        if (plan.eCarbs > 0) Text(stringResource(UiStrings.food_ecarbs_plan_timing, plan.delayMinutes, plan.durationHours))
     }
 }
 

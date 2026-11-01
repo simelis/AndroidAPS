@@ -71,14 +71,19 @@ val WizardDialogUiState.mealDurationHours: Int get() = mealAdjust.durationHours 
 
 /** Food mode replaces the carbs type split: never add both estimates for the same meal. */
 fun WizardDialogUiState.carbPlan(): WizardCarbPlan =
-    if (foodMode) {
-        // Carbs held back from the bolus move to the eCarbs, so the meal total stays the same
-        val (part, whole) = mealCarbsNowShare
-        val carbsNow = (carbs * part / whole).toInt()
-        WizardCarbPlan(carbsNow, mealECarbsGrams + carbs - carbsNow, mealDelayMinutes, mealDurationHours)
-    } else {
-        WizardCarbPlan(carbs * carbsType.carbsPercent / 100, carbs * carbsType.eCarbsPercent / 100, carbsType.eCarbsDelayMinutes, carbsType.eCarbsDurationHours)
-    }
+    if (foodMode) splitCarbs(carbs, mealCarbsNowShare, mealECarbsGrams, mealDelayMinutes, mealDurationHours)
+    else WizardCarbPlan(carbs * carbsType.carbsPercent / 100, carbs * carbsType.eCarbsPercent / 100, carbsType.eCarbsDelayMinutes, carbsType.eCarbsDurationHours)
+
+/** What the wizard does with a meal of only this food at this amount. The food editor shows it. */
+val FoodECarbsState.carbPlan: WizardCarbPlan
+    get() = splitCarbs(carbsGrams, rule.carbsNowPercent.toLong() to 100L, calculatedGrams, rule.delayMinutes, rule.durationHours)
+
+/** Carbs held back from the bolus move to the eCarbs, so the meal total stays the same. */
+private fun splitCarbs(carbs: Int, carbsNowShare: Pair<Long, Long>, eCarbs: Int, delayMinutes: Int, durationHours: Int): WizardCarbPlan {
+    val (part, whole) = carbsNowShare
+    val carbsNow = (carbs * part / whole).toInt()
+    return WizardCarbPlan(carbsNow, eCarbs + carbs - carbsNow, delayMinutes, durationHours)
+}
 
 private val WizardDialogUiState.mealAdjustValid: Boolean
     get() = (mealAdjust.carbsNowPercent?.let { it in FoodECarbsRule.CARBS_NOW_PERCENT } ?: true) &&

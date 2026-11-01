@@ -400,6 +400,8 @@
     <string name="food_nutrient_more_than_food" comment="%1$s=amount of the food, %2$s=its unit. Example: A nutrient cannot weigh more than the food (25 g).">A nutrient cannot weigh more than the food (%1$s %2$s).</string>
     <string name="food_ecarbs_amount_calculated" comment="%1$s=amount saved with the food, %2$s=its unit, %3$s=grams with one decimal. Example: Formula result for 100 g: 7.5 g eCarbs">Formula result for %1$s %2$s: %3$s g eCarbs</string>
     <string name="food_ecarbs_amount_fixed" comment="%1$s=amount saved with the food, %2$s=its unit. Example: Saved eCarbs for 100 g">Saved eCarbs for %1$s %2$s</string>
+    <string name="food_ecarbs_plan_for" comment="Title of the summary in the food editor that shows what the bolus wizard does with this food. %1$s=amount saved with the food, %2$s=its unit. Example: For 100 g:">For %1$s %2$s:</string>
+    <string name="food_ecarbs_plan_timing" comment="Line of the food editor summary. %1$d=delay after the carb time in minutes, %2$d=duration in hours. Example: eCarbs after 60 min, over 3 h">eCarbs after %1$d min, over %2$d h</string>
     <string name="food_more_info">More information</string>
     <string name="food_editor_invalid">Enter a name and a positive amount. Nutrients cannot be negative. Blank fat or protein means unknown. An enabled eCarbs formula needs the protein or fat it uses.</string>
     <string name="food_save_failed">Could not save the food and its formula. Please try again.</string>
