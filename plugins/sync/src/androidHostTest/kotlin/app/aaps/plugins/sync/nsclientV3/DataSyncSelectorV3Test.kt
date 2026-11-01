@@ -321,6 +321,26 @@ class DataSyncSelectorV3Test : TestBaseWithProfile() {
         verify(nsClientV3Plugin, Times(0)).nsUpdate(any(), any(), any(), anyOrNull())
     }
 
+    // Foods do not go through the master, so a client uploads its own food changes
+    @Test
+    fun doUploadSendsFoodChangesFromAClientTest() = runTest {
+        whenever(config.AAPSCLIENT).thenReturn(true)
+        whenever(preferences.get(NsclientBooleanKey.NsPaused)).thenReturn(false)
+        newLocalNoteToSync()
+        val original = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
+        whenever(persistenceLayer.getLastFoodId()).thenReturn(8)
+        whenever(preferences.get(NsclientLongKey.FoodLastSyncedId)).thenReturn(7)
+        whenever(persistenceLayer.getNextSyncElementFood(7)).thenReturn(Pair(original.copy(carbs = 30), original.copy(id = 8)), null)
+        whenever(nsClientV3Plugin.nsUpdate(eq("food"), any(), any(), anyOrNull())).thenReturn(true)
+
+        sut.doUpload()
+
+        verify(nsClientV3Plugin).nsUpdate(eq("food"), any(), any(), anyOrNull())
+        verify(preferences).put(NsclientLongKey.FoodLastSyncedId, 8)
+        verify(persistenceLayer, Times(0)).getNextSyncElementTherapyEvent(any())
+        verify(nsClientV3Plugin, Times(0)).nsAdd(any(), any(), any(), anyOrNull())
+    }
+
     @Test
     fun doUploadCalculatesQueueCountersTest() = runTest {
         whenever(preferences.get(NsclientBooleanKey.NsPaused)).thenReturn(false)

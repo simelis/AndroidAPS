@@ -558,6 +558,19 @@ internal class NSClientV3PluginTest : TestBaseWithProfile() {
         assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isFalse()
     }
 
+    // A client's token may write to settings only. Retrying would keep the food back from downloads forever.
+    @Test
+    fun `a client moves on when its token may not write foods, the master tries again`() = runTest {
+        val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, ids = IDs(nightscoutId = "ns-food"))
+        whenever(nsAndroidClient.updateFood(any())).thenReturn(CreateUpdateResponse(403, null, errorResponse = "Forbidden"))
+
+        whenever(config.AAPSCLIENT).thenReturn(true)
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isTrue()
+
+        whenever(config.AAPSCLIENT).thenReturn(false)
+        assertThat(sut.nsUpdate("food", DataSyncSelector.PairFood(food, 8), "7/8")).isFalse()
+    }
+
     @Test
     fun `a food delete that Nightscout already has is done`() = runTest {
         val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25, isValid = false, ids = IDs(nightscoutId = "ns-old"))
