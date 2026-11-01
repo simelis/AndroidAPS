@@ -105,6 +105,14 @@ class FoodECarbsTest {
     }
 
     @Test
+    fun `the food editor shows the plan the wizard makes for a meal of only that food`() {
+        val food = FoodECarbsState(meal, amount = meal.portion, enabled = true, rule = rule.copy(carbsNowPercent = 65))
+        // 65% of 50 g is 32 g now; the other 18 g and the 17 g from protein and fat come later
+        assertThat(food.carbPlan).isEqualTo(WizardCarbPlan(32, 35, 60, 3))
+        assertThat(food.carbPlan).isEqualTo(state(food).carbPlan())
+    }
+
+    @Test
     fun `food eCarbs require explicit valid timing and stay within the configured limit`() {
         val food = FoodECarbsState(meal, amount = 200.0, enabled = true, rule = rule)
         assertThat(food.isValid(16)).isFalse()

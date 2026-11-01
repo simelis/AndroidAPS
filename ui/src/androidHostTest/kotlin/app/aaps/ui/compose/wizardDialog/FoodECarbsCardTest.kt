@@ -137,6 +137,21 @@ class FoodECarbsCardTest {
     }
 
     @Test
+    fun foodEditorShowsWhatTheWizardDoesWithTheSavedAmount() {
+        val context = RuntimeEnvironment.getApplication()
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, carbsNowPercent = 60, delayMinutes = 30, durationHours = 3, manualGrams = 9.5)
+        compose.setContent {
+            MaterialTheme {
+                FoodECarbsRuleEditor(meal.copy(portion = 100.0, carbs = 25), true, rule, {}, {})
+            }
+        }
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_plan_for, "100", "g")).assertExists()
+        // 60% of 25 g is 15 g now; the other 10 g and the 10 g fixed eCarbs come later
+        compose.onNodeWithText(context.getString(UiR.string.wizard_carbs_split, 15, 20)).assertExists()
+        compose.onNodeWithText(context.getString(UiR.string.food_ecarbs_plan_timing, 30, 3)).assertExists()
+    }
+
+    @Test
     fun foodEditorExplainsWhenTheFormulaNeedsANutrientTheFoodLacks() {
         val context = RuntimeEnvironment.getApplication()
         val rule = FoodECarbsRule(method = FoodECarbsMethod.CUSTOM, fatPercent = 50, durationHours = 3)
