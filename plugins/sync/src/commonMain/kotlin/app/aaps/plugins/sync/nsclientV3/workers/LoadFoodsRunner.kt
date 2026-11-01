@@ -34,7 +34,7 @@ class LoadFoodsRunner(
         // Own try: a failed history read must not skip the full list
         var historyError: Exception? = null
         try {
-            // Starts at 0 the first time: only the history has deleted foods, the full list hides them
+            // The first time it reads all of it: only the history has deleted foods, the full list hides them
             if ((nsClientV3Plugin.newestDataOnServer?.collections?.food ?: Long.MAX_VALUE) > loadedUpTo)
                 loadChanges(nsAndroidClient, loadedUpTo)
         } catch (error: Exception) {
@@ -72,7 +72,7 @@ class LoadFoodsRunner(
     }
 
     private suspend fun loadChanges(nsAndroidClient: NSAndroidClient, loadedUpTo: Long) {
-        var from = loadedUpTo
+        var from = loadedUpTo.coerceAtLeast(NS_OLDEST_TIME)
         while (true) {
             val response = nsAndroidClient.getFoodsModifiedSince(from, NSClientV3Plugin.RECORDS_TO_LOAD)
             if (response.values.isEmpty()) return
@@ -86,5 +86,11 @@ class LoadFoodsRunner(
             from = next
             if (response.values.size < NSClientV3Plugin.RECORDS_TO_LOAD) return
         }
+    }
+
+    companion object {
+
+        /** 1 January 2000. NS answers 400 to a history read from an earlier time, 0 too. */
+        const val NS_OLDEST_TIME = 946_684_800_000L
     }
 }
