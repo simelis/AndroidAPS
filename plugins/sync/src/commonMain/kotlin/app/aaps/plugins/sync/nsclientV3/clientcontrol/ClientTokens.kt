@@ -16,8 +16,9 @@ import kotlinx.coroutines.delay
 /**
  * The Nightscout tokens of the clients, made and removed by the master.
  *
- * Each client gets its own token with the role [ROLE_NAME]. It can read everything but write only to the settings
- * collection, and that is all a client needs: it uploads nothing and sends everything to the master there. Every time
+ * Each client gets its own token with the role [ROLE_NAME]. It can read everything but write only to the settings and
+ * food collections, and that is all a client needs: it sends everything to the master through settings, and uploads
+ * only foods, which do not go through the master. Every time
  * the master uses the role it sets it back to [ROLE_PERMISSIONS] ([ensureRole]), so a change made in the Nightscout
  * admin tools does not give the clients more rights for long.
  *
@@ -39,11 +40,14 @@ class ClientTokens(
         const val ROLE_NAME = "aaps-client"
 
         /**
-         * Read everything, and write to the settings collection only. `api:settings:admin` is not more rights: Nightscout
-         * asks for it to list the settings collection and to follow it over the websocket. The last one lets a client
-         * snooze a Nightscout alarm.
+         * Read everything, and write to the settings and food collections only. `api:settings:admin` is not more rights:
+         * Nightscout asks for it to list the settings collection and to follow it over the websocket. The food rights are
+         * for foods made, changed and deleted on the client. The last one lets a client snooze a Nightscout alarm.
          */
-        val ROLE_PERMISSIONS = listOf("*:*:read", "api:settings:admin", "api:settings:create", "api:settings:update", "notifications:*:ack")
+        val ROLE_PERMISSIONS = listOf(
+            "*:*:read", "api:settings:admin", "api:settings:create", "api:settings:update",
+            "api:food:create", "api:food:update", "api:food:delete", "notifications:*:ack"
+        )
         const val ROLE_NOTES = "Made by AAPS for its client phones. AAPS sets it back if it is changed."
         const val SUBJECT_PREFIX = "aaps-"
         const val SUBJECT_NOTES = "Made by AAPS for a client phone."
