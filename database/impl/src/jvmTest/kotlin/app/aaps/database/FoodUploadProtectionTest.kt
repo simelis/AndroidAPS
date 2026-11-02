@@ -59,6 +59,17 @@ class FoodUploadProtectionTest {
         assertThat(database.foodDao.findById(id)!!.isLocallyEdited).isFalse()
     }
 
+    @Test
+    fun `a new food that comes back from NS before its NS id is stored stays one food`() = runTest {
+        run(InsertOrUpdateFoodTransaction(fromNs(carbs = 20).apply { interfaceIDs.nightscoutId = null }))
+
+        run(SyncNsFoodTransaction(listOf(fromNs(carbs = 20)), lastUploadedId = 0))
+
+        val foods = database.foodDao.getFoodData()
+        assertThat(foods).hasSize(1)
+        assertThat(foods[0].interfaceIDs.nightscoutId).isEqualTo(NS_ID)
+    }
+
     private suspend fun editedFood(): Long {
         run(SyncNsFoodTransaction(listOf(fromNs(carbs = 20)), lastUploadedId = 0))
         val food = database.foodDao.findByNSId(NS_ID)!!

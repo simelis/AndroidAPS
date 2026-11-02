@@ -26,6 +26,10 @@ internal interface FoodDao : TraceableDao<Food> {
     @Query("SELECT * FROM $TABLE_FOODS WHERE nightscoutId = :nsId AND referenceId IS NULL")
     suspend fun findByNSId(nsId: String): Food?
 
+    // Foods made here that have no Nightscout id yet
+    @Query("SELECT * FROM $TABLE_FOODS WHERE name = :name AND nightscoutId IS NULL AND isValid = 1 AND referenceId IS NULL")
+    suspend fun findWithoutNSId(name: String): List<Food>
+
     @Query("SELECT * FROM $TABLE_FOODS WHERE isValid = 1 AND referenceId IS NULL ORDER BY id DESC")
     suspend fun getFoodData(): List<Food>
 

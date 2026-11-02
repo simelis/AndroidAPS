@@ -40,10 +40,17 @@ class SyncNsFoodTransaction(
                     database.foodDao.updateExistingEntry(current)
                 }
 
-                // not known nsId, add
+                // not known nsId, add. Unless it is a food made here: NS sends it back at once, often before the
+                // upload has stored its NS id here, and adding it would make a second copy
                 else               -> {
-                    database.foodDao.insertNewEntry(food)
-                    result.inserted.add(food)
+                    val own = database.foodDao.findWithoutNSId(food.name).firstOrNull { it.contentEqualsTo(food) }
+                    if (own != null) {
+                        own.interfaceIDs.nightscoutId = food.interfaceIDs.nightscoutId
+                        database.foodDao.updateExistingEntry(own)
+                    } else {
+                        database.foodDao.insertNewEntry(food)
+                        result.inserted.add(food)
+                    }
                 }
             }
         }

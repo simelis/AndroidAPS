@@ -20,10 +20,11 @@ class SyncNsFoodTransactionTest {
     private lateinit var foodDao: FoodDao
 
     @BeforeEach
-    fun setup() {
+    fun setup() = runTest {
         foodDao = mock()
         database = mock()
         whenever(database.foodDao).thenReturn(foodDao)
+        whenever(foodDao.findWithoutNSId(any())).thenReturn(emptyList())
     }
 
     @Test
@@ -41,6 +42,36 @@ class SyncNsFoodTransactionTest {
         assertThat(result.updated).isEmpty()
         assertThat(result.invalidated).isEmpty()
 
+        verify(foodDao).insertNewEntry(food)
+    }
+
+    @Test
+    fun `a food made here that comes back before its NS id is stored gets the id and no copy`() = runTest {
+        val own = createFood(id = 5, nsId = "", name = "Apple", carbs = 15).apply { interfaceIDs.nightscoutId = null }
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(null)
+        whenever(foodDao.findWithoutNSId("Apple")).thenReturn(listOf(own))
+
+        val result = SyncNsFoodTransaction(listOf(createFood(id = 0, nsId = "ns-123", name = "Apple", carbs = 15)), lastUploadedId = 0)
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+
+        assertThat(own.interfaceIDs.nightscoutId).isEqualTo("ns-123")
+        assertThat(result.inserted).isEmpty()
+        verify(foodDao).updateExistingEntry(own)
+        verify(foodDao, never()).insertNewEntry(any())
+    }
+
+    @Test
+    fun `a food from NS with the same name but other values is added`() = runTest {
+        val own = createFood(id = 5, nsId = "", name = "Apple", carbs = 15).apply { interfaceIDs.nightscoutId = null }
+        whenever(foodDao.findByNSId("ns-123")).thenReturn(null)
+        whenever(foodDao.findWithoutNSId("Apple")).thenReturn(listOf(own))
+        val food = createFood(id = 0, nsId = "ns-123", name = "Apple", carbs = 20)
+
+        val result = SyncNsFoodTransaction(listOf(food), lastUploadedId = 0)
+            .apply { database = this@SyncNsFoodTransactionTest.database }.run()
+
+        assertThat(own.interfaceIDs.nightscoutId).isNull()
+        assertThat(result.inserted).containsExactly(food)
         verify(foodDao).insertNewEntry(food)
     }
 
