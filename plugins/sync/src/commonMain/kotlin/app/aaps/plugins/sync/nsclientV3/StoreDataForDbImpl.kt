@@ -189,7 +189,10 @@ class StoreDataForDbImpl(
 
     override suspend fun storeFoodsToDb() = treatmentsMutex.withLock {
         foods.snapshotAndClear()?.let { batch ->
-            val result = persistenceLayer.syncNsFood(batch.toMutableList(), preferences.get(NsclientLongKey.FoodLastSyncedId))
+            // A client keeps no food edits of its own: the master makes them, so Nightscout always wins here. This also
+            // frees a food edited here by an older build, which would otherwise never follow Nightscout again.
+            val uploadedUpTo = if (config.AAPSCLIENT) Long.MAX_VALUE else preferences.get(NsclientLongKey.FoodLastSyncedId)
+            val result = persistenceLayer.syncNsFood(batch.toMutableList(), uploadedUpTo)
             updated.add(FD::class.label, result.updated.size)
             inserted.add(FD::class.label, result.inserted.size)
             nsIdUpdated.add(FD::class.label, result.invalidated.size)

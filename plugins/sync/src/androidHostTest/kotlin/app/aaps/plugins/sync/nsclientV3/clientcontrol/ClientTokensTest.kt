@@ -75,17 +75,6 @@ internal class ClientTokensTest {
         verify(nsAndroidClient).updateAuthRole(argThat { id == "r1" && permissions == ClientTokens.ROLE_PERMISSIONS })
     }
 
-    /** A role made by a build before the food sync gets the food rights the client upload needs. */
-    @Test
-    fun `a role without the food rights gets them`() = runTest {
-        val beforeFoodSync = listOf("*:*:read", "api:settings:admin", "api:settings:create", "api:settings:update", "notifications:*:ack")
-        whenever(nsAndroidClient.getAuthRoles()).thenReturn(listOf(clientRole.copy(permissions = beforeFoodSync)))
-
-        sut.ensureRole(create = false)
-
-        verify(nsAndroidClient).updateAuthRole(argThat { permissions.containsAll(listOf("api:food:create", "api:food:update", "api:food:delete")) })
-    }
-
     @Test
     fun `a role as it should be is left alone, in any order`() = runTest {
         whenever(nsAndroidClient.getAuthRoles()).thenReturn(listOf(clientRole.copy(permissions = ClientTokens.ROLE_PERMISSIONS.reversed())))

@@ -29,6 +29,7 @@ fun FailureReason.failText(): TextRef = when (this) {
     FailureReason.NoAction           -> CoreUiStrings.no_action_selected
     FailureReason.NoPendingBolus     -> CoreUiStrings.clientcontrol_fail_no_pending_bolus
     FailureReason.BolusComputeFailed -> CoreUiStrings.clientcontrol_fail_bolus_compute
+    FailureReason.FoodNotFound       -> CoreUiStrings.clientcontrol_fail_food_not_found
     FailureReason.Internal           -> CoreUiStrings.clientcontrol_fail_internal
     FailureReason.Unknown            -> CoreUiStrings.clientcontrol_fail_unknown
 }

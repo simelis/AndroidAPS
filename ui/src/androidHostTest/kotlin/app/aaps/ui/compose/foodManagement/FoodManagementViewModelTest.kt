@@ -3,15 +3,25 @@ package app.aaps.ui.compose.foodManagement
 import app.aaps.core.data.model.FD
 import app.aaps.core.data.model.FoodECarbsMethod
 import app.aaps.core.data.model.FoodECarbsRule
+import app.aaps.core.data.model.IDs
+import app.aaps.core.data.ue.Action
+import app.aaps.core.data.ue.Sources
+import app.aaps.core.interfaces.clientcontrol.ActionProgress
+import app.aaps.core.interfaces.clientcontrol.ClientControlActionDispatcher
+import app.aaps.core.interfaces.clientcontrol.FailureReason
+import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.shared.tests.generatedTextResolver
 import com.google.common.truth.Truth.assertThat
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -38,8 +48,25 @@ internal class FoodManagementViewModelTest {
     @Mock private lateinit var persistenceLayer: PersistenceLayer
     @Mock private lateinit var aapsLogger: AAPSLogger
     @Mock private lateinit var preferences: Preferences
+    @Mock private lateinit var config: Config
+
+    private val dispatcher = FakeDispatcher()
 
     private lateinit var sut: FoodManagementViewModel
+
+    /** On a client it records what is sent and answers [clientAnswer]; on a master it runs the local part, like the real one. */
+    private inner class FakeDispatcher : ClientControlActionDispatcher {
+
+        val sent = mutableListOf<ClientControlActionDispatcher.Command>()
+        var clientAnswer: ActionProgress = ActionProgress.Applied
+
+        override fun dispatch(command: ClientControlActionDispatcher.Command): Flow<ActionProgress> = emptyFlow()
+        override suspend fun run(command: ClientControlActionDispatcher.Command, label: String): ActionProgress = clientAnswer
+        override suspend fun execute(command: ClientControlActionDispatcher.Command, label: String, localExecute: suspend () -> ActionProgress): ActionProgress =
+            if (config.AAPSCLIENT) clientAnswer.also { sent += command } else localExecute()
+    }
+
+    private fun newSut() = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences, dispatcher, config, generatedTextResolver())
 
     @BeforeEach
     fun setUp() {
@@ -51,7 +78,7 @@ internal class FoodManagementViewModelTest {
         whenever(persistenceLayer.observeChanges(FD::class)).thenReturn(emptyFlow())
         whenever(preferences.get(StringNonKey.FoodLastECarbsRule)).thenReturn("")
         whenever(preferences.get(StringNonKey.FoodFavourites)).thenReturn("")
-        sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
+        sut = newSut()
     }
 
     @AfterEach
@@ -305,7 +332,7 @@ internal class FoodManagementViewModelTest {
         val apple = FD(id = 1, name = "Apple", portion = 100.0, carbs = 12)
         val bread = FD(id = 2, name = "Bread", portion = 100.0, carbs = 50)
         whenever(persistenceLayer.getFoods()).thenReturn(listOf(apple, bread))
-        sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
+        sut = newSut()
         backgroundScope.launch { sut.filteredFoods.collect {} }
         advanceUntilIdle()
 
@@ -344,7 +371,7 @@ internal class FoodManagementViewModelTest {
     @Test
     fun `the editor star shows and removes an existing favourite, and Cancel keeps it`() = runTest {
         whenever(preferences.get(StringNonKey.FoodFavourites)).thenReturn("7")
-        sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
+        sut = newSut()
         val food = FD(id = 7, name = "Meal", portion = 100.0, carbs = 25)
         whenever(persistenceLayer.getFoods()).thenReturn(listOf(food))
         whenever(persistenceLayer.insertOrUpdateFood(any())).thenReturn(PersistenceLayer.TransactionResult())
@@ -367,7 +394,7 @@ internal class FoodManagementViewModelTest {
     fun `saved favourites and the filter choice are read on start`() {
         whenever(preferences.get(StringNonKey.FoodFavourites)).thenReturn("3, 7,bad")
         whenever(preferences.get(BooleanNonKey.FoodShowFavouritesOnly)).thenReturn(true)
-        sut = FoodManagementViewModel(persistenceLayer, aapsLogger, preferences)
+        sut = newSut()
         assertThat(sut.uiState.value.favouriteIds).containsExactly(3L, 7L)
         assertThat(sut.uiState.value.showFavouritesOnly).isTrue()
     }
@@ -423,5 +450,139 @@ internal class FoodManagementViewModelTest {
         sut.updateEditorECarbsRule(FoodECarbsRule(durationHours = 3, manualGrams = 5.0))
         sut.updateEditorProtein("20")
         assertThat(sut.uiState.value.editorECarbsRule.manualGrams).isNull()
+    }
+
+    // ---- on a client the master stores the food ----
+
+    private val appleOnNs = FD(id = 7, ids = IDs(nightscoutId = "ns-apple"), name = "Apple", portion = 100.0, carbs = 12)
+
+    private fun asClient() = whenever(config.AAPSCLIENT).thenReturn(true)
+
+    private fun typeNewFood(favourite: Boolean = false) {
+        sut.openEditor()
+        sut.updateEditorName("Pear")
+        sut.updateEditorCarbs("20")
+        sut.updateEditorFavourite(favourite)
+    }
+
+    /** Stored here too, it would come back from the master as a second food: only the Nightscout id tells them apart. */
+    @Test
+    fun `a client sends a saved food with its eCarbs formula to the master and stores nothing`() = runTest {
+        asClient()
+        typeNewFood()
+        // FPU needs a known protein or fat
+        sut.updateEditorProtein("10")
+        sut.updateEditorECarbsEnabled(true)
+        sut.updateEditorECarbsRule(FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3))
+        assertThat(sut.uiState.value.editorCanSave).isTrue()
+        sut.saveFood()
+        advanceUntilIdle()
+
+        val sent = dispatcher.sent.single() as ClientControlActionDispatcher.Command.FoodChange
+        assertThat(sent.food.name).isEqualTo("Pear")
+        assertThat(sent.food.eCarbsRule?.method).isEqualTo(FoodECarbsMethod.FPU)
+        verify(persistenceLayer, never()).insertOrUpdateFood(any())
+        assertThat(sut.uiState.value.showEditor).isFalse()
+    }
+
+    /** The master did not take it: the editor stays open, so the input is not lost, and a new try is the same request. */
+    @Test
+    fun `a client keeps the editor open and the request id when the master did not take it`() = runTest {
+        asClient()
+        dispatcher.clientAnswer = ActionProgress.Unconfirmed(FailureReason.NoReply)
+        typeNewFood()
+        sut.saveFood()
+        advanceUntilIdle()
+        sut.saveFood()
+        advanceUntilIdle()
+
+        assertThat(sut.uiState.value.showEditor).isTrue()
+        assertThat(sut.uiState.value.editorSaving).isFalse()
+        val ids = dispatcher.sent.map { (it as ClientControlActionDispatcher.Command.FoodChange).requestId }
+        assertThat(ids).hasSize(2)
+        assertThat(ids.distinct()).hasSize(1)
+    }
+
+    @Test
+    fun `each edit gets its own request id`() = runTest {
+        asClient()
+        typeNewFood()
+        sut.saveFood()
+        advanceUntilIdle()
+        typeNewFood()
+        sut.saveFood()
+        advanceUntilIdle()
+
+        assertThat(dispatcher.sent.map { (it as ClientControlActionDispatcher.Command.FoodChange).requestId }.distinct()).hasSize(2)
+    }
+
+    /** The new food gets its id only when it comes back from the master, so the star waits for it. */
+    @Test
+    fun `a client marks a new food as favourite when it comes back from the master`() = runTest {
+        asClient()
+        val changes = MutableSharedFlow<List<FD>>()
+        whenever(persistenceLayer.observeChanges(FD::class)).thenReturn(changes)
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(appleOnNs))
+        sut = newSut()
+        advanceUntilIdle()
+        typeNewFood(favourite = true)
+        sut.saveFood()
+        advanceUntilIdle()
+        verify(preferences, never()).put(eq(StringNonKey.FoodFavourites), any<String>())
+
+        val pear = FD(id = 31, ids = IDs(nightscoutId = "ns-pear"), name = "Pear", portion = 100.0, carbs = 20)
+        whenever(persistenceLayer.getFoods()).thenReturn(listOf(appleOnNs, pear))
+        changes.emit(listOf(pear))
+        advanceUntilIdle()
+
+        verify(preferences).put(StringNonKey.FoodFavourites, "31")
+        assertThat(sut.uiState.value.favouriteIds).containsExactly(31L)
+    }
+
+    @Test
+    fun `a client sends a delete to the master and offers undo`() = runTest {
+        asClient()
+        sut.deleteFood(appleOnNs)
+        advanceUntilIdle()
+
+        val sent = dispatcher.sent.single() as ClientControlActionDispatcher.Command.FoodChange
+        assertThat(sent.food.isValid).isFalse()
+        assertThat(sent.food.ids.nightscoutId).isEqualTo("ns-apple")
+        verify(persistenceLayer, never()).invalidateFood(any(), any(), any())
+        assertThat(sut.uiState.value.undoFood).isEqualTo(appleOnNs)
+    }
+
+    @Test
+    fun `a delete the master did not take offers no undo`() = runTest {
+        asClient()
+        dispatcher.clientAnswer = ActionProgress.Rejected(FailureReason.NotReachable)
+        sut.deleteFood(appleOnNs)
+        advanceUntilIdle()
+
+        assertThat(sut.uiState.value.undoFood).isNull()
+    }
+
+    /** A food made on this client by an older build is not in Nightscout: the master cannot find it, so it is deleted here. */
+    @Test
+    fun `a client deletes its own food without a Nightscout id here`() = runTest {
+        asClient()
+        sut.deleteFood(appleOnNs.copy(ids = IDs()))
+        advanceUntilIdle()
+
+        assertThat(dispatcher.sent).isEmpty()
+        verify(persistenceLayer).invalidateFood(7L, Action.FOOD_REMOVED, Sources.Food)
+    }
+
+    /** The master adds it as a new food, which comes back with a Nightscout id: the old copy here would be a second one. */
+    @Test
+    fun `a client sends its own food without a Nightscout id as a new one and drops its copy`() = runTest {
+        asClient()
+        sut.openEditor(appleOnNs.copy(ids = IDs()))
+        sut.saveFood()
+        advanceUntilIdle()
+
+        val sent = dispatcher.sent.single() as ClientControlActionDispatcher.Command.FoodChange
+        assertThat(sent.food.ids.nightscoutId).isNull()
+        verify(persistenceLayer).invalidateFood(7L, Action.FOOD_REMOVED, Sources.Food)
     }
 }

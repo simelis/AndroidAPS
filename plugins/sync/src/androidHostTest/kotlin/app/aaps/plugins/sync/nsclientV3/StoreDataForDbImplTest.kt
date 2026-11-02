@@ -200,6 +200,17 @@ class StoreDataForDbImplTest : TestBaseWithProfile() {
         verifyNoMoreInteractions(persistenceLayer) // Verifies it was only called once
     }
 
+    /** A client keeps no food edits of its own, also not one an older build left behind: Nightscout always wins. */
+    @Test
+    fun `on a client Nightscout always wins for foods`() = runTest {
+        whenever(config.AAPSCLIENT).thenReturn(true)
+        storeDataForDb.addToFoods(mutableListOf(fd))
+
+        storeDataForDb.storeFoodsToDb()
+
+        verify(persistenceLayer).syncNsFood(any(), eq(Long.MAX_VALUE))
+    }
+
     @Test
     fun `storeTreatmentsToDb calls all relevant persistenceLayer methods`() = runTest {
         storeDataForDb.addToBoluses(bs)

@@ -179,7 +179,7 @@ Each paired client has a role, set on the master. The roles are a ladder (`Clien
 |---|---|---|
 | `ReadOnly` | Read-only | nothing; it sees everything, and `Hello`/`Ping` still work, so it stays paired and shows online |
 | `MealAssistant` | Meals | bolus, wizard, QuickWizard, carbs and eCarbs, stop a bolus, dismiss the bolus-failed alarm |
-| `Caregiver` | Caregiver | every command except setting preferences: temp targets, profile switch, running mode, TBR and extended bolus, careportal and device events, scenes, deletes, calibration |
+| `Caregiver` | Caregiver | every command except setting preferences: temp targets, profile switch, running mode, TBR and extended bolus, careportal and device events, scenes, deletes, calibration, foods |
 | `Admin` | Admin | also defines presets and changes synced settings (`PreferencesUpdate`) |
 
 This is a simpler form of the per-permission idea in issue #5348. One thing that issue asks for is not possible: carbs plus temp target without bolus (a meal assistant cannot set a temp target).
@@ -193,15 +193,14 @@ This is a simpler form of the per-permission idea in issue #5348. One thing that
 
 Not covered yet:
 
-- Food is written to the local database, not through the master.
 - Three watch paths still write locally on the client, and the watch does not know the role (the master still refuses, so the user sees the refusal, not a hidden button).
 - Going back to a build without roles makes the master stop checking them (fail open). A role only exists in builds that check it.
 
 ### 2.11 A Nightscout token for each client, and the QR code
 
-A client needs much less from Nightscout than an admin token gives: it uploads only foods (`DataSyncSelectorV3.doUpload`), which do not go through the master, and sends everything else to the master through `settings`. So the master makes each client its own token (`ClientTokens`) through the same API the Nightscout admin tools page uses (`/api/v2/authorization/roles` and `/subjects`, `NSAndroidClient.getAuthRoles` and the others). The master's own token must be an admin token for this; without one the QR code options say so and the PIN still works.
+A client needs much less from Nightscout than an admin token gives: it uploads nothing (`DataSyncSelectorV3.doUpload` does not run on a client) and sends everything to the master through `settings`. So the master makes each client its own token (`ClientTokens`) through the same API the Nightscout admin tools page uses (`/api/v2/authorization/roles` and `/subjects`, `NSAndroidClient.getAuthRoles` and the others). The master's own token must be an admin token for this; without one the QR code options say so and the PIN still works.
 
-- **The role `aaps-client`**: `*:*:read`, `api:settings:admin`, `api:settings:create`, `api:settings:update`, `api:food:create`, `api:food:update`, `api:food:delete`, `notifications:*:ack`. `api:settings:admin` is not more rights: Nightscout asks for it to list `settings` (`searchSettings`, the PIN lookup) and to follow it over the websocket. The food rights are for foods made, changed and deleted on a client. The last one lets a client snooze a Nightscout alarm. The name is lowercase because the admin tools page lowercases role names when it saves a subject.
+- **The role `aaps-client`**: `*:*:read`, `api:settings:admin`, `api:settings:create`, `api:settings:update`, `notifications:*:ack`. `api:settings:admin` is not more rights: Nightscout asks for it to list `settings` (`searchSettings`, the PIN lookup) and to follow it over the websocket. The last one lets a client snooze a Nightscout alarm. The name is lowercase because the admin tools page lowercases role names when it saves a subject.
 - **The master keeps the role as it is.** `ClientTokens.ensureRole` puts the permissions back if somebody changed them, every time a token is made and every time the Authorized clients screen opens. It stores the role only when it first makes a token.
 - **A client token** is a subject named `aaps-<client name>` with this one role and nothing else. The same name again gets the same token back (the same phone set up again). A subject of that name with other roles is the user's own token: it is never given out, changed or deleted (`NameTaken`). Names are not unique in Nightscout, so the master looks a subject up by `_id` and never trusts a name alone.
 - **The token a client really uses** is in the `subject` field Nightscout writes on every document (the subject's name, not the token; a client cannot choose it). The receiver keeps it in `AuthorizedClient.nsSubject` for each verified message, and the card shows "Own Nightscout token" or, in red, a token with more rights than a client needs.
@@ -332,7 +331,7 @@ All confirmation builders live on the master in `MasterActionExecutorImpl`: `bui
 | Calibration | `BatchAction.Calibration(glucoseMgdl)` | two-step | the master checks the conditions and pairs the value with **its** latest sensor reading, so the loop's BG is calibrated; refusal texts are built on the master |
 | **Remove records** (every list screen: treatments tabs, BG, calibration) | `BatchAction.Remove(kind, refs)` | two-step | only **Nightscout ids** travel; the master finds, describes and removes its own copies and the change comes back through NS. The client never removes anything itself. A record the master does not have is not removed and the confirmation says so (all missing → refused). Known limit: when xDrip uploads BG and AAPS on the master does not, the master's BG has no NS id, so a client cannot remove BG |
 | Remove "AndroidAPS started" events | `BatchAction.RemoveStartEvents` | two-step | matched by the master's own text (the events carry it in the master's language) |
-| Food | — | off-relay | not uploaded by NSCv3 on any role |
+| **Food** add / change / delete / undo | `FoodChange(requestId, food)` | single-step | `dispatcher.execute`; the client stores nothing, the master stores and uploads the food and it comes back through NS. A food is found by its **Nightscout id** (a deleted one too, so undo restores it); one the master does not have yet is refused (`FoodNotFound`), not added, because adding it would make a second copy in NS. A `requestId` the master applied lately is only answered, so a save tried again after "no reply" is not added twice (kept in memory, the last 50). Foods made on a client by an older build have no NS id: their delete stays local, and a change goes to the master as a new food |
 | "Sensor change detected" notice (calibration) | — | master only | its button writes a sensor change, so a client does not post the notice; the master sees the same BG gap |
 | Autotune profile switch | — | master only | the button is hidden on a client; copying the tuned profile into the (synced) profile store still works |
 | **Garmin** carbs, pump connect / disconnect | — | master only | a client only shows values on the watch; it refuses these and says so in a phone notification (the watch cannot show why). Heart rate is still stored locally, like Wear |

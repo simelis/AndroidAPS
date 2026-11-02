@@ -1,5 +1,6 @@
 package app.aaps.core.interfaces.clientcontrol
 
+import app.aaps.core.data.model.FD
 import app.aaps.core.interfaces.alerts.EatReminderAction
 import app.aaps.core.interfaces.bolus.BatchAction
 import app.aaps.core.interfaces.bolus.MasterActionExecutor
@@ -97,6 +98,12 @@ interface ClientControlActionDispatcher {
 
         /** Stop or extend the master's "time to eat" timer. */
         data class EatReminderControl(val action: EatReminderAction) : Command
+
+        /**
+         * Add, change or delete [food] on the master: no Nightscout id is a new food, `isValid = false` deletes it.
+         * [requestId] stays the same while the user tries the same edit again.
+         */
+        data class FoodChange(val requestId: String, val food: FD) : Command
     }
 
     companion object {

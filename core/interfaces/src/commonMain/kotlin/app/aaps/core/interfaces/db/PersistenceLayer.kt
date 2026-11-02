@@ -1562,6 +1562,13 @@ interface PersistenceLayer {
     suspend fun getFoods(): List<FD>
 
     /**
+     * Get food by NS id, also a deleted one
+     *
+     * @return food or null
+     */
+    suspend fun getFoodByNSId(nsId: String): FD?
+
+    /**
      * Get next changed record after id
      *
      * @param id record id

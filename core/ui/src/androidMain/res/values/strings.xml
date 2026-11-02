@@ -459,6 +459,8 @@
     <string name="clientcontrol_action_update_settings">Update settings</string>
     <string name="clientcontrol_action_deliver_bolus">Deliver bolus</string>
     <string name="clientcontrol_action_eat_reminder">Change eat reminder</string>
+    <string name="clientcontrol_action_save_food">Save food</string>
+    <string name="clientcontrol_action_delete_food">Delete food</string>
 
     <!-- Client-control failure reasons (mapped from a FailureReason code on the showing device) -->
     <string name="clientcontrol_fail_not_paired">This device isn\'t paired with a master.</string>
@@ -483,6 +485,7 @@
     <string name="clientcontrol_fail_not_allowed_for_role">This phone\'s role on the master does not allow this.</string>
     <string name="clientcontrol_fail_other_token">The master refused it: this phone writes to Nightscout with another token than its own. On the master, remove this phone and add it again.</string>
     <string name="clientcontrol_fail_no_pending_bolus">The prepared bolus expired or was superseded. Tap the button again.</string>
+    <string name="clientcontrol_fail_food_not_found">The master does not have this food yet. Try again in a minute.</string>
     <string name="clientcontrol_fail_bolus_compute">The master couldn\'t calculate the bolus (missing glucose / profile, or pump not ready).</string>
     <string name="clientcontrol_fail_internal">Something went wrong.</string>
     <string name="clientcontrol_fail_unknown">The command failed.</string>

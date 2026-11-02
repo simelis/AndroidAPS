@@ -82,15 +82,10 @@ class DataSyncSelectorV3(
 
     override suspend fun doUpload() {
         nsClientRepository.updateStatus(nsClientV3Plugin().status)
-        // A client uploads only foods. Everything else it does goes to the master through the settings collection, and
-        // the master writes the records. What is left on a client stays on the phone: a note like "AndroidAPS started",
+        // A client uploads nothing. Everything it does goes to the master through the settings collection, and the
+        // master writes the records. What is left on a client stays on the phone: a note like "AndroidAPS started",
         // or a change it would only send back (a record from NS shortened or removed here). Its NS token may also
-        // be allowed to write to settings only. Foods do not go through the master, so without this a food changed
-        // on a client would never leave the phone.
-        if (config.AAPSCLIENT && !isPaused) {
-            processChangedFoods()
-            storeDataForDb.updateNsIds()
-        }
+        // be allowed to write to settings only.
         if (!config.AAPSCLIENT && preferences.get(BooleanKey.NsClientUploadData) && !isPaused) {
             queueCounter.bolusesRemaining = (persistenceLayer.getLastBolusId() ?: 0L) - preferences.get(NsclientLongKey.BolusLastSyncedId)
             queueCounter.carbsRemaining = (persistenceLayer.getLastCarbsId() ?: 0L) - preferences.get(NsclientLongKey.CarbsLastSyncedId)
