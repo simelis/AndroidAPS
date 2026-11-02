@@ -57,6 +57,7 @@ import app.aaps.plugins.sync.nsclientV3.services.RunningConfigurationPublisher
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -139,6 +140,10 @@ class ClientControlReceiver(
     // (a WS re-notify) could both pass the gate and both execute → double bolus / double record.
     // One command in flight at a time closes that window (the executor's atomic slot is the second line of defense).
     private val commandMutex = Mutex()
+
+    // The food requests applied lately, so a retry of one that came through is not applied twice. In memory only: a
+    // retry comes within a minute, not after a restart. Used only under commandMutex.
+    private val appliedFoodRequests = ArrayDeque<String>()
 
     // Phase 3 — client bolus-progress mirror (master side). The currently-armed client (the one whose bolus is
     // delivering); set in onVerifiedBolusCommit (the only place the clientId is known), cleared on terminal /
@@ -417,6 +422,7 @@ class ClientControlReceiver(
             ClientControlMessage.DismissAlarm         -> onVerifiedDismissAlarm(entry, envelope, now)
             ClientControlMessage.StopBolus            -> onVerifiedStopBolus(entry, envelope, now)
             is ClientControlMessage.EatReminderControl -> onVerifiedEatReminderControl(entry, message)
+            is ClientControlMessage.FoodChange        -> onVerifiedFoodChange(entry, message)
         }
         if (envelope.wantsAck) writeAck(client, secret, envelope.clientId, envelope.counter, AckPhase.Done, outcome.status, outcome.reason, outcome.payload, now)
         // Don't deleteSettings here (nor on any error path above). NS soft-deletes (tombstones)
@@ -446,7 +452,9 @@ class ClientControlReceiver(
 
         is ClientControlMessage.ScenePrepare,
         is ClientControlMessage.SceneCommit,
-        is ClientControlMessage.SceneStop         -> ClientRole.Caregiver
+        is ClientControlMessage.SceneStop,
+        // The same role that may open the food list on the client.
+        is ClientControlMessage.FoodChange        -> ClientRole.Caregiver
 
         // Presets and synced settings all travel as this one message, so defining them is what an admin may add.
         is ClientControlMessage.PreferencesUpdate -> ClientRole.Admin
@@ -583,6 +591,44 @@ class ClientControlReceiver(
             // A newer client sent an action this master does not know.
             null                     -> AckOutcome(AckStatus.Failed, FailureReason.ExecutionFailed.name)
         }
+    }
+
+    /**
+     * Client adds, changes, deletes or restores a food. The master stores it like its own edit, so it is uploaded from
+     * here and reaches the client back through Nightscout.
+     *
+     * A food is found only by its Nightscout id. One the master does not have is refused, not added: it is in
+     * Nightscout already (the master has not loaded it yet), and adding it would make a second copy there.
+     */
+    private suspend fun onVerifiedFoodChange(entry: AuthorizedClient, message: ClientControlMessage.FoodChange): AckOutcome {
+        // The client tried again because the answer did not reach it, but the first try came through.
+        if (message.requestId in appliedFoodRequests) {
+            nsClientRepository.addLog("◄ CLIENTCTL", "food ${message.name} from ${entry.name}: applied already")
+            return AckOutcome(AckStatus.Ok, null)
+        }
+        val current = message.nsId?.let { persistenceLayer.getFoodByNSId(it) }
+        if (current == null && (message.nsId != null || !message.isValid)) {
+            nsClientRepository.addLog("◄ CLIENTCTL", "food ${message.name} from ${entry.name}: not found")
+            return AckOutcome(AckStatus.Failed, FailureReason.FoodNotFound.name)
+        }
+        try {
+            if (current != null && !message.isValid)
+                persistenceLayer.invalidateFood(current.id, Action.FOOD_REMOVED, Sources.NSClient)
+            else {
+                persistenceLayer.insertOrUpdateFood(message.toFood(current))
+                uel.log(Action.FOOD, Sources.NSClient, note = "${entry.name}: ${message.name}")
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            aapsLogger.error(LTag.NSCLIENT, "ClientControl: food ${message.name} from ${entry.name} not stored", e)
+            return AckOutcome(AckStatus.Failed, FailureReason.ExecutionFailed.name)
+        }
+        appliedFoodRequests.addLast(message.requestId)
+        if (appliedFoodRequests.size > APPLIED_FOOD_REQUESTS) appliedFoodRequests.removeFirst()
+        val change = if (!message.isValid) "deleted" else if (current == null) "added" else "changed"
+        nsClientRepository.addLog("◄ CLIENTCTL", "food ${message.name} from ${entry.name}: $change")
+        return AckOutcome(AckStatus.Ok, null)
     }
 
     /**
@@ -1025,6 +1071,11 @@ class ClientControlReceiver(
 
     /** Result a command handler reports back so [verifyAndAck] can write the terminal Done ack. */
     private data class AckOutcome(val status: AckStatus, val reason: String?, val payload: String? = null)
+
+    private companion object {
+
+        const val APPLIED_FOOD_REQUESTS = 50
+    }
 }
 
 private fun EventData.WizardDetail.toDto() = WizardDetailDto(

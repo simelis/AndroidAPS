@@ -1,6 +1,12 @@
 package app.aaps.plugins.sync.nsclientV3.clientcontrol
 
+import app.aaps.core.data.model.FD
+import app.aaps.core.data.model.FoodECarbsMethod
+import app.aaps.core.data.model.FoodECarbsRule
+import app.aaps.core.data.model.IDs
+import app.aaps.core.data.ue.Action
 import app.aaps.core.data.ue.Sources
+import app.aaps.core.data.ue.ValueWithUnit
 import app.aaps.core.data.ui.ConfirmationLine
 import app.aaps.core.data.ui.ConfirmationRole
 import app.aaps.core.interfaces.alerts.EatReminder
@@ -1464,6 +1470,116 @@ internal class ClientControlReceiverTest {
             wrap(envelope(clientId, secret, message = ClientControlMessage.BolusCommit(42L), counter = 5L, wantsAck = true))
         )
 
+        assertThat(acks.last().reason).isEqualTo(FailureReason.NotAllowedForRole.name)
+    }
+
+    // ---- food changes: the master stores the client's food and uploads it ----
+
+    private val foodOnMaster = FD(id = 7, ids = IDs(nightscoutId = "ns-apple"), name = "Apple", portion = 100.0, carbs = 12)
+
+    private suspend fun sendFood(clientId: String, secret: ByteArray, change: ClientControlMessage.FoodChange, counter: Long = 5L) =
+        sut.onSettingsDocChanged(
+            "${ClientControlPublisher.IDENTIFIER_CMD_PREFIX}food_change_$clientId",
+            wrap(envelope(clientId, secret, message = change, counter = counter, wantsAck = true))
+        )
+
+    @Test
+    fun aNewFoodFromAClientIsAddedOnTheMaster() = runTest {
+        val (clientId, secret) = activeClient(ClientRole.Caregiver)
+        val acks = captureAcks(clientId)
+
+        sendFood(clientId, secret, ClientControlMessage.FoodChange(requestId = "r1", name = "Pear", portion = 1.0, unit = "pcs", carbs = 20, fat = 1))
+
+        verify(persistenceLayer).insertOrUpdateFood(argThat { id == 0L && ids.nightscoutId == null && name == "Pear" && unit == "pcs" && carbs == 20 && fat == 1 && isValid })
+        verify(uel).log(eq(Action.FOOD), eq(Sources.NSClient), argThat<String> { contains("Pear") }, any<List<ValueWithUnit>>())
+        assertThat(acks.last().status.name).isEqualTo("Ok")
+    }
+
+    /** The master's own row is changed, so the upload is an update of the same Nightscout food, not a second one. */
+    @Test
+    fun aChangedFoodIsFoundByItsNightscoutId() = runTest {
+        val (clientId, secret) = activeClient(ClientRole.Caregiver)
+        captureAcks(clientId)
+        whenever(persistenceLayer.getFoodByNSId("ns-apple")).thenReturn(foodOnMaster)
+
+        sendFood(clientId, secret, ClientControlMessage.FoodChange(requestId = "r1", nsId = "ns-apple", name = "Green apple", portion = 100.0, carbs = 10))
+
+        verify(persistenceLayer).insertOrUpdateFood(argThat { id == 7L && ids.nightscoutId == "ns-apple" && name == "Green apple" && carbs == 10 })
+    }
+
+    @Test
+    fun aDeletedFoodIsInvalidatedOnTheMaster() = runTest {
+        val (clientId, secret) = activeClient(ClientRole.Caregiver)
+        captureAcks(clientId)
+        whenever(persistenceLayer.getFoodByNSId("ns-apple")).thenReturn(foodOnMaster)
+
+        sendFood(clientId, secret, ClientControlMessage.FoodChange(requestId = "r1", nsId = "ns-apple", isValid = false, name = "Apple", portion = 100.0, carbs = 12))
+
+        verify(persistenceLayer).invalidateFood(7L, Action.FOOD_REMOVED, Sources.NSClient)
+        verify(persistenceLayer, never()).insertOrUpdateFood(any())
+    }
+
+    /** Undo of a delete: the deleted row is found too, and made valid again. */
+    @Test
+    fun aRestoredFoodIsMadeValidAgain() = runTest {
+        val (clientId, secret) = activeClient(ClientRole.Caregiver)
+        captureAcks(clientId)
+        whenever(persistenceLayer.getFoodByNSId("ns-apple")).thenReturn(foodOnMaster.copy(isValid = false))
+
+        sendFood(clientId, secret, ClientControlMessage.FoodChange(requestId = "r1", nsId = "ns-apple", name = "Apple", portion = 100.0, carbs = 12))
+
+        verify(persistenceLayer).insertOrUpdateFood(argThat { id == 7L && isValid })
+    }
+
+    /** Adding a food the master has not loaded yet would make a second copy of it in Nightscout. */
+    @Test
+    fun aFoodTheMasterDoesNotHaveIsRefusedNotAdded() = runTest {
+        val (clientId, secret) = activeClient(ClientRole.Caregiver)
+        val acks = captureAcks(clientId)
+
+        sendFood(clientId, secret, ClientControlMessage.FoodChange(requestId = "r1", nsId = "ns-unknown", name = "Kiwi", portion = 1.0, carbs = 9))
+
+        verify(persistenceLayer, never()).insertOrUpdateFood(any())
+        assertThat(acks.last().status.name).isEqualTo("Failed")
+        assertThat(acks.last().reason).isEqualTo(FailureReason.FoodNotFound.name)
+    }
+
+    /** The answer was lost and the user saved again: the new food is added once. */
+    @Test
+    fun aFoodRequestSentAgainIsAppliedOnce() = runTest {
+        val (clientId, secret) = activeClient(ClientRole.Caregiver)
+        val acks = captureAcks(clientId)
+        val change = ClientControlMessage.FoodChange(requestId = "r1", name = "Pear", portion = 1.0, carbs = 20)
+
+        sendFood(clientId, secret, change, counter = 5L)
+        sendFood(clientId, secret, change, counter = 6L)
+
+        verify(persistenceLayer, times(1)).insertOrUpdateFood(any())
+        assertThat(acks.last().status.name).isEqualTo("Ok")
+    }
+
+    @Test
+    fun theECarbsFormulaAndAskAmountReachTheMastersFood() = runTest {
+        val (clientId, secret) = activeClient(ClientRole.Caregiver)
+        captureAcks(clientId)
+        val rule = FoodECarbsRule(method = FoodECarbsMethod.FPU, durationHours = 3)
+
+        sendFood(
+            clientId, secret,
+            ClientControlMessage.FoodChange(requestId = "r1", name = "Steak", portion = 200.0, carbs = 0, protein = 50, fat = 20, askAmount = false, eCarbsRule = rule.toJson())
+        )
+
+        verify(persistenceLayer).insertOrUpdateFood(argThat { eCarbsRule == rule && !askAmount })
+    }
+
+    @Test
+    fun aMealAssistantCannotChangeFoods() = runTest {
+        val (clientId, secret) = activeClient(ClientRole.MealAssistant)
+        val acks = captureAcks(clientId)
+
+        sendFood(clientId, secret, ClientControlMessage.FoodChange(requestId = "r1", name = "Pear", portion = 1.0, carbs = 20))
+
+        verify(persistenceLayer, never()).insertOrUpdateFood(any())
         assertThat(acks.last().reason).isEqualTo(FailureReason.NotAllowedForRole.name)
     }
 }

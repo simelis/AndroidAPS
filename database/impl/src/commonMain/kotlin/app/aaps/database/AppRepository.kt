@@ -666,6 +666,9 @@ class AppRepository internal constructor(
         return database.foodDao.getFoodData()
     }
 
+    suspend fun findFoodByNSId(nsId: String): Food? =
+        database.foodDao.findByNSId(nsId)
+
     suspend fun getLastFoodId(): Long? =
         database.foodDao.getLastId()
 

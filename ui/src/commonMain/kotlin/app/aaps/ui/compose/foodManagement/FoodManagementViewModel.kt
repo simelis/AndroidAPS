@@ -8,13 +8,18 @@ import app.aaps.core.data.model.FoodECarbsRule
 import app.aaps.core.data.model.IDs
 import app.aaps.core.data.ue.Action
 import app.aaps.core.data.ue.Sources
+import app.aaps.core.interfaces.clientcontrol.ActionProgress
+import app.aaps.core.interfaces.clientcontrol.ClientControlActionDispatcher
+import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.db.observeChanges
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
+import app.aaps.core.interfaces.resources.TextResolver
 import app.aaps.core.keys.BooleanNonKey
 import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.ui.CoreUiStrings
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -32,6 +37,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 // Registers itself: @ViewModelKey infers the key from the class. No graph entry, and deliberately
 // unscoped so each screen gets its own.
@@ -42,7 +49,18 @@ class FoodManagementViewModel(
     private val persistenceLayer: PersistenceLayer,
     private val aapsLogger: AAPSLogger,
     private val preferences: Preferences,
+    private val clientControlDispatcher: ClientControlActionDispatcher,
+    private val config: Config,
+    private val rh: TextResolver,
 ) : ViewModel() {
+
+    // One id for each edit, the same while the user tries to save it again (see ClientControlActionDispatcher.Command.FoodChange)
+    private var editorRequestId = newRequestId()
+
+    // A new food saved on a client gets its id only when it comes back from the master: its star waits for it
+    private var pendingFavourite: PendingFavourite? = null
+
+    private class PendingFavourite(val name: String, val knownIds: Set<Long>)
 
     private val _uiState = MutableStateFlow(FoodManagementUiState())
     val uiState: StateFlow<FoodManagementUiState> = _uiState.asStateFlow()
@@ -92,6 +110,12 @@ class FoodManagementViewModel(
         viewModelScope.launch {
             try {
                 val foods = persistenceLayer.getFoods()
+                pendingFavourite?.let { pending ->
+                    foods.firstOrNull { it.name == pending.name && it.id !in pending.knownIds }?.let {
+                        pendingFavourite = null
+                        setFavourite(it.id, true)
+                    }
+                }
                 val categories = foods.mapNotNull { it.category }.filter { it.isNotBlank() }.distinct().sorted()
                 val subCategories = foods.mapNotNull { it.subCategory }.filter { it.isNotBlank() }.distinct().sorted()
                 _uiState.update {
@@ -135,6 +159,7 @@ class FoodManagementViewModel(
     }
 
     fun openEditor(food: FD? = null) {
+        editorRequestId = newRequestId()
         val rule = food?.eCarbsRule
         _uiState.update {
             it.copy(
@@ -205,12 +230,15 @@ class FoodManagementViewModel(
         _uiState.update { it.copy(editorSaving = true, editorSaveFailed = false) }
         viewModelScope.launch {
             try {
-                val result = persistenceLayer.insertOrUpdateFood(food)
-                val savedFood = result.all().firstOrNull() ?: food.takeIf { it.id > 0 }
-                check(savedFood != null && savedFood.id > 0) { "Saved food has no database ID" }
+                // On a client the editor stays open when the master did not take it, so the input is not lost. The
+                // master's answer says why.
+                val savedFood = store(food, editorRequestId) ?: return@launch
+                check(config.AAPSCLIENT || savedFood.id > 0) { "Saved food has no database ID" }
                 // A fixed amount belongs to one food, so it is not carried to the next one
                 food.eCarbsRule?.let { preferences.put(StringNonKey.FoodLastECarbsRule, it.copy(manualGrams = null).toJsonString()) }
-                if (state.editorFavourite != (savedFood.id in uiState.value.favouriteIds)) setFavourite(savedFood.id, state.editorFavourite)
+                if (savedFood.id > 0) {
+                    if (state.editorFavourite != (savedFood.id in uiState.value.favouriteIds)) setFavourite(savedFood.id, state.editorFavourite)
+                } else if (state.editorFavourite) pendingFavourite = PendingFavourite(savedFood.name, uiState.value.foods.map { it.id }.toSet())
                 _uiState.update { it.copy(editorFood = savedFood, showEditor = false) }
                 loadData()
             } catch (e: Exception) {
@@ -225,13 +253,13 @@ class FoodManagementViewModel(
     fun deleteFood(food: FD) {
         viewModelScope.launch {
             try {
-                persistenceLayer.invalidateFood(food.id, Action.FOOD_REMOVED, Sources.Food)
-                _uiState.update {
-                    it.copy(
-                        foods = it.foods.filter { f -> f.id != food.id },
-                        undoFood = food
-                    )
-                }
+                if (store(food.copy(isValid = false), newRequestId()) != null)
+                    _uiState.update {
+                        it.copy(
+                            foods = it.foods.filter { f -> f.id != food.id },
+                            undoFood = food
+                        )
+                    }
             } catch (e: Exception) {
                 aapsLogger.error(LTag.UI, "Failed to delete food", e)
             }
@@ -248,7 +276,7 @@ class FoodManagementViewModel(
         val food = uiState.value.undoFood ?: return
         viewModelScope.launch {
             try {
-                persistenceLayer.insertOrUpdateFood(food.copy(isValid = true))
+                store(food.copy(isValid = true), newRequestId())
             } catch (e: Exception) {
                 aapsLogger.error(LTag.UI, "Failed to undo food delete", e)
             } finally {
@@ -260,6 +288,40 @@ class FoodManagementViewModel(
     fun clearUndo() {
         _uiState.update { it.copy(undoFood = null) }
     }
+
+    /**
+     * Stores [food], or deletes it when it is not valid. A master stores it here. A client stores nothing: it sends
+     * the change to the master, which stores and uploads it, and the food comes back here through Nightscout. Saving
+     * it here too would make two foods, because only the Nightscout id tells them apart.
+     *
+     * Returns the stored food, or null when the master did not take it. On a client a new food has no id yet.
+     */
+    private suspend fun store(food: FD, requestId: String): FD? {
+        // Only this client has a food without a Nightscout id (made here by an older build): its delete stays here
+        val localOnly = config.AAPSCLIENT && food.id != 0L && food.ids.nightscoutId == null
+        if (localOnly && !food.isValid) {
+            persistenceLayer.invalidateFood(food.id, Action.FOOD_REMOVED, Sources.Food)
+            return food
+        }
+        var stored: FD? = null
+        val label = rh.gs(if (food.isValid) CoreUiStrings.clientcontrol_action_save_food else CoreUiStrings.clientcontrol_action_delete_food)
+        val result = clientControlDispatcher.execute(ClientControlActionDispatcher.Command.FoodChange(requestId, food), label) {
+            stored =
+                if (food.isValid) persistenceLayer.insertOrUpdateFood(food).all().firstOrNull() ?: food.takeIf { it.id > 0 }
+                else food.also { persistenceLayer.invalidateFood(it.id, Action.FOOD_REMOVED, Sources.Food) }
+            ActionProgress.Applied
+        }
+        if (result !is ActionProgress.Applied) return null
+        // The master added it as a new food, which comes back with a Nightscout id: the old copy would be a second one
+        if (localOnly) {
+            persistenceLayer.invalidateFood(food.id, Action.FOOD_REMOVED, Sources.Food)
+            return food.copy(id = 0)
+        }
+        return stored ?: food
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun newRequestId(): String = Uuid.random().toString()
 }
 
 @Immutable
