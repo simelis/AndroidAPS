@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
@@ -54,13 +55,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.aaps.core.data.model.FD
 import app.aaps.core.interfaces.InterfacesStrings
+import app.aaps.core.keys.interfaces.ClientRole
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.AapsSearchField
 import app.aaps.core.ui.compose.AapsSpacing
 import app.aaps.core.ui.compose.AapsTopAppBar
 import app.aaps.core.ui.compose.LocalSnackbarHostState
+import app.aaps.core.ui.compose.MasterOfflineBanner
 import app.aaps.core.ui.compose.consumeOverscroll
 import app.aaps.core.ui.compose.icons.IcCalculator
+import app.aaps.core.ui.compose.masterEditingEnabled
 import app.aaps.core.ui.compose.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -76,6 +80,8 @@ fun FoodManagementScreen(
     val snackbarHostState = LocalSnackbarHostState.current
     val undoLabel = stringResource(CoreUiStrings.undo)
     val deletedLabel = stringResource(CoreUiStrings.food_deleted)
+    // A client sends its food changes to the master, so it can change foods only while the master is reachable
+    val editingEnabled = masterEditingEnabled(ClientRole.Caregiver)
 
     // Show undo snackbar when a food is deleted
     LaunchedEffect(state.undoFood) {
@@ -110,7 +116,7 @@ fun FoodManagementScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { viewModel.openEditor() }) {
+            if (editingEnabled) FloatingActionButton(onClick = { viewModel.openEditor() }) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(CoreUiStrings.add))
             }
         }
@@ -120,6 +126,7 @@ fun FoodManagementScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            MasterOfflineBanner(editingEnabled = editingEnabled)
             // Filter chips
             if (state.allCategories.isNotEmpty()) {
                 FlowRow(
@@ -212,7 +219,8 @@ fun FoodManagementScreen(
                     onDelete = if (state.editorFood != null) {
                         { focusManager.clearFocus(); viewModel.deleteAndCloseEditor() }
                     } else null,
-                    isEditing = state.editorFood != null
+                    isEditing = state.editorFood != null,
+                    editingEnabled = editingEnabled
                 )
             }
         }
@@ -321,6 +329,7 @@ internal fun FoodEditorContent(
     onCancel: () -> Unit,
     onDelete: (() -> Unit)?,
     isEditing: Boolean,
+    editingEnabled: Boolean = true,
 ) {
     Column(
         modifier = Modifier
@@ -337,6 +346,8 @@ internal fun FoodEditorContent(
             text = stringResource(if (isEditing) CoreUiStrings.edit_food else CoreUiStrings.add_food),
             style = MaterialTheme.typography.titleLarge
         )
+
+        MasterOfflineBanner(editingEnabled = editingEnabled)
 
         OutlinedTextField(
             value = state.editorName,
@@ -426,11 +437,13 @@ internal fun FoodEditorContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (onDelete != null) {
-                TextButton(onClick = onDelete) {
-                    Text(
-                        stringResource(CoreUiStrings.delete),
-                        color = MaterialTheme.colorScheme.error
-                    )
+                TextButton(
+                    onClick = onDelete,
+                    enabled = editingEnabled,
+                    // As a button color, not a text color, so a disabled Delete looks disabled
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(CoreUiStrings.delete))
                 }
             } else {
                 Spacer(Modifier.width(AapsSpacing.extraSmall))
@@ -442,7 +455,7 @@ internal fun FoodEditorContent(
                 Spacer(Modifier.width(AapsSpacing.medium))
                 TextButton(
                     onClick = onSave,
-                    enabled = !state.editorSaveAttempted || state.editorName.isNotBlank()
+                    enabled = editingEnabled && (!state.editorSaveAttempted || state.editorName.isNotBlank())
                 ) {
                     Text(stringResource(CoreUiStrings.save))
                 }

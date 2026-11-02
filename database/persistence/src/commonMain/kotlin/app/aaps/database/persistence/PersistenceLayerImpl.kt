@@ -2414,6 +2414,10 @@ class PersistenceLayerImpl(
         repository.getFoodData().map { it.fromDb() }
     }
 
+    override suspend fun getFoodByNSId(nsId: String): FD? = withContext(aapsIoDispatcher) {
+        repository.findFoodByNSId(nsId)?.fromDb()
+    }
+
     override suspend fun getNextSyncElementFood(id: Long): Pair<FD, FD>? = withContext(aapsIoDispatcher) {
         repository.getNextSyncElementFood(id)?.let { pair -> Pair(pair.first.fromDb(), pair.second.fromDb()) }
     }

@@ -195,6 +195,33 @@ sealed class ClientControlMessage {
     data class EatReminderControl(
         val action: String
     ) : ClientControlMessage()
+
+    /**
+     * Client adds, changes or deletes a food. The master writes it and uploads it to Nightscout, and the client gets
+     * it back from there: a client writes no foods itself, so one food never becomes two.
+     *
+     * [nsId] null is a new food; otherwise the master finds the food by its Nightscout id, the only id both phones
+     * share. [isValid] false deletes it, and true on a deleted food restores it. The client makes one [requestId]
+     * for each edit and sends it again when the user tries again, so a save that came through without an answer is
+     * not applied twice.
+     */
+    @Serializable
+    @SerialName("food_change")
+    data class FoodChange(
+        val requestId: String,
+        val nsId: String? = null,
+        val isValid: Boolean = true,
+        val name: String,
+        val category: String? = null,
+        val subCategory: String? = null,
+        val portion: Double,
+        val unit: String = "g",
+        val carbs: Int,
+        val fat: Int? = null,
+        val protein: Int? = null,
+        val energy: Int? = null,
+        val gi: Int? = null
+    ) : ClientControlMessage()
 }
 
 /** One synced preference on the wire: its value (serialized as a string) and edit timestamp. */
